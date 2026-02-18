@@ -23,23 +23,49 @@ En nuestra ciudad, el acceso a redes de apoyo para jóvenes (18-24 años) suele 
 ---
 
 ## 3. Redes de Apoyo y Enlaces de Interés
-*A continuación, se listan los recursos clave para la comunidad en Barranquilla (Enlaces en construcción):*
+*A continuación, se listan recursos oficiales y entidades de apoyo disponibles en Barranquilla y el departamento del Atlántico, relevantes para el acompañamiento en procesos de prevención y recuperación del consumo de alcohol:*
 
 ### 🏢 Instituciones y ONGs Locales
-* **Alcohólicos Anónimos (AA) - Área Atlántico:** [Insertar Link]
-* **Secretaría de Salud de Barranquilla (Línea de la Vida):** [Insertar Link]
-* **Fundaciones de Rehabilitación en el Atlántico:** [Insertar Link]
+* **Alcohólicos Anónimos (AA) – Área Atlántico / Barranquilla:** https://aacolombia.org/grupos/barranquilla/
+* **Secretaría de Salud de Barranquilla (Línea de la Vida):** https://barranquilla.gov.co/salud/salud-mental
+* **Fundación Terapéutica Shalom – Barranquilla:** https://www.funshalom.com/
+* **Plan Territorial de Drogas (2025-2027) – Atlántico:** https://atlantico.gov.co/index.php/noticias/salud-prensa/25855-aprueban-plan-territorial-de-drogas-2025-2027-para-proteger-a-ninos-ninas-y-jovenes-en-atlantico
 
 ### 📢 Campañas de Prevención y Concientización
-* **Campaña "Barranquilla Imparable ante las Adicciones":** [Insertar Link]
-* **Recursos Educativos para Jóvenes:** [Insertar Link]
+* **Documento de prevención del consumo nocivo de alcohol – Ministerio de Salud:** https://www.minsalud.gov.co/sites/rid/Lists/BibliotecaDigital/RIDE/VS/PP/ENT/prevencion-consumo-nocivo-alcohol.pdf
+* **World Health Organization – Alcohol:** https://www.who.int/news-room/fact-sheets/detail/alcohol
+* **AA en el mundo:** https://www.aa.org/es/aa-around-the-world
 
 ---
 
 ## 4. Rutas de Atención en Crisis 🚨
-Si tú o alguien que conoces necesita ayuda inmediata en Barranquilla:
-* **Línea de la Vida (Alcaldía de B/quilla):** Marcar al **123** o al número local [Insertar número].
-* **Atención Psicológica Gratuita:** [Nombre de Institución/Link].
+
+Si tú o alguien que conoces necesita ayuda inmediata en Barranquilla, puedes acudir a las siguientes rutas oficiales de atención:
+
+* **Línea Nacional de Emergencias:**  
+  📞 **123**  
+  (Policía, ambulancia y atención urgente ante riesgo inmediato).
+
+* **Línea de la Vida – Secretaría de Salud Distrital de Barranquilla:**  
+  📞 **(605) 339 99 99**  
+  Servicio disponible 24 horas al día para orientación en:
+  - Crisis emocional
+  - Riesgo suicida
+  - Consumo de sustancias psicoactivas
+  - Violencia intrafamiliar
+  - Dificultades psicológicas urgentes
+
+* **Estrategia Distrital “¡HABLEMOS!” – Puntos de Vacunación Emocional:**  
+  Iniciativa de la Alcaldía de Barranquilla creada en diciembre de 2020 para promover y atender la salud mental de los ciudadanos mediante espacios gratuitos de escucha activa con psicólogos y psiquiatras.  
+  La estrategia ofrece orientación y direccionamiento a las rutas de atención en salud mental, con presencia en universidades, instituciones educativas, PASO, CAMINO y espacios públicos del Distrito.  
+  Desde su creación, ha impactado a más de 70.000 barranquilleros.
+
+  Más información oficial:  
+  https://barranquilla.gov.co/salud/salud-mental
+
+> ⚠️ En caso de riesgo inminente para la vida o emergencia médica, comunícate inmediatamente al 123 o dirígete al centro de salud más cercano.  
+>  
+> NewLife es una herramienta de apoyo y acompañamiento, y no reemplaza la atención médica o psicológica profesional.
 
 ---
 
@@ -51,7 +77,9 @@ Entendemos la sensibilidad del proceso de recuperación. Por ello, NewLife se co
 ---
 
 > [!NOTE]
-> **Aviso de Construcción:** OJO, estamos en proceso de validación con las entidades locales para asegurar que los links y números de contacto sean los oficiales y estén actualizados. Por ahora, los enlaces aparecen como `[Pendiente]` mientras cerramos la fase de mapeo institucional.
+> **Actualización de Enlaces:**  
+> Los enlaces y números de contacto incluidos en este documento corresponden a fuentes oficiales disponibles al momento de elaboración del proyecto.  
+> Se recomienda verificar periódicamente su vigencia, dado que pueden estar sujetos a cambios por parte de las entidades responsables.
 
 ---
 > "La recuperación comienza con la conexión, no con el aislamiento." 
