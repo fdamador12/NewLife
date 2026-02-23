@@ -1,0 +1,17 @@
+# Dependencias
+**/node_modules/
+node_modules/
+
+# Compilación
+**/dist/
+dist/
+**/build/
+
+# Variables de entorno
+**/.env
+.env
+.env.*
+
+# Otros
+backend/dist/
+backend/node_modules/
