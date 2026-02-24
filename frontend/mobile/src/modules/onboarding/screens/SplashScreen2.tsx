@@ -8,7 +8,7 @@ type Props = {
 export default function SplashScreen2({ navigation }: Props) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('Home'); // luego cambias 'Home' por tu pantalla real
+      navigation.replace('Onboarding'); 
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
@@ -17,7 +17,7 @@ export default function SplashScreen2({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
       <Image
-        source={require('../../../assets/images/logo.png')} // pon aquí tu imagen cuando la tengas
+        source={require('../../../assets/images/logo.png')} 
         style={styles.logo}
         resizeMode="contain"
       />
