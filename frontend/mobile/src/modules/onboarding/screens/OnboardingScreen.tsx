@@ -1,15 +1,11 @@
 import React, { useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Dimensions,
-  TouchableWithoutFeedback,
-  FlatList,
+  View, Text, Image, StyleSheet, Dimensions,
+  TouchableWithoutFeedback, FlatList,
 } from 'react-native';
 import { useSharedValue, withRepeat, withTiming, Easing, useAnimatedStyle } from 'react-native-reanimated';
 import Reanimated from 'react-native-reanimated';
+import { colors, fontSizes, spacing } from '../../../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -34,20 +30,18 @@ const slides = [
   },
 ];
 
-const FloatingLeaf = ({ style }: { style: any }) => {
+const FloatingLeaf = ({ style, size = 20 }: { style: any, size?: number }) => {
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
 
   React.useEffect(() => {
     translateY.value = withRepeat(
       withTiming(-20, { duration: 2000 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true
+      -1, true
     );
     translateX.value = withRepeat(
       withTiming(10, { duration: 1500 + Math.random() * 1000, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true
+      -1, true
     );
   }, []);
 
@@ -57,7 +51,7 @@ const FloatingLeaf = ({ style }: { style: any }) => {
 
   return (
     <Reanimated.View style={[style, animatedStyle]}>
-      <Text style={{ fontSize: 20 }}>🍃</Text>
+      <Text style={{ fontSize: size }}>🍃</Text>
     </Reanimated.View>
   );
 };
@@ -72,43 +66,33 @@ export default function OnboardingScreen({ navigation }: any) {
       flatListRef.current?.scrollToIndex({ index: nextIndex });
       setCurrentIndex(nextIndex);
     } else {
-      navigation.replace('Login');
+      navigation.replace('Welcome');
     }
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
-    }
+    if (viewableItems.length > 0) setCurrentIndex(viewableItems[0].index);
   }).current;
 
   return (
     <TouchableWithoutFeedback onPress={handlePress}>
       <View style={styles.container}>
+        <FloatingLeaf style={styles.leaf1} size={14} />
+        <FloatingLeaf style={styles.leaf2} size={24} />
+        <FloatingLeaf style={styles.leaf3} size={18} />
+        <FloatingLeaf style={styles.leaf4} size={28} />
 
-        {/* Hojas flotantes */}
-        <FloatingLeaf style={styles.leaf1} />
-        <FloatingLeaf style={styles.leaf2} />
-        <FloatingLeaf style={styles.leaf3} />
-        <FloatingLeaf style={styles.leaf4} />
-
-        {/* Dots */}
         <View style={styles.dotsContainer}>
           {slides.map((_, index) => (
-            <View
-              key={index}
-              style={[styles.dot, currentIndex === index && styles.dotActive]}
-            />
+            <View key={index} style={[styles.dot, currentIndex === index && styles.dotActive]} />
           ))}
         </View>
 
-        {/* Texto */}
         <View style={styles.textContainer}>
           <Text style={styles.title}>{slides[currentIndex].title}</Text>
           <Text style={styles.description}>{slides[currentIndex].description}</Text>
         </View>
 
-        {/* Imagen de fondo */}
         <FlatList
           ref={flatListRef}
           data={slides}
@@ -121,14 +105,9 @@ export default function OnboardingScreen({ navigation }: any) {
           keyExtractor={(item) => item.id}
           style={styles.flatList}
           renderItem={({ item }) => (
-            <Image
-              source={item.image}
-              style={styles.backgroundImage}
-              resizeMode="contain"
-            />
+            <Image source={item.image} style={styles.backgroundImage} resizeMode="contain" />
           )}
         />
-
       </View>
     </TouchableWithoutFeedback>
   );
@@ -137,7 +116,7 @@ export default function OnboardingScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: colors.background,
   },
   dotsContainer: {
     position: 'absolute',
@@ -145,35 +124,35 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.xs,
     zIndex: 10,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: colors.border,
   },
   dotActive: {
-    backgroundColor: '#555',
+    backgroundColor: colors.text,
   },
   textContainer: {
     position: 'absolute',
     top: 100,
     width: '100%',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xl,
     zIndex: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: fontSizes.xxl,
     fontWeight: '700',
-    color: '#222',
-    marginBottom: 12,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   description: {
-    fontSize: 16,
-    color: '#555',
+    fontSize: fontSizes.md,
+    color: colors.textLight,
     textAlign: 'center',
     lineHeight: 24,
   },

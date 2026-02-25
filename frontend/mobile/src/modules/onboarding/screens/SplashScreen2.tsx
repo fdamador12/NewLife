@@ -1,23 +1,20 @@
 import React, { useEffect } from 'react';
 import { View, Text, Image, StyleSheet, StatusBar } from 'react-native';
+import { colors, fontSizes, spacing } from '../../../constants/theme';
 
-type Props = {
-  navigation: any;
-};
-
-export default function SplashScreen2({ navigation }: Props) {
+export default function SplashScreen2({ navigation }: any) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('Onboarding'); 
+      navigation.replace('Onboarding');
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
+      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
       <Image
-        source={require('../../../assets/images/logo.png')} 
+        source={require('../../../assets/images/logo.png')}
         style={styles.logo}
         resizeMode="contain"
       />
@@ -31,18 +28,18 @@ export default function SplashScreen2({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logo: {
     width: 130,
     height: 130,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   text: {
-    color: '#333',
-    fontSize: 24,
+    color: colors.text,
+    fontSize: fontSizes.xl,
     fontWeight: '300',
   },
   bold: {
