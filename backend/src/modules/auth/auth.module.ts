@@ -4,6 +4,7 @@ import { AuthService } from './application/services/auth.service';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { RegisterUseCase } from './application/use-cases/register.use-case';
 import { RobleAuthAdapter } from './infrastructure/adapters/roble-auth.adapter';
+import { SystemAuthService } from './infrastructure/services/system-auth.service';
 import { DatabaseModule } from '../database/database.module';
 
 @Module({
@@ -13,10 +14,11 @@ import { DatabaseModule } from '../database/database.module';
     AuthService,
     LoginUseCase,
     RegisterUseCase,
+    SystemAuthService,
     {
       provide: 'IAuthProviderPort',
       useClass: RobleAuthAdapter,
     },
   ],
 })
-export class AuthModule { }
+export class AuthModule {}

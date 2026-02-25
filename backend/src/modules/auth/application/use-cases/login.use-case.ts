@@ -1,6 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { IAuthProviderPort } from '../../domain/ports/auth-provider.port';
 import { DatabaseService } from '../../../database/infrastructure/database.service';
+import { SystemAuthService } from '../../infrastructure/services/system-auth.service';
 import { LoginDto } from '../../presentation/dtos/login.dto';
 
 @Injectable()
@@ -9,22 +10,33 @@ export class LoginUseCase {
     @Inject('IAuthProviderPort')
     private readonly authProvider: IAuthProviderPort,
     private readonly dbService: DatabaseService,
-  ) { }
+    private readonly systemAuth: SystemAuthService,
+  ) {}
 
   async execute(dto: LoginDto) {
-    const authUser = await this.authProvider.login(dto.email, dto.password);
     const now = new Date().toISOString();
+    
+    const masterToken = await this.systemAuth.getMasterToken();
 
-    const response = await this.dbService.find(
-      'usuarios',
-      { usuario_id: authUser.uid },
-      authUser.accessToken
+    const searchResponse = await this.dbService.find(
+      'usuarios', 
+      { email: dto.email }, 
+      masterToken
     );
 
-    const userDataArray = Array.isArray(response) ? response : (response.rows || []);
+    const userInDb = Array.isArray(searchResponse) ? searchResponse[0] : (searchResponse.rows?.[0]);
+
+    if (userInDb) {
+      if (userInDb.estado === 'eliminado') {
+        throw new ForbiddenException('Tu cuenta ha sido eliminada y no puedes acceder a la aplicación.');
+      }
+    }
+    
+    const authUser = await this.authProvider.login(dto.email, dto.password);
+
     let finalUserData;
 
-    if (userDataArray.length === 0) {
+    if (!userInDb) {
       const newRecord = {
         usuario_id: authUser.uid,
         email: authUser.email,
@@ -37,21 +49,14 @@ export class LoginUseCase {
       await this.dbService.insert('usuarios', [newRecord], authUser.accessToken);
       finalUserData = newRecord;
     } else {
-      try {
-        await this.dbService.update(
-          'usuarios',
-          'usuario_id',
-          authUser.uid,
-          { last_login: now },
-          authUser.accessToken
-        );
-      } catch (e: any) {
-        const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
-        console.error("[LOGIN ERROR] Falló la actualización de last_login:", errorMessage);
-      }
-
-      finalUserData = userDataArray[0];
-      finalUserData.last_login = now;
+      await this.dbService.update(
+        'usuarios',
+        'usuario_id',
+        userInDb.usuario_id,
+        { last_login: now },
+        authUser.accessToken
+      );
+      finalUserData = { ...userInDb, last_login: now };
     }
 
     return {
