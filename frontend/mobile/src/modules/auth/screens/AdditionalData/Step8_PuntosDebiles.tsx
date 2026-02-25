@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList,
+  View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView,
 } from 'react-native';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import Icon from 'react-native-vector-icons/Feather';
 import StepLayout from '../../components/StepLayout';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
-
-const INPUT_HEIGHT = 52;
 
 type Place = {
   id: string;
@@ -17,17 +15,46 @@ type Place = {
   longitude: number;
 };
 
+const mapHTML = (places: Place[]) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { width: 100%; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const map = L.map('map').setView([10.9639, -74.7964], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const places = ${JSON.stringify(places)};
+    places.forEach(p => {
+      L.marker([p.latitude, p.longitude])
+        .addTo(map)
+        .bindPopup(p.name);
+    });
+
+    if (places.length > 0) {
+      map.setView([places[places.length-1].latitude, places[places.length-1].longitude], 15);
+    }
+  </script>
+</body>
+</html>
+`;
+
 export default function Step8_PuntosDebiles({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Place[]>([]);
   const [savedPlaces, setSavedPlaces] = useState<Place[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [region, setRegion] = useState({
-    latitude: 10.9639,
-    longitude: -74.7964,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
 
   const searchPlaces = async (query: string) => {
     setSearch(query);
@@ -35,23 +62,21 @@ export default function Step8_PuntosDebiles({ navigation }: any) {
       setResults([]);
       return;
     }
-
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=co`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`,
         { headers: { 'Accept-Language': 'es' } }
       );
       const data = await response.json();
-      const places = data.map((item: any) => ({
+      setResults(data.map((item: any) => ({
         id: item.place_id.toString(),
         name: item.display_name.split(',')[0],
         address: item.display_name,
         latitude: parseFloat(item.lat),
         longitude: parseFloat(item.lon),
-      }));
-      setResults(places);
-    } catch (error) {
-      console.error('Error buscando lugares:', error);
+      })));
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -59,12 +84,6 @@ export default function Step8_PuntosDebiles({ navigation }: any) {
     setSelectedPlace(place);
     setSearch(place.name);
     setResults([]);
-    setRegion({
-      latitude: place.latitude,
-      longitude: place.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
   };
 
   const savePlace = () => {
@@ -88,101 +107,84 @@ export default function Step8_PuntosDebiles({ navigation }: any) {
       onContinue={() => navigation.navigate('Step9')}
       showButton={true}
     >
-      <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.container}>
 
-        {/* Input búsqueda */}
-        <View style={styles.inputWrapper}>
-          <Icon name="search" size={16} color={colors.textMuted} />
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe la dirección / nombre..."
-            placeholderTextColor={colors.border}
-            value={search}
-            onChangeText={searchPlaces}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => { setSearch(''); setResults([]); setSelectedPlace(null); }}>
-              <Icon name="x" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Resultados de búsqueda */}
-        {results.length > 0 && (
-          <View style={styles.resultsList}>
-            {results.map((place) => (
-              <TouchableOpacity
-                key={place.id}
-                style={styles.resultItem}
-                onPress={() => selectPlace(place)}
-              >
-                <Icon name="map-pin" size={14} color={colors.accent} />
-                <View style={styles.resultText}>
-                  <Text style={styles.resultName} numberOfLines={1}>{place.name}</Text>
-                  <Text style={styles.resultAddress} numberOfLines={1}>{place.address}</Text>
-                </View>
+          {/* Input búsqueda */}
+          <View style={styles.inputWrapper}>
+            <Icon name="search" size={16} color={colors.textMuted} />
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe la dirección / nombre..."
+              placeholderTextColor={colors.border}
+              value={search}
+              onChangeText={searchPlaces}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => { setSearch(''); setResults([]); setSelectedPlace(null); }}>
+                <Icon name="x" size={16} color={colors.textMuted} />
               </TouchableOpacity>
-            ))}
+            )}
           </View>
-        )}
 
-        {/* Lugar seleccionado para guardar */}
-        {selectedPlace && (
-          <View style={styles.selectedPlace}>
-            <View style={styles.selectedPlaceInfo}>
-              <Text style={styles.selectedPlaceName}>{selectedPlace.name}</Text>
-              <Text style={styles.selectedPlaceAddress} numberOfLines={1}>
-                {selectedPlace.address}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.saveButton} onPress={savePlace}>
-              <Icon name="bookmark" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Mapa */}
-        <MapView
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-        >
-          <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maximumZ={19}
-          />
-          {savedPlaces.map((place) => (
-            <Marker
-              key={place.id}
-              coordinate={{ latitude: place.latitude, longitude: place.longitude }}
-              title={place.name}
-            />
-          ))}
-          {selectedPlace && (
-            <Marker
-              coordinate={{ latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }}
-              title={selectedPlace.name}
-              pinColor={colors.accent}
-            />
-          )}
-        </MapView>
-
-        {/* Lista de lugares guardados */}
-        {savedPlaces.length > 0 && (
-          <View style={styles.savedList}>
-            {savedPlaces.map((place) => (
-              <View key={place.id} style={styles.savedItem}>
-                <Icon name="map-pin" size={14} color={colors.accent} />
-                <Text style={styles.savedName} numberOfLines={1}>{place.name}</Text>
-                <TouchableOpacity onPress={() => removePlace(place.id)}>
-                  <Icon name="x" size={14} color={colors.textMuted} />
+          {/* Resultados */}
+          {results.length > 0 && (
+            <View style={styles.resultsList}>
+              {results.map((place) => (
+                <TouchableOpacity
+                  key={place.id}
+                  style={styles.resultItem}
+                  onPress={() => selectPlace(place)}
+                >
+                  <Icon name="map-pin" size={14} color={colors.accent} />
+                  <View style={styles.resultText}>
+                    <Text style={styles.resultName} numberOfLines={1}>{place.name}</Text>
+                    <Text style={styles.resultAddress} numberOfLines={1}>{place.address}</Text>
+                  </View>
                 </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
+              ))}
+            </View>
+          )}
 
-      </View>
+          {/* Lugar seleccionado */}
+          {selectedPlace && (
+            <View style={styles.selectedPlace}>
+              <View style={styles.selectedPlaceInfo}>
+                <Text style={styles.selectedPlaceName}>{selectedPlace.name}</Text>
+                <Text style={styles.selectedPlaceAddress} numberOfLines={1}>{selectedPlace.address}</Text>
+              </View>
+              <TouchableOpacity style={styles.saveButton} onPress={savePlace}>
+                <Icon name="bookmark" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Mapa WebView */}
+          <View style={styles.mapContainer}>
+            <WebView
+              source={{ html: mapHTML([...savedPlaces, ...(selectedPlace ? [selectedPlace] : [])]) }}
+              style={styles.map}
+              scrollEnabled={false}
+            />
+          </View>
+
+          {/* Lista guardados */}
+          {savedPlaces.length > 0 && (
+            <View style={styles.savedList}>
+              {savedPlaces.map((place) => (
+                <View key={place.id} style={styles.savedItem}>
+                  <Icon name="map-pin" size={14} color={colors.accent} />
+                  <Text style={styles.savedName} numberOfLines={1}>{place.name}</Text>
+                  <TouchableOpacity onPress={() => removePlace(place.id)}>
+                    <Icon name="x" size={14} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+        </View>
+      </ScrollView>
     </StepLayout>
   );
 }
@@ -190,6 +192,7 @@ export default function Step8_PuntosDebiles({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     gap: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   inputWrapper: {
     height: 52,
@@ -255,10 +258,13 @@ const styles = StyleSheet.create({
   saveButton: {
     padding: spacing.sm,
   },
-  map: {
+  mapContainer: {
     height: 200,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
+  },
+  map: {
+    flex: 1,
   },
   savedList: {
     gap: spacing.xs,

@@ -9,16 +9,16 @@ import WelcomeScreen from '../modules/auth/screens/WelcomeScreen';
 import LoginScreen from '../modules/auth/screens/LoginScreen';
 import RegisterScreen from '../modules/auth/screens/RegisterScreen';
 import StoryScreen from '../modules/auth/screens/StoryScreen';
-import Step1_Apodo from '../modules/auth/screens/additionalData/Step1_Apodo';
-import Step2_Pronombres from '../modules/auth/screens/additionalData/Step2_Pronombres';
-import Step3_UltimoConsumo from '../modules/auth/screens/additionalData/Step3_UltimoConsumo';
-import Step4_Motivo from '../modules/auth/screens/additionalData/Step4_Motivo';
-import Step5_Dinero from '../modules/auth/screens/additionalData/Step5_Dinero';
-import Step6_Telefono from '../modules/auth/screens/additionalData/Step6_Telefono';
-import Step7_LugaresRiesgo from '../modules/auth/screens/additionalData/Step7_LugaresRiesgo';
-import Step9_Privacidad from '../modules/auth/screens/additionalData/Step9_Privacidad';
-import Step10_Horario from '../modules/auth/screens/additionalData/Step10_Horario';
-import Step8_PuntosDebiles from '../modules/auth/screens/additionalData/Step8_PuntosDebiles';
+import Step1_Apodo from '../modules/auth/screens/AdditionalData/Step1_Apodo';
+import Step2_Pronombres from '../modules/auth/screens/AdditionalData/Step2_Pronombres';
+import Step3_UltimoConsumo from '../modules/auth/screens/AdditionalData/Step3_UltimoConsumo';
+import Step4_Motivo from '../modules/auth/screens/AdditionalData/Step4_Motivo';
+import Step5_Dinero from '../modules/auth/screens/AdditionalData/Step5_Dinero';
+import Step6_Telefono from '../modules/auth/screens/AdditionalData/Step6_Telefono';
+import Step7_LugaresRiesgo from '../modules/auth/screens/AdditionalData/Step7_LugaresRiesgo';
+import Step9_Privacidad from '../modules/auth/screens/AdditionalData/Step9_Privacidad';
+import Step10_Horario from '../modules/auth/screens/AdditionalData/Step10_Horario';
+import Step8_PuntosDebiles from '../modules/auth/screens/AdditionalData/Step8_PuntosDebiles';
 
 const Stack = createNativeStackNavigator();
 
