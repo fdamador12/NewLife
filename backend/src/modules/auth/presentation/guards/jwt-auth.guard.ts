@@ -6,7 +6,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     @Inject('IAuthProviderPort')
     private readonly authProvider: IAuthProviderPort,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -16,9 +16,9 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const data = await this.authProvider.verifyToken(token);
-      
+
       const id = data?.user?.id || data?.id || data?.user?.sub || data?.sub || data?.user?.uid;
-      
+
       if (!id) throw new UnauthorizedException('No se pudo identificar al usuario');
 
       request.userId = id;

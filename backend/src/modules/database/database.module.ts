@@ -6,4 +6,4 @@ import { DatabaseService } from './infrastructure/database.service';
   providers: [DatabaseService],
   exports: [DatabaseService],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

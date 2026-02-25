@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 import { IAuthProviderPort } from '../../domain/ports/auth-provider.port';
 import { UserAuthEntity } from '../../domain/entities/user-auth.entity';
@@ -10,42 +10,42 @@ export class RobleAuthAdapter implements IAuthProviderPort {
     async login(email: string, password: string): Promise<UserAuthEntity> {
         try {
             const res = await axios.post(`${this.authBaseUrl}/login`, { email, password });
-            const { accessToken, refreshToken } = res.data;
-            const verifyRes = await this.verifyToken(accessToken);
 
-            const id = verifyRes?.user?.id || verifyRes?.id || verifyRes?.user?.sub || verifyRes?.sub || verifyRes?.user?.uid;
-            const role = verifyRes?.user?.role || verifyRes?.role || 'paciente';
+            const { accessToken, refreshToken, user } = res.data;
 
-            return new UserAuthEntity(id, email, accessToken, refreshToken, role);
+            return new UserAuthEntity(
+                user.id,
+                email,
+                accessToken,
+                refreshToken,
+                user.role || 'paciente'
+            );
         } catch (error: any) {
-            throw new UnauthorizedException(error.response?.data?.message || 'Error de autenticación');
+            const message = error.response?.data?.message || 'Error de acceso a Roble';
+            throw new UnauthorizedException(message);
         }
     }
 
-    async register(data: { email: string; password: string; name: string; rol: string }): Promise<UserAuthEntity> {
+    async register(data: { email: string; password: string; name: string }): Promise<UserAuthEntity> {
         try {
-            const endpoint = 'signup';
-            const url = `${this.authBaseUrl}/${endpoint}`;
-
-            const res = await axios.post(url, {
+            await axios.post(`${this.authBaseUrl}/signup-direct`, {
                 name: data.name,
                 email: data.email,
                 password: data.password
             });
-
-            const user = res.data.user;
-            return new UserAuthEntity(user.uid || user.id, user.email, '', '', data.rol);
+            return new UserAuthEntity('', data.email, '', '', 'paciente');
         } catch (error: any) {
-            throw new BadRequestException(error.response?.data?.message || 'Fallo al registrar en Roble');
+            throw error;
         }
     }
+
     async verifyToken(token: string): Promise<any> {
         try {
             const res = await axios.get(`${this.authBaseUrl}/verify-token`, {
-                headers: { Authorization: token }
+                headers: { Authorization: `Bearer ${token}` }
             });
             return res.data;
-        } catch (error) {
+        } catch {
             return null;
         }
     }

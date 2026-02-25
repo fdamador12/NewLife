@@ -7,7 +7,7 @@ import { RegisterDto } from '../dtos/register.dto';
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('login')
   @ApiOperation({ summary: 'Inicio de sesión para usuarios existentes' })

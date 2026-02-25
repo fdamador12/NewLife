@@ -9,7 +9,7 @@ export class AuthService {
   constructor(
     private readonly loginUseCase: LoginUseCase,
     private readonly registerUseCase: RegisterUseCase,
-  ) {}
+  ) { }
 
   async login(loginDto: LoginDto) {
     return await this.loginUseCase.execute(loginDto);
