@@ -84,7 +84,7 @@ export default function StoryScreen({ navigation }: any) {
             flatListRef.current?.scrollToIndex({ index: nextIndex });
             setCurrentIndex(nextIndex);
         } else {
-            navigation.navigate('AdditionalData');
+            navigation.navigate('Step1');
         }
     };
 
