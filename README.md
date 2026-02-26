@@ -77,6 +77,7 @@ El proyecto contempla la transformación de un prototipo validado en una soluci�
   - Check-ins diarios
   - Contenido motivacional
   - Herramientas de apoyo en crisis
+  - Red social
 
 ### 4.3 Desarrollo de la aplicación móvil
 

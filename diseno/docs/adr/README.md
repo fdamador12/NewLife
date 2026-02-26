@@ -1,41 +1,99 @@
-# ADR 001: Adopción de Arquitectura Monolito Modular - NewLife 
+# ADR 001: Arquitectura Monolito Modular
 
 ## 1. Estado
-**Aceptado** (17/02/2026)
+
+Aceptado
+
+Fecha:
+
+17/02/2026
 
 ---
 
 ## 2. Contexto
-El proyecto **NewLife** requiere una infraestructura que soporte una aplicación móvil (`React Native`) y un backend robusto (`NestJS`). Dado que el alcance inicial se centra en Barranquilla con un grupo demográfico específico, se evaluó la necesidad de escalabilidad frente a la velocidad de entrega y la simplicidad operativa en el servidor institucional (**Roble UN**).
+
+El proyecto NewLife requiere una infraestructura que soporte:
+
+- Aplicación móvil React Native
+- Aplicación web administrativa
+- Backend NestJS
+
+El alcance inicial está limitado a Barranquilla.
+
+Se busca:
+
+- Simplicidad
+- Escalabilidad
+- Facilidad de despliegue
 
 ---
 
 ## 3. Decisión
-Hemos decidido implementar una **Arquitectura de Monolito Modular**. 
 
-A diferencia de un monolito tradicional, este enfoque organiza el backend en módulos independientes basados en dominios lógicos (Usuarios, Instituciones, Autenticación, etc.), compartiendo una única unidad de despliegue y base de datos (`Roble`).
+Se adopta arquitectura Monolito Modular.
 
+El backend estará organizado en módulos:
 
+- Usuarios
+- Autenticación
+- Contenido
+- Administración
+
+Todos compartirán:
+
+- Base de datos única
+- Backend único
+- Despliegue único
 
 ---
 
 ## 4. Justificación
-* **Eficiencia en el Despliegue:** Facilita la integración y entrega continua (CI/CD) al gestionar un solo artefacto de software.
-* **Separación de Responsabilidades:** Cada módulo de `NestJS` encapsula su propia lógica de negocio, lo que permite un desarrollo paralelo más limpio.
-* **Preparación para el Futuro:** Si el sistema crece, la independencia de los módulos permite una migración sencilla hacia microservicios con un refactor mínimo.
-* **Optimización de Recursos:** Menor latencia de red en comunicaciones internas comparado con una arquitectura distribuida.
+
+### Ventajas
+
+- Despliegue simple
+- Menor complejidad
+- Código organizado
+- Fácil testing
+
+### Escalabilidad
+
+Permite migración futura a microservicios.
+
+### Rendimiento
+
+Menor latencia interna.
 
 ---
 
-## 5. Consecuencias y Riesgos
-* **Positivas:** * Estructura de código altamente organizada y fácil de testear.
-    * Curva de aprendizaje moderada para el equipo de desarrollo.
-* **Riesgos y Mitigación:** * **Riesgo:** Posible acoplamiento excesivo entre módulos si no se respetan las interfaces de servicio. 
-    * **Mitigación:** Se aplicarán principios de **Inyección de Dependencias** y se prohibirá el acceso directo a repositorios de otros módulos.
+## 5. Riesgos
+
+### Riesgo
+
+Acoplamiento entre módulos.
+
+### Mitigación
+
+- Interfaces claras
+- Inyección de dependencias
+- Separación modular
 
 ---
 
-## 6. Alcance Técnico Relacionado
-* **Frontend:** React Native (Consumo de API REST).
-* **Backend:** NestJS sobre Node.js.
-* **DB:** Roble.
+## 6. Stack Técnico
+
+Frontend móvil:
+
+React Native
+
+Frontend web:
+
+React o Next.js
+
+Backend:
+
+NestJS
+
+Base de datos:
+
+ROBLE (PostgreSQL)
