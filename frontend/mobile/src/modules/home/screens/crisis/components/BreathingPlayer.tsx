@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Animated } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
 import Icon from 'react-native-vector-icons/Feather';
@@ -23,14 +23,15 @@ export const BreathingPlayer: React.FC<BreathingPlayerProps> = ({
   onReset,
 }) => {
   const [soundError, setSoundError] = useState<string | null>(null);
-  const [isSoundPlaying, setIsSoundPlaying] = useState(false);
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const [isMuted, setIsMuted] = useState(false);
 
-  // ✅ SIEMPRE llamar el hook, nunca condicionalmente
-  // Si no hay URL, pasamos un string vacío (no cauará error)
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const animLoopRef = useRef<any>(null);
+
+  // ✅ Siempre llamar hook
   const player = useAudioPlayer(sound?.preview_url || '');
 
-  // Reproducir cuando cambia breathing o sonido
+  // ✅ PLAY/PAUSE - Controla reproducción Y animación
   React.useEffect(() => {
     if (!sound || !player) return;
 
@@ -39,31 +40,78 @@ export const BreathingPlayer: React.FC<BreathingPlayerProps> = ({
         setSoundError(null);
 
         if (isBreathingPlaying) {
-          await player.play();
-          setIsSoundPlaying(true);
+          // REPRODUCIR - Solo si NO está muteado
+          if (!isMuted) {
+            await player.play();
+          }
+
+          // Iniciar animación de barra en LOOP (SIEMPRE, esté muteado o no)
+          if (animLoopRef.current) {
+            animLoopRef.current.stop();
+          }
+          animLoopRef.current = Animated.loop(
+            Animated.sequence([
+              Animated.timing(progressAnim, {
+                toValue: 100,
+                duration: phaseDuration * 1000,
+                useNativeDriver: false,
+              }),
+              Animated.timing(progressAnim, {
+                toValue: 0,
+                duration: 0,
+                useNativeDriver: false,
+              }),
+            ]),
+            { iterations: -1 }
+          );
+          animLoopRef.current.start();
         } else {
+          // PAUSA - Detener SOLO audio, animación se detiene
           player.pause();
-          setIsSoundPlaying(false);
+          if (animLoopRef.current) {
+            animLoopRef.current.stop();
+          }
+          progressAnim.setValue(0);
         }
       } catch (error: any) {
         setSoundError('Error al reproducir audio');
         console.error('Error:', error.message);
-        setIsSoundPlaying(false);
       }
     };
 
     playAudio();
-  }, [sound, player, isBreathingPlaying]);
+  }, [sound, player, isBreathingPlaying, phaseDuration]);
 
-  // Barra de progreso
+  // ✅ MUTE/UNMUTE - SOLO controla sonido, NO afecta animación ni estado de play
+  const handleMuteToggle = async () => {
+    if (!player || !sound || !isBreathingPlaying) return;
+
+    try {
+      setSoundError(null);
+
+      if (!isMuted) {
+        // MUTEAR - Pausar audio SIN afectar animación
+        player.pause();
+        setIsMuted(true);
+      } else {
+        // DESMUETEAR - Reanudar audio SIN reiniciar (continúa donde estaba)
+        await player.play();
+        setIsMuted(false);
+      }
+    } catch (error: any) {
+      setSoundError('Error al controlar volumen');
+      console.error('Error:', error.message);
+    }
+  };
+
+  // Cleanup
   React.useEffect(() => {
-    const progress = (1 - countdown / phaseDuration) * 100;
-    Animated.timing(progressAnim, {
-      toValue: progress,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [countdown, phaseDuration]);
+    return () => {
+      if (animLoopRef.current) {
+        animLoopRef.current.stop();
+      }
+    };
+  }, []);
 
   return (
     <View style={styles.playerContainer}>
@@ -84,11 +132,11 @@ export const BreathingPlayer: React.FC<BreathingPlayerProps> = ({
 
       {/* Tiempo */}
       <View style={styles.timeRow}>
-        <Text style={styles.timeText}>0:00</Text>
+        <Text style={styles.timeText}>∞</Text>
         <Text style={styles.timeText}>∞</Text>
       </View>
 
-      {/* Error mensaje intuitivo */}
+      {/* Error mensaje */}
       {soundError && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>⚠️ {soundError}</Text>
@@ -96,22 +144,14 @@ export const BreathingPlayer: React.FC<BreathingPlayerProps> = ({
         </View>
       )}
 
-      {/* Info del sonido */}
-      {sound && !soundError && (
-        <View style={styles.soundInfo}>
-          <Text style={styles.soundName}>🔊 {sound.nombre}</Text>
-          <Text style={styles.soundStatus}>
-            {isSoundPlaying ? '▶️ Reproduciéndose' : '⏸️ Pausado'}
-          </Text>
-        </View>
-      )}
-
       {/* Controles */}
       <View style={styles.controls}>
+        {/* Botón Reset */}
         <TouchableOpacity style={styles.controlButtonSecondary} onPress={onReset}>
           <Icon name="rotate-ccw" size={20} color={colors.textMuted} />
         </TouchableOpacity>
 
+        {/* Botón Play/Pause - Controla reproducción Y animación */}
         <TouchableOpacity
           style={styles.controlButtonPrimary}
           onPress={onToggleBreathing}
@@ -124,11 +164,16 @@ export const BreathingPlayer: React.FC<BreathingPlayerProps> = ({
           />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.controlButtonSecondary}>
+        {/* Botón Mute/Unmute - SOLO silencia audio, nada más */}
+        <TouchableOpacity
+          style={styles.controlButtonSecondary}
+          onPress={handleMuteToggle}
+          disabled={!isBreathingPlaying}
+        >
           <Icon
-            name={isSoundPlaying ? 'volume-2' : 'volume-x'}
+            name={isMuted ? 'volume-x' : 'volume-2'}
             size={20}
-            color={isSoundPlaying ? colors.primary : colors.textMuted}
+            color={isMuted ? colors.textMuted : colors.primary}
           />
         </TouchableOpacity>
       </View>
@@ -161,8 +206,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   timeText: {
-    fontSize: fontSizes.xs,
+    fontSize: 14,
     color: colors.textMuted,
+    fontWeight: '600',
   },
   errorContainer: {
     backgroundColor: '#FFE5E5',
@@ -181,21 +227,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: '#CC5555',
     fontStyle: 'italic',
-  },
-  soundInfo: {
-    backgroundColor: '#F5F5F5',
-    padding: spacing.sm,
-    borderRadius: 8,
-    gap: spacing.xs,
-  },
-  soundName: {
-    fontSize: fontSizes.sm,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  soundStatus: {
-    fontSize: fontSizes.xs,
-    color: colors.textMuted,
   },
   controls: {
     flexDirection: 'row',

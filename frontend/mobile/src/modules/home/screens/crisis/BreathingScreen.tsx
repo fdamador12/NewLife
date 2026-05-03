@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Text } from 'react-native';
-import { colors, spacing } from '../../../../constants/theme';
-
+import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { colors, spacing, fontSizes, borderRadius } from '../../../../constants/theme';
 import { useBreathingSounds } from './hooks/useBreathingSounds';
 import { useBreathingTimer } from './hooks/useBreathingTimer';
+import { Feather } from '@expo/vector-icons';
 
-import { BreathingHeader } from './components/BreathingHeader';
 import { BreathingCircle } from './components/BreathingCircle';
 import { SoundSelector } from './components/SoundSelector';
 import { BreathingPlayer } from './components/BreathingPlayer';
@@ -45,7 +44,17 @@ export default function BreathingScreen({ navigation }: BreathingScreenProps) {
 
   return (
     <View style={styles.container}>
-      <BreathingHeader onBack={() => navigation.goBack()} />
+      
+      {/* 🔥 HEADER CORREGIDO (igual que frases) */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Feather name="chevron-left" size={24} color={colors.text} />
+        </TouchableOpacity>
+
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>Modo Zen</Text>
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -64,6 +73,7 @@ export default function BreathingScreen({ navigation }: BreathingScreenProps) {
         {soundsError && (
           <Text style={styles.errorText}>⚠️ Error: {soundsError}</Text>
         )}
+
         <SoundSelector
           sounds={sounds}
           selectedSoundId={selectedSoundId}
@@ -80,20 +90,14 @@ export default function BreathingScreen({ navigation }: BreathingScreenProps) {
           onReset={resetBreathing}
         />
 
-        <View style={styles.linksContainer}>
-          <Text
-            style={styles.link}
-            onPress={() => navigation.navigate('MotivationalPhrasesScreen')}
-          >
-            📝 Frases motivacionales
-          </Text>
-          <Text
-            style={styles.link}
-            onPress={() => navigation.navigate('GuidedMeditationScreen')}
-          >
-            🎧 Meditación guiada
-          </Text>
-        </View>
+        {/* BOTÓN NARANJA */}
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => navigation.navigate('MotivationalPhrasesScreen')}
+        >
+          <Text style={styles.link}>Ir a frases motivacionales</Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </View>
   );
@@ -104,12 +108,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingTop: 60,
-    paddingHorizontal: spacing.xl,
   },
+
+  // 🔥 HEADER IGUAL AL DE FRASES
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  badge: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badgeText: {
+    fontSize: fontSizes.sm,
+    color: colors.text,
+    fontWeight: '600',
+  },
+
   scrollContent: {
     alignItems: 'center',
+    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },
+
   title: {
     fontSize: 32,
     fontWeight: '800',
@@ -126,17 +154,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     textAlign: 'center',
   },
-  linksContainer: {
-    width: '100%',
-    gap: spacing.md,
+
+  // BOTÓN NARANJA
+  linkButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
     marginTop: spacing.lg,
+    width: '100%',
   },
   link: {
-    fontSize: 14,
-    color: colors.primary,
+    fontSize: fontSizes.sm,
+    color: colors.accent,
     fontWeight: '600',
     textAlign: 'center',
-    paddingVertical: spacing.sm,
     textDecorationLine: 'underline',
   },
 });
