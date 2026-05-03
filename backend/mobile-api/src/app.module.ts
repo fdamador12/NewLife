@@ -9,7 +9,8 @@ import { HomeModule } from './modules/home/home.module';
 import { ProgressModule } from './modules/progress/progress.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
 import { MotivationModule } from './modules/motivation/motivation.module';
-import { SosModule } from './modules/sos/sos.module'; // ✅ AGREGAR ESTA LÍNEA
+import { SosModule } from './modules/sos/sos.module';
+import { GuidedMeditationModule } from './modules/guided-meditation/guided-meditation.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { SosModule } from './modules/sos/sos.module'; // ✅ AGREGAR ESTA LÍNEA
     ProgressModule,
     CommunitiesModule,
     MotivationModule,
-    SosModule, // ✅ AGREGAR AQUÍ
+    SosModule,
+    GuidedMeditationModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

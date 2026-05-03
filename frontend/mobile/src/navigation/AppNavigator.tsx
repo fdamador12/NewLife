@@ -28,7 +28,7 @@ import EmergencyContactsScreen from '../modules/home/screens/EmergencyContactsSc
 import CrisisModeScreen from '../modules/home/screens/crisis/CrisisModeScreen';
 import BreathingScreen from '../modules/home/screens/crisis/BreathingScreen';
 import MotivationalPhrasesScreen from '../modules/home/screens/crisis/MotivationalPhrasesScreen';
-import GuidedMeditationScreen from '../modules/home/screens/crisis/GuidedMeditationScreen';
+import GuidedMeditationScreen from '../modules/home/screens/guided-audios/GuidedMeditationScreen';
 import CongratulationsScreen from '../modules/auth/screens/AdditionalData/Congratulations';
 import AppTourScreen from '../modules/auth/screens/AppTourScreen';
 import GratitudeHistoryScreen from '../modules/progress/screens/GratitudeHistoryScreen';
