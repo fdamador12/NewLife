@@ -9,6 +9,7 @@ import { HomeModule } from './modules/home/home.module';
 import { ProgressModule } from './modules/progress/progress.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
 import { MotivationModule } from './modules/motivation/motivation.module';
+import { SosModule } from './modules/sos/sos.module'; // ✅ AGREGAR ESTA LÍNEA
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MotivationModule } from './modules/motivation/motivation.module';
     ProgressModule,
     CommunitiesModule,
     MotivationModule,
+    SosModule, // ✅ AGREGAR AQUÍ
   ],
 })
 export class AppModule { }

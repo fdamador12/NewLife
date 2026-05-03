@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://10.0.2.2:3000';
+const BASE_URL = 'http://10.0.2.2:5181';
 
 // Event emitter para notificar sesión expirada
 type Listener = () => void;
