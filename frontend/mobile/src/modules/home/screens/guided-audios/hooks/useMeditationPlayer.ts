@@ -4,20 +4,18 @@ import { useAudioPlayer } from 'expo-audio';
 export const useMeditationPlayer = (audioUrl: string) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
 
   const player = useAudioPlayer(audioUrl);
-
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // reset al cambiar audio
+  // 🔥 reset cuando cambia audio
   useEffect(() => {
     setIsPlaying(false);
     setCurrentTime(0);
-    setIsMuted(false);
 
     try {
       player.pause();
+      player.seekTo(0); // 🔥 CLAVE: reset real del engine
     } catch {}
 
     if (intervalRef.current) {
@@ -53,23 +51,20 @@ export const useMeditationPlayer = (audioUrl: string) => {
       player.pause();
       setIsPlaying(false);
       stopTracking();
-    } catch {
-      setIsPlaying(false);
-    }
+    } catch {}
   };
 
   const stopAudio = () => {
     try {
       player.pause();
+      player.seekTo(0); // 🔥 RESET REAL OBLIGATORIO
     } catch {}
 
     setIsPlaying(false);
     setCurrentTime(0);
-    setIsMuted(false);
     stopTracking();
   };
 
-  // SEEK base
   const seek = (time: number) => {
     const safe = Math.max(0, time);
 
@@ -80,39 +75,17 @@ export const useMeditationPlayer = (audioUrl: string) => {
     setCurrentTime(safe);
   };
 
-  // 🔥 EXACTAMENTE LO QUE PEDISTE
-  const skipBack10 = () => {
-    seek(currentTime - 10);
-  };
-
-  const skipForward10 = () => {
-    seek(currentTime + 10);
-  };
-
-  const toggleMute = () => {
-    if (!isPlaying) return;
-
-    try {
-      if (isMuted) {
-        player.play();
-        setIsMuted(false);
-      } else {
-        player.pause();
-        setIsMuted(true);
-      }
-    } catch {}
-  };
+  const skipBack10 = () => seek(currentTime - 10);
+  const skipForward10 = () => seek(currentTime + 10);
 
   return {
     isPlaying,
     currentTime,
-    isMuted,
     playAudio,
     pauseAudio,
     stopAudio,
     seek,
     skipBack10,
     skipForward10,
-    toggleMute,
   };
 };

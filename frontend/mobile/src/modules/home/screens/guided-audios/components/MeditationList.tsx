@@ -87,7 +87,7 @@ export default function MeditationList({
             <Text style={styles.title} numberOfLines={2}>
               {item.nombre}
             </Text>
-            <Text style={styles.duration}>⏱️ {item.duracion} min</Text>
+            <Text style={styles.duration}> {item.duracion} min</Text>
           </View>
         </TouchableOpacity>
       )}

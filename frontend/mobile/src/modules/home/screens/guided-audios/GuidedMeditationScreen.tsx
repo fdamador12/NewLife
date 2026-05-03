@@ -23,41 +23,44 @@ export default function GuidedMeditationScreen({ navigation }: any) {
     skipForward10,
   } = useMeditationPlayer(selectedMeditation?.url || '');
 
+  // 🔥 PAUSA + RESET AL SALIR DE LA SCREEN
   useFocusEffect(
     React.useCallback(() => {
-      return () => stopAudio();
+      return () => {
+        stopAudio(); // ya incluye seekTo(0)
+      };
     }, [])
   );
 
+  // ============================
+  // 🎯 SELECT
+  // ============================
   const handleSelectMeditation = (meditation: any) => {
     stopAudio();
     setSelectedMeditation(meditation);
 
+    // autoplay desde inicio
     setTimeout(() => {
       playAudio();
-    }, 120);
+    }, 150);
   };
 
+  // ============================
+  // 🔙 BACK
+  // ============================
   const handleBack = () => {
     stopAudio();
     setSelectedMeditation(null);
   };
 
   const handlePlayPause = () => {
-    isPlaying ? pauseAudio() : playAudio();
+    if (isPlaying) pauseAudio();
+    else playAudio();
   };
 
-  const handleSeek = (time: number) => {
-    seek(time);
-  };
-
-  const handleSkipBack = () => {
-    skipBack10();
-  };
-
-  const handleSkipForward = () => {
-    skipForward10();
-  };
+  const handleSeek = (time: number) => seek(time);
+  const handleSkipBack = () => skipBack10();
+  const handleSkipForward = () => skipForward10();
 
   if (selectedMeditation) {
     return (
@@ -70,9 +73,10 @@ export default function GuidedMeditationScreen({ navigation }: any) {
         onSkipForward={handleSkipForward}
         onSeek={handleSeek}
         onBack={handleBack}
-        onNavigateToBreathing={() =>
-          navigation.navigate('BreathingScreen')
-        }
+        onNavigateToBreathing={() => {
+          stopAudio(); // 🔥 RESET TOTAL
+          navigation.navigate('BreathingScreen');
+        }}
       />
     );
   }
@@ -80,6 +84,7 @@ export default function GuidedMeditationScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <MeditationHeader onBack={() => navigation.goBack()} />
+
       <MeditationList
         meditations={meditations}
         loading={loading}
@@ -93,7 +98,7 @@ export default function GuidedMeditationScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background, // 👈 NO CAMBIADO
+    backgroundColor: colors.background,
     paddingTop: 60,
     paddingHorizontal: spacing.xl,
   },
