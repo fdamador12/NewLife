@@ -1,0 +1,156 @@
+import React, { useState } from 'react';
+import SubLevelScreen from './SubLevelScreen';
+import MascotBubble from './components/MascotBubble';
+import MultipleChoice from './components/MultipleChoice';
+import OpenQuestion from './components/OpenQuestion';
+import ReflectivePhrase from './components/ReflectivePhrase';
+import CompleteSentence from './components/CompleteSentence';
+import { useLevelProgress } from '../../../../hooks/useLevelProgress';
+import { useToast } from '../../../../feedback/ToastContext';
+import { MODULES_CONTENT } from './data/index';
+import { StepType } from './data/types';
+
+const MASCOT = require('../../../../assets/images/mascotalibro.png');
+
+type Props = {
+    navigation: any;
+    level: number;
+    sublevel: number;
+};
+
+export default function NivelModulo({ navigation, level, sublevel }: Props) {
+    const [stepIndex, setStepIndex] = useState(0);
+    const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [advancing, setAdvancing] = useState(false);
+
+    const { advance } = useLevelProgress();
+    const { showToast } = useToast();
+
+    const content = MODULES_CONTENT[level]?.[sublevel];
+
+    if (!content) return null;
+
+    const steps = content.steps;
+    const step: StepType = steps[stepIndex];
+    const isLast = stepIndex === steps.length - 1;
+
+    // Contadores para saber qué índice del array usar según el tipo
+    const countBefore = (type: StepType, upTo: number) =>
+        steps.slice(0, upTo).filter((s: StepType) => s === type).length;
+
+    const currentPhraseIndex = countBefore('phrase', stepIndex);
+    const currentChoiceIndex = countBefore('mascot_choice', stepIndex);
+    const currentOpenIndex = countBefore('mascot_open', stepIndex);
+    const currentSentenceIndex = countBefore('complete_sentence', stepIndex);
+
+    const answerKey = `${step}_${countBefore(step, stepIndex)}`;
+
+    const isDisabled =
+        (step === 'mascot_choice' && !answers[answerKey]) ||
+        (step === 'mascot_open' && !answers[answerKey]?.trim()) ||
+        (step === 'complete_sentence' && !answers[answerKey]?.trim());
+
+    const handleContinue = async () => {
+        if (isLast) {
+            setAdvancing(true);
+            try {
+                const newProgress = await advance(level, sublevel);
+                console.log('✅ Módulo completado. Nuevo progreso:', newProgress);
+                showToast('¡Módulo completado!', 'success');
+                setTimeout(() => navigation.navigate('Path'), 1500);
+            } catch (error: any) {
+                console.log('❌ Error guardando progreso:', error);
+                if (!error.response) {
+                    showToast('Sin conexión. Verifica tu internet e intenta de nuevo.', 'error');
+                } else if (error.response.status === 401) {
+                    showToast('Tu sesión expiró. Por favor vuelve a iniciar sesión.', 'error');
+                } else {
+                    showToast('No se pudo guardar tu progreso. Intenta de nuevo.', 'error');
+                }
+            } finally {
+                setAdvancing(false);
+            }
+        } else {
+            setStepIndex(stepIndex + 1);
+        }
+    };
+
+    const handleBack = () => {
+        if (stepIndex === 0) {
+            navigation.navigate('Path');
+        } else {
+            setStepIndex(stepIndex - 1);
+        }
+    };
+
+    const renderStep = () => {
+        if (step === 'mascot_choice') {
+            const data = content.mascot_choice?.[currentChoiceIndex];
+            if (!data) return null;
+            return (
+                <>
+                    <MascotBubble text={data.question} />
+                    <MultipleChoice
+                        options={data.options}
+                        selected={answers[answerKey] ?? null}
+                        onSelect={(val) => setAnswers(prev => ({ ...prev, [answerKey]: val }))}
+                    />
+                </>
+            );
+        }
+
+        if (step === 'mascot_open') {
+            const data = content.mascot_open?.[currentOpenIndex];
+            if (!data) return null;
+            return (
+                <>
+                    <MascotBubble text={data.question} />
+                    <OpenQuestion
+                        placeholder="Escribe aquí..."
+                        value={answers[answerKey] ?? ''}
+                        onChange={(val) => setAnswers(prev => ({ ...prev, [answerKey]: val }))}
+                    />
+                </>
+            );
+        }
+
+        if (step === 'phrase') {
+            const data = content.phrase?.[currentPhraseIndex];
+            if (!data) return null;
+            return <ReflectivePhrase text={data.text} author={data.author} />;
+        }
+
+        if (step === 'complete_sentence') {
+            const data = content.complete_sentence?.[currentSentenceIndex];
+            if (!data) return null;
+            return (
+                <CompleteSentence
+                    prefix={data.prefix}
+                    value={answers[answerKey] ?? ''}
+                    onChange={(val) => setAnswers(prev => ({ ...prev, [answerKey]: val }))}
+                />
+            );
+        }
+
+        return null;
+    };
+
+    return (
+        <SubLevelScreen
+            currentStep={stepIndex}
+            totalSteps={steps.length - 1}
+            moduleNumber={sublevel}
+            mascot={MASCOT}
+            onBack={handleBack}
+            onContinue={handleContinue}
+            continueLabel={isLast ? 'Completar módulo' : 'Continuar'}
+            showIntro={step === 'intro'}
+            introTitle={content.intro.title}
+            introDescription={content.intro.description}
+            disabled={isDisabled}
+            advancing={advancing}
+        >
+            {renderStep()}
+        </SubLevelScreen>
+    );
+}
