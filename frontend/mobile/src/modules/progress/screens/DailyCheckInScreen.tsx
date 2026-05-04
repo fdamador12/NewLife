@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-    View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, Alert,
+    View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { saveDailyCheckin, DailyCheckinData } from '../../../services/progressService';
+import { saveDailyCheckin } from '../../../services/progressService';
+import { useToast } from '../../../feedback/ToastContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - spacing.xl * 2;
@@ -92,6 +93,7 @@ function Step1({
     setFormData: (data: FormData) => void;
 }) {
     const [selectedEmotion, setSelectedEmotion] = useState<string>(formData.emocion);
+    const isValid = selectedEmotion !== '' && formData.consumo !== null;
 
     return (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -132,13 +134,18 @@ function Step1({
                 </View>
             </BlobCard>
 
-            <TouchableOpacity
-                style={[styles.mainButton, formData.consumo === null && styles.mainButtonDisabled]}
-                disabled={formData.consumo === null}
-                onPress={() => (formData.consumo ? onYes() : onNo())}
-            >
-                <Text style={styles.mainButtonText}>Continuar</Text>
-            </TouchableOpacity>
+            {isValid ? (
+                <TouchableOpacity
+                    style={styles.mainButton}
+                    onPress={() => (formData.consumo ? onYes() : onNo())}
+                >
+                    <Text style={styles.mainButtonText}>Continuar</Text>
+                </TouchableOpacity>
+            ) : (
+                <View style={[styles.mainButton, styles.mainButtonDisabled]}>
+                    <Text style={styles.mainButtonText}>Continuar</Text>
+                </View>
+            )}
         </ScrollView>
     );
 }
@@ -154,6 +161,7 @@ function Step2({
 }) {
     const [selectedLocation, setSelectedLocation] = useState<string>(formData.ubicacion);
     const [selectedSocial, setSelectedSocial] = useState<string>(formData.social);
+    const isValid = selectedLocation !== '' && selectedSocial !== '' && formData.reflexion.trim() !== '';
 
     return (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -208,9 +216,15 @@ function Step2({
                 />
             </BlobCard>
 
-            <TouchableOpacity style={styles.mainButton} onPress={onContinue}>
-                <Text style={styles.mainButtonText}>Continuar</Text>
-            </TouchableOpacity>
+            {isValid ? (
+                <TouchableOpacity style={styles.mainButton} onPress={onContinue}>
+                    <Text style={styles.mainButtonText}>Continuar</Text>
+                </TouchableOpacity>
+            ) : (
+                <View style={[styles.mainButton, styles.mainButtonDisabled]}>
+                    <Text style={styles.mainButtonText}>Continuar</Text>
+                </View>
+            )}
         </ScrollView>
     );
 }
@@ -218,31 +232,28 @@ function Step2({
 function Step3({
     onFinish,
     formData,
+    showToast,
 }: {
     onFinish: () => void;
     formData: FormData;
+    showToast: (message: string, type?: 'error' | 'success' | 'info') => void;
 }) {
     const [gratitude, setGratitude] = useState(formData.gratitud);
     const [loading, setLoading] = useState(false);
+    const isValid = gratitude.trim() !== '';
 
     const handleFinish = async () => {
-        if (!gratitude.trim()) {
-            Alert.alert('Validación', 'Por favor escribe algo de gratitud');
-            return;
-        }
-
         setLoading(true);
         try {
             const checkinPayload = {
-            emocion: formData.emocion,
-            consumo: formData.consumo || false,
-            gratitud: gratitude,
-            // Solo agregar estos si consumo = true
-            ...(formData.consumo && {
-                ubicacion: formData.ubicacion,
-                social: formData.social,
-                reflexion: formData.reflexion,
-            }),
+                emocion: formData.emocion,
+                consumo: formData.consumo || false,
+                gratitud: gratitude,
+                ...(formData.consumo && {
+                    ubicacion: formData.ubicacion,
+                    social: formData.social,
+                    reflexion: formData.reflexion,
+                }),
             };
 
             console.log('📤 Preparando envío de daily-checkin:', JSON.stringify(checkinPayload, null, 2));
@@ -250,20 +261,21 @@ function Step3({
             await saveDailyCheckin(checkinPayload);
 
             console.log('✅ Registro diario guardado exitosamente');
-            Alert.alert('Éxito', 'Tu registro diario ha sido guardado', [
-            {
-                text: 'OK',
-                onPress: onFinish,
-            },
-            ]);
+            showToast('Registro guardado exitosamente', 'success');
+            setTimeout(() => onFinish(), 1500);
         } catch (error: any) {
-            console.error('❌ Error al guardar:', error);
-            Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+            console.log('❌ Error al guardar:', error);
+            if (!error.response) {
+                showToast('Sin conexión. Verifica tu internet e intenta de nuevo.', 'error');
+            } else if (error.response.status === 401) {
+                showToast('Tu sesión expiró. Por favor vuelve a iniciar sesión.', 'error');
+            } else {
+                showToast('No se pudo guardar el registro. Intenta de nuevo.', 'error');
+            }
         } finally {
             setLoading(false);
         }
     };
-    
 
     return (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -281,15 +293,21 @@ function Step3({
                 />
             </BlobCard>
 
-            <TouchableOpacity
-                style={[styles.mainButton, loading && styles.mainButtonDisabled]}
-                onPress={handleFinish}
-                disabled={loading}
-            >
-                <Text style={styles.mainButtonText}>
-                    {loading ? 'Guardando...' : 'Finalizar'}
-                </Text>
-            </TouchableOpacity>
+            {isValid ? (
+                <TouchableOpacity
+                    style={[styles.mainButton, loading && styles.mainButtonDisabled]}
+                    onPress={handleFinish}
+                    disabled={loading}
+                >
+                    <Text style={styles.mainButtonText}>
+                        {loading ? 'Guardando...' : 'Finalizar'}
+                    </Text>
+                </TouchableOpacity>
+            ) : (
+                <View style={[styles.mainButton, styles.mainButtonDisabled]}>
+                    <Text style={styles.mainButtonText}>Finalizar</Text>
+                </View>
+            )}
         </ScrollView>
     );
 }
@@ -304,6 +322,8 @@ export default function DailyCheckInScreen({ navigation }: any) {
         reflexion: '',
         gratitud: '',
     });
+
+    const { showToast } = useToast();
 
     const handleBack = () => {
         if (step === 1) {
@@ -351,11 +371,13 @@ export default function DailyCheckInScreen({ navigation }: any) {
                 <Step3
                     onFinish={() => navigation.navigate('Home', { initialTab: 'Progress' })}
                     formData={formData}
+                    showToast={showToast}
                 />
             )}
         </View>
     );
 }
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,

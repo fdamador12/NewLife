@@ -58,7 +58,7 @@ export const saveDailyCheckin = async (data: {
     console.log('✅ Daily-checkin guardado:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error guardando daily-checkin:', error.response?.data || error.message);
+    console.log('❌ Error guardando daily-checkin:', error.response?.data || error.message);
     throw error;
   }
 };
