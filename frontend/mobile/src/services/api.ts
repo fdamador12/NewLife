@@ -41,7 +41,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    // 🔥 NUEVO: detectar rutas de auth (login, register, etc.)
+    const isAuthRoute = originalRequest?.url?.includes('/auth/');
+
+    // 🔥 CAMBIO 1: NO aplicar refresh en rutas de auth
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      isAuthRoute
+    ) {
       return Promise.reject(error);
     }
 
@@ -75,7 +83,10 @@ api.interceptors.response.use(
     } catch (refreshError) {
       await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
       authEventEmitter.emit();
-      return Promise.reject(refreshError);
+
+      // 🔥 CAMBIO 2: devolver error ORIGINAL, no el del refresh
+      return Promise.reject(error);
+
     } finally {
       isRefreshing = false;
     }
