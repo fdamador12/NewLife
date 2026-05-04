@@ -188,7 +188,7 @@ export const agendaService = {
       const data: AgendaEventBackend = await response.json();
       return eventToFrontend(data);
     } catch (error) {
-      console.error('Error creating agenda event:', error);
+      console.log('Error creating agenda event:', error);
       throw error;
     }
   },

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ const COLORS = {
   background: '#FAFAFA',
   border: '#E8E8E8',
 };
+
 
 const QUICK_TIMES = [
   '8:00 am',
@@ -58,9 +59,42 @@ export default function TimePickerModal({
   const hoursScroll = useRef<ScrollView>(null);
   const minutesScroll = useRef<ScrollView>(null);
 
-  // Generar arrays de horas y minutos
-  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  const hours = Array.from({ length: 12 }, (_, i) =>
+    String(i + 1).padStart(2, '0')
+  );
+  const minutes = Array.from({ length: 60 }, (_, i) =>
+    String(i).padStart(2, '0')
+  );
+
+  // 👇 función que centra el item
+  const CONTAINER_HEIGHT = 150;
+  const ITEM_HEIGHT = 40;
+
+  const scrollToCenter = (
+    ref: React.RefObject<ScrollView | null>,
+    index: number
+  ) => {
+    const FINE_ADJUST = 0; // 👈 mueve hacia arriba
+    const offset = index * ITEM_HEIGHT - (CONTAINER_HEIGHT / 2 - ITEM_HEIGHT / 2) + FINE_ADJUST;
+
+    ref.current?.scrollTo({
+      y: offset < 0 ? 0 : offset,
+      animated: true,
+    });
+  };
+
+  // 👇 centra automáticamente al abrir el custom picker
+  useEffect(() => {
+    if (showCustom) {
+      const hourIndex = hours.indexOf(customHours);
+      const minuteIndex = minutes.indexOf(customMinutes);
+
+      setTimeout(() => {
+        scrollToCenter(hoursScroll, hourIndex);
+        scrollToCenter(minutesScroll, minuteIndex);
+      }, 50);
+    }
+  }, [showCustom]);
 
   const handleQuickTimeSelect = (time: string) => {
     onTimeSelect(time);
@@ -109,7 +143,6 @@ export default function TimePickerModal({
 
             {!showCustom ? (
               <>
-                {/* Quick Times */}
                 <ScrollView
                   contentContainerStyle={styles.quickTimesContainer}
                   showsVerticalScrollIndicator={false}
@@ -138,41 +171,45 @@ export default function TimePickerModal({
                   })}
                 </ScrollView>
 
-                {/* Custom Button */}
                 <TouchableOpacity
                   style={styles.customButton}
                   onPress={() => setShowCustom(true)}
                 >
                   <Feather name="clock" size={16} color={COLORS.primary} />
-                  <Text style={styles.customButtonText}>Hora personalizada</Text>
+                  <Text style={styles.customButtonText}>
+                    Hora personalizada
+                  </Text>
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                {/* Custom Time Picker */}
                 <View style={styles.customPickerContainer}>
                   <Text style={styles.customLabel}>Ajusta la hora</Text>
 
                   <View style={styles.wheelContainer}>
-                    {/* Hours */}
+                    {/* HOURS */}
                     <View style={styles.wheelColumn}>
                       <Text style={styles.wheelLabel}>Horas</Text>
                       <ScrollView
                         ref={hoursScroll}
                         style={styles.wheel}
                         showsVerticalScrollIndicator={false}
-                        scrollEventThrottle={16}
                       >
                         {hours.map((hour) => (
                           <TouchableOpacity
                             key={hour}
                             style={styles.wheelItem}
-                            onPress={() => setCustomHours(hour)}
+                            onPress={() => {
+                              setCustomHours(hour);
+                              const index = hours.indexOf(hour);
+                              scrollToCenter(hoursScroll, index);
+                            }}
                           >
                             <Text
                               style={[
                                 styles.wheelItemText,
-                                customHours === hour && styles.wheelItemTextActive,
+                                customHours === hour &&
+                                  styles.wheelItemTextActive,
                               ]}
                             >
                               {hour}
@@ -182,23 +219,25 @@ export default function TimePickerModal({
                       </ScrollView>
                     </View>
 
-                    {/* Separator */}
                     <Text style={styles.separator}>:</Text>
 
-                    {/* Minutes */}
+                    {/* MINUTES */}
                     <View style={styles.wheelColumn}>
                       <Text style={styles.wheelLabel}>Minutos</Text>
                       <ScrollView
                         ref={minutesScroll}
                         style={styles.wheel}
                         showsVerticalScrollIndicator={false}
-                        scrollEventThrottle={16}
                       >
                         {minutes.map((minute) => (
                           <TouchableOpacity
                             key={minute}
                             style={styles.wheelItem}
-                            onPress={() => setCustomMinutes(minute)}
+                            onPress={() => {
+                              setCustomMinutes(minute);
+                              const index = minutes.indexOf(minute);
+                              scrollToCenter(minutesScroll, index);
+                            }}
                           >
                             <Text
                               style={[
@@ -214,14 +253,15 @@ export default function TimePickerModal({
                       </ScrollView>
                     </View>
 
-                    {/* Period */}
+                    {/* PERIOD */}
                     <View style={styles.periodColumn}>
                       <Text style={styles.wheelLabel}>Período</Text>
                       <View style={styles.periodButtons}>
                         <TouchableOpacity
                           style={[
                             styles.periodButton,
-                            customPeriod === 'am' && styles.periodButtonActive,
+                            customPeriod === 'am' &&
+                              styles.periodButtonActive,
                           ]}
                           onPress={() => setCustomPeriod('am')}
                         >
@@ -235,10 +275,12 @@ export default function TimePickerModal({
                             AM
                           </Text>
                         </TouchableOpacity>
+
                         <TouchableOpacity
                           style={[
                             styles.periodButton,
-                            customPeriod === 'pm' && styles.periodButtonActive,
+                            customPeriod === 'pm' &&
+                              styles.periodButtonActive,
                           ]}
                           onPress={() => setCustomPeriod('pm')}
                         >
@@ -256,7 +298,6 @@ export default function TimePickerModal({
                     </View>
                   </View>
 
-                  {/* Preview */}
                   <View style={styles.previewContainer}>
                     <Text style={styles.previewLabel}>Vista previa:</Text>
                     <Text style={styles.previewTime}>
@@ -264,20 +305,26 @@ export default function TimePickerModal({
                     </Text>
                   </View>
 
-                  {/* Buttons */}
                   <View style={styles.customButtonsRow}>
                     <TouchableOpacity
                       style={styles.backButton}
                       onPress={handleBackToQuick}
                     >
-                      <Feather name="chevron-left" size={18} color={COLORS.primary} />
+                      <Feather
+                        name="chevron-left"
+                        size={18}
+                        color={COLORS.primary}
+                      />
                       <Text style={styles.backButtonText}>Atrás</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity
                       style={styles.confirmButton}
                       onPress={handleCustomTimeSelect}
                     >
-                      <Text style={styles.confirmButtonText}>Confirmar</Text>
+                      <Text style={styles.confirmButtonText}>
+                        Confirmar
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -320,8 +367,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.darkGray,
   },
-
-  // Quick Times
   quickTimesContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -348,8 +393,6 @@ const styles = StyleSheet.create({
   quickTimeTextActive: {
     color: COLORS.primary,
   },
-
-  // Custom Button
   customButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -369,8 +412,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
-
-  // Custom Picker
   customPickerContainer: {
     paddingHorizontal: 20,
     paddingVertical: 20,
@@ -452,8 +493,6 @@ const styles = StyleSheet.create({
   periodButtonTextActive: {
     color: COLORS.white,
   },
-
-  // Preview
   previewContainer: {
     backgroundColor: COLORS.background,
     borderRadius: 12,
@@ -472,8 +511,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.primary,
   },
-
-  // Buttons Row
   customButtonsRow: {
     flexDirection: 'row',
     gap: 12,

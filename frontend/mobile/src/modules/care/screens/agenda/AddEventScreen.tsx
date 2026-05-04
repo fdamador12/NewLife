@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAgenda } from '../../hooks/useAgenda';
+import { useToast } from '../../../../feedback/ToastContext';
 import { AgendaEventFrontend } from '../../services/agendaService';
 import EventForm from './components/EventForm';
 
@@ -32,26 +32,23 @@ type AgendaEvent = {
   repeat: string;
 };
 
-// Función para convertir tiempo a minutos
 function timeToMinutes(timeStr: string): number {
   const [timePart, period] = timeStr.split(' ');
   let [hours, minutes] = timePart.split(':').map(Number);
-
   if (period === 'pm' && hours !== 12) hours += 12;
   if (period === 'am' && hours === 12) hours = 0;
-
   return hours * 60 + minutes;
 }
 
 export default function AddEventScreen({ navigation, route }: any) {
   const { createAgenda, updateAgenda } = useAgenda();
+  const { showToast } = useToast();
   const refetch = route.params?.refetch;
   const [isSaving, setIsSaving] = useState(false);
 
   const existing = route.params?.event as AgendaEvent | undefined;
   const defaultDateStr = route.params?.defaultDate as string | undefined;
   const defaultDate: Date = defaultDateStr ? new Date(defaultDateStr) : new Date();
-
   const existingDate = existing?.date ? new Date(existing.date as string) : defaultDate;
 
   const [title, setTitle] = useState(existing?.title || '');
@@ -68,9 +65,8 @@ export default function AddEventScreen({ navigation, route }: any) {
   const validateTimes = (): boolean => {
     const fromMinutes = timeToMinutes(timeFrom);
     const toMinutes = timeToMinutes(timeTo);
-
     if (fromMinutes >= toMinutes) {
-      Alert.alert('Error de validación', 'La hora de inicio debe ser menor que la hora de fin');
+      showToast('La hora de inicio debe ser menor que la hora de fin.', 'error');
       return false;
     }
     return true;
@@ -78,13 +74,11 @@ export default function AddEventScreen({ navigation, route }: any) {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'El título del evento es obligatorio');
+      showToast('El título del evento es obligatorio.', 'error');
       return;
     }
 
-    if (!validateTimes()) {
-      return;
-    }
+    if (!validateTimes()) return;
 
     setIsSaving(true);
 
@@ -103,20 +97,17 @@ export default function AddEventScreen({ navigation, route }: any) {
 
       if (existing) {
         await updateAgenda(existing.id, eventData);
-        Alert.alert('Éxito', 'Evento actualizado correctamente');
       } else {
         await createAgenda(eventData);
-        Alert.alert('Éxito', 'Evento creado correctamente');
       }
 
-      if (refetch) {
-        await refetch();
-      }
+      if (refetch) await refetch();
 
-      navigation.goBack();
+      showToast(existing ? 'Evento actualizado' : 'Evento creado', 'success');
+      setTimeout(() => navigation.goBack(), 1500);
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar el evento. Intenta nuevamente.');
-      console.error('Error al guardar evento:', error);
+      console.log('Error al guardar evento:', error);
+      showToast('No se pudo guardar el evento. Intenta de nuevo.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -134,7 +125,6 @@ export default function AddEventScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -157,7 +147,6 @@ export default function AddEventScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Form */}
       <EventForm
         title={title}
         onTitleChange={setTitle}
@@ -181,7 +170,6 @@ export default function AddEventScreen({ navigation, route }: any) {
         onReminderMinutesSelect={setReminderMinutes}
       />
 
-      {/* Boton guardar */}
       <TouchableOpacity
         style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
         onPress={handleSave}

@@ -15,7 +15,7 @@ import {
 } from '../../../services/guestService';
 import FieldError from '../../../feedback/FieldError';
 import { useToast } from '../../../feedback/ToastContext';
-import { showAlert } from '../../../feedback/showAlert';
+import { useConfirm } from '../../../feedback/ConfirmContext';
 
 type Contact = {
   contacto_id?: string;
@@ -35,6 +35,7 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   const [phoneError, setPhoneError] = useState('');
 
   const { showToast } = useToast();
+  const { showConfirm } = useConfirm();
 
   useEffect(() => {
     fetchContacts();
@@ -98,7 +99,6 @@ export default function EmergencyContactsScreen({ navigation }: any) {
         ) : false;
         return !isSelf && String(c.telefono) === String(phone);
       });
-
       if (isDuplicate) {
         setPhoneError('Este número ya está registrado en tus contactos');
         valid = false;
@@ -132,7 +132,7 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   };
 
   const handleDelete = (id: string) => {
-    showAlert({
+    showConfirm({
       title: 'Eliminar contacto',
       message: '¿Seguro que quieres eliminarlo? Esta acción no se puede deshacer.',
       confirmText: 'Eliminar',

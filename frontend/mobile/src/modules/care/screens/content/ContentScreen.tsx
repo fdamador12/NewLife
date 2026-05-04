@@ -14,13 +14,14 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/
 import { useContent } from '../../hooks/useContent';
 import ContentCard from './components/ContentCard';
 
-// ✅ Función para eliminar tildes
-function removeDiacritics(text: string): string {
+// ✅ Normalización robusta (acentos + símbolos)
+const normalizeText = (text: string) => {
   return text
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '') // quita acentos
+    .replace(/[^a-zA-Z0-9 ]/g, '')   // quita símbolos
     .toLowerCase();
-}
+};
 
 export default function ContentScreen({ navigation }: any) {
   const {
@@ -34,13 +35,19 @@ export default function ContentScreen({ navigation }: any) {
 
   const [search, setSearch] = useState('');
 
-  // ✅ Filtro mejorado sin tildes
+  // ✅ Normalizar búsqueda una sola vez
+  const normalizedSearch = normalizeText(search);
+
   const filtered = search.trim()
-    ? contenido.filter(
-        (c) =>
-          removeDiacritics(c.title).includes(removeDiacritics(search)) ||
-          c.tags.some((t) => removeDiacritics(t).includes(removeDiacritics(search)))
-      )
+    ? contenido.filter((c) => {
+        const title = normalizeText(c.title);
+        const tags = c.tags.map((t) => normalizeText(t));
+
+        return (
+          title.includes(normalizedSearch) ||
+          tags.some((t) => t.includes(normalizedSearch))
+        );
+      })
     : null;
 
   if (loading) {
@@ -118,9 +125,8 @@ export default function ContentScreen({ navigation }: any) {
           <View style={{ height: spacing.xl }} />
         </ScrollView>
       ) : (
-        // ✅ CONTENIDO NORMAL (SIN "MÁS LEÍDO")
+        // ✅ CONTENIDO NORMAL
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* CATEGORÍAS */}
           {categorias.map((categoria) => {
             const categoryName = categoria.nombre;
             const items = getItemsByCategory(categoryName, 3);
