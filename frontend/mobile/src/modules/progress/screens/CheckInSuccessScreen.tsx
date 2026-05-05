@@ -4,13 +4,37 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { PetForm } from '../../pet/types/pet.types';
 
 const { width, height } = Dimensions.get('window');
 
-export default function CheckInSuccessScreen({ navigation }: any) {
+type Props = {
+  navigation: any;
+  route: any;
+};
+
+export default function CheckInSuccessScreen({ navigation, route }: Props) {
+  const { xp_gained, evolved, new_form } = route.params as {
+    xp_gained: number;
+    evolved: boolean;
+    new_form: PetForm;
+  };
+
+  const handleContinue = () => {
+    if (evolved && new_form) {
+      navigation.navigate('PetEvolution', {
+        newForm: new_form,
+        xp: route.params?.xp ?? 0,
+        destination: 'Home',
+      });
+    } else {
+      navigation.navigate('Home');
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
         <Feather name="chevron-left" size={24} color={colors.white} />
       </TouchableOpacity>
 
@@ -23,12 +47,21 @@ export default function CheckInSuccessScreen({ navigation }: any) {
       <Text style={styles.title}>¡Todo está listo!</Text>
       <Text style={styles.subtitle}>Gracias por darte este momento.</Text>
 
+      {xp_gained > 0 && (
+        <View style={styles.xpBadge}>
+          <Feather name="zap" size={16} color="#F5A623" />
+          <Text style={styles.xpText}>+{xp_gained} XP</Text>
+        </View>
+      )}
+
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('Home')}
+        onPress={handleContinue}
         activeOpacity={0.9}
       >
-        <Text style={styles.buttonText}>Salir</Text>
+        <Text style={styles.buttonText}>
+          {evolved ? '¡Ver evolución!' : 'Salir'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -63,6 +96,21 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.white,
     textAlign: 'center',
+  },
+  xpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  xpText: {
+    fontSize: fontSizes.lg,
+    fontWeight: '800',
+    color: '#F5A623',
   },
   button: {
     position: 'absolute',

@@ -7,8 +7,8 @@ export const petService = {
     return response.data;
   },
 
-  addXp: async (action: XpAction): Promise<AddXpResponse> => {
-    const response = await api.post('/pet/add-xp', { action });
+  addXp: async (action: XpAction, nivel?: number, subnivel?: number): Promise<AddXpResponse> => {
+    const response = await api.post('/pet/add-xp', { action, nivel, subnivel });
     return response.data;
   },
 

@@ -1,34 +1,31 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
 import { usePet } from '../hooks/usePet';
 import PetAvatar from '../components/PetAvatar';
 import XpBar from '../components/XpBar';
-import { getPetMessage, PET_BACKGROUNDS, PET_NAMES } from '../utils/petHelpers';
+import { PET_BACKGROUNDS, PET_NAMES } from '../utils/petHelpers';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export default function PetScreen({ navigation }: any) {
-  const { pet, loading } = usePet();
+  const { pet, message, loading } = usePet();
 
   if (loading) return null;
 
-  const message = getPetMessage(pet.level);
   const bg = PET_BACKGROUNDS[pet.level] ?? PET_BACKGROUNDS[1];
 
   return (
     <View style={styles.container}>
-      {/* Fondo decorativo */}
       <View style={[styles.background, { backgroundColor: bg.primary }]}>
         <View style={[styles.bgCircle1, { backgroundColor: bg.secondary }]} />
         <View style={[styles.bgCircle2, { backgroundColor: bg.accent }]} />
         <View style={[styles.bgCircle3, { backgroundColor: bg.secondary }]} />
       </View>
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.white} />
@@ -52,19 +49,16 @@ export default function PetScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Mascota */}
       <View style={styles.petSection}>
         <PetAvatar form={pet.selected_form} size={220} />
       </View>
 
-      {/* Mensaje */}
       <View style={styles.messageSection}>
         <View style={styles.messageBubble}>
           <Text style={styles.messageText}>{message}</Text>
         </View>
       </View>
 
-      {/* Info inferior */}
       <View style={styles.bottomCard}>
         <Text style={styles.petName}>{PET_NAMES[pet.selected_form]}</Text>
         <XpBar xp={pet.xp} level={pet.level} />

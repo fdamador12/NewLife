@@ -13,7 +13,11 @@ type Props = {
 };
 
 export default function PetEvolutionScreen({ navigation, route }: Props) {
-  const { newForm, xp } = route.params as { newForm: PetForm; xp: number };
+  const { newForm, xp, destination } = route.params as {
+    newForm: PetForm;
+    xp: number;
+    destination: string;
+  };
 
   const scale = useRef(new Animated.Value(0.5)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -34,13 +38,15 @@ export default function PetEvolutionScreen({ navigation, route }: Props) {
     ]).start();
   }, []);
 
+  const handleContinue = () => {
+    navigation.navigate(destination);
+  };
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.content, { opacity, transform: [{ scale }] }]}>
         <Text style={styles.title}>¡Evolucionaste!</Text>
-        <Text style={styles.subtitle}>
-          Has desbloqueado una nueva forma
-        </Text>
+        <Text style={styles.subtitle}>Has desbloqueado una nueva forma</Text>
 
         <View style={styles.petWrapper}>
           <PetAvatar form={newForm} size={200} />
@@ -57,10 +63,7 @@ export default function PetEvolutionScreen({ navigation, route }: Props) {
         <Text style={styles.xpText}>{xp} XP totales</Text>
       </Animated.View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.goBack()}
-      >
+      <TouchableOpacity style={styles.button} onPress={handleContinue}>
         <Text style={styles.buttonText}>¡Genial!</Text>
       </TouchableOpacity>
     </View>

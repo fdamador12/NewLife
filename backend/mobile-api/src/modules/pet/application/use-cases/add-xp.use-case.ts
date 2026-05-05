@@ -26,13 +26,32 @@ export class AddXpUseCase {
     private readonly systemAuth: SystemAuthService,
   ) {}
 
-  async execute(usuarioId: string, action: string) {
+  async execute(usuarioId: string, action: string, nivel?: number, subnivel?: number) {
     const masterToken = await this.systemAuth.getMasterToken();
     const pet = await this.petProvider.getPet(usuarioId, masterToken);
 
     const xpToAdd = XP_PER_ACTION[action];
     if (!xpToAdd) {
       throw new Error(`Acción desconocida: ${action}`);
+    }
+
+    const lastActions = pet?.last_actions ?? {};
+    const todayUTC5 = this.getTodayUTC5();
+    const actionKey = this.getActionKey(action, nivel, subnivel);
+
+    if (lastActions[actionKey] === todayUTC5) {
+      this.logger.log(`⚠️ XP de ${actionKey} ya otorgado hoy`);
+      return {
+        xp: pet?.xp ?? 0,
+        xp_gained: 0,
+        level: calculateLevel(pet?.xp ?? 0),
+        form: calculateForm(pet?.xp ?? 0),
+        selected_form: pet?.selected_form ?? 'seed',
+        unlocked_forms: pet?.unlocked_forms ?? ['seed'],
+        new_unlocks: [],
+        evolved: false,
+        already_given: true,
+      };
     }
 
     const previousXp = pet?.xp ?? 0;
@@ -48,22 +67,25 @@ export class AddXpUseCase {
     const newlyUnlocked = newUnlocked.filter(f => !previousUnlocked.includes(f));
     const evolved = newForm !== previousForm;
 
-    // Auto-equipar si hay nueva forma desbloqueada
-    // Solo auto-equipa si la forma actual NO es una flor
-    // Si ya tiene una flor equipada, respetamos su elección
     let selectedForm = currentSelectedForm;
     if (newlyUnlocked.length > 0 && !FLOWER_FORMS.includes(currentSelectedForm)) {
       selectedForm = newForm;
     }
+
+    const updatedActions = {
+      ...lastActions,
+      [actionKey]: todayUTC5,
+    };
 
     await this.petProvider.upsertPet({
       usuario_id: usuarioId,
       xp: newXp,
       selected_form: selectedForm,
       unlocked_forms: newUnlocked,
+      last_actions: updatedActions,
     }, masterToken);
 
-    this.logger.log(`✅ XP sumado: ${previousXp} + ${xpToAdd} = ${newXp} (${action})`);
+    this.logger.log(`✅ XP sumado: ${previousXp} + ${xpToAdd} = ${newXp} (${actionKey})`);
 
     return {
       xp: newXp,
@@ -74,6 +96,20 @@ export class AddXpUseCase {
       unlocked_forms: newUnlocked,
       new_unlocks: newlyUnlocked,
       evolved,
+      already_given: false,
     };
+  }
+
+  private getActionKey(action: string, nivel?: number, subnivel?: number): string {
+    if (action === 'module_complete' && nivel !== undefined && subnivel !== undefined) {
+      return `module_${nivel}_${subnivel}`;
+    }
+    return action;
+  }
+
+  private getTodayUTC5(): string {
+    const ahora = new Date();
+    const fechaUTC5 = new Date(ahora.getTime() - (5 * 60 * 60 * 1000));
+    return fechaUTC5.toISOString().split('T')[0];
   }
 }

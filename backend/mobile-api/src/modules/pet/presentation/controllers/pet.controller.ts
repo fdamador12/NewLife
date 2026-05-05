@@ -28,7 +28,12 @@ export class PetController {
   @Post('add-xp')
   @ApiOperation({ summary: 'Sumar XP por una acción' })
   async addXp(@Request() req: any, @Body() dto: AddXpDto) {
-    return await this.addXpUseCase.execute(req.user.uid, dto.action);
+    return await this.addXpUseCase.execute(
+      req.user.uid,
+      dto.action,
+      dto.nivel,
+      dto.subnivel,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

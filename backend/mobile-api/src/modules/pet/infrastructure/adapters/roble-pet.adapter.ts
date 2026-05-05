@@ -17,6 +17,7 @@ export class RoblePetAdapter implements IPetProviderPort {
 
       const row = rows[0];
       const raw = row.unlocked_forms;
+      const rawActions = row.last_actions;
 
       return {
         _id: row._id,
@@ -28,6 +29,11 @@ export class RoblePetAdapter implements IPetProviderPort {
           : typeof raw === 'string'
             ? JSON.parse(raw)
             : ['seed'],
+        last_actions: typeof rawActions === 'object' && rawActions !== null
+          ? rawActions
+          : typeof rawActions === 'string'
+            ? JSON.parse(rawActions)
+            : {},
         updated_at: row.updated_at,
       };
     } catch (error) {
@@ -55,6 +61,7 @@ export class RoblePetAdapter implements IPetProviderPort {
             xp: data.xp,
             selected_form: data.selected_form,
             unlocked_forms: JSON.stringify(data.unlocked_forms),
+            last_actions: JSON.stringify(data.last_actions ?? {}),
             updated_at: now,
           },
           masterToken,
@@ -65,6 +72,7 @@ export class RoblePetAdapter implements IPetProviderPort {
           xp: data.xp ?? 0,
           selected_form: data.selected_form ?? 'seed',
           unlocked_forms: JSON.stringify(data.unlocked_forms ?? ['seed']),
+          last_actions: JSON.stringify(data.last_actions ?? {}),
           updated_at: now,
         }], masterToken);
       }

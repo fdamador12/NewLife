@@ -57,40 +57,60 @@ export const PET_DESCRIPTIONS: Record<PetForm, { tagline: string; description: s
   },
 };
 
+export const PET_MESSAGES: Record<PetForm, string[]> = {
+  seed: [
+    'Estoy creciendo contigo. ¡Sigue así!',
+    'Cada día cuenta. Estoy aquí.',
+    'Un pequeño paso hoy, un gran cambio mañana.',
+  ],
+  sprout: [
+    'Mira cuánto hemos avanzado juntos.',
+    'Tu esfuerzo me hace crecer.',
+    'Estás construyendo algo hermoso.',
+  ],
+  moss: [
+    'Ya somos fuertes. No te rindas.',
+    'Tu constancia es increíble.',
+    'Cada registro es una victoria.',
+  ],
+  flower_lavanda: [
+    'La calma es tu mayor fortaleza.',
+    'Respira. Estás exactamente donde debes estar.',
+    'Tu serenidad inspira a quienes te rodean.',
+  ],
+  flower_azucena: [
+    '¡Florecimos! Esto es solo el comienzo.',
+    'Tu disciplina te trajo hasta aquí.',
+    'Cada día sobrio es una victoria enorme.',
+  ],
+  flower_baobab: [
+    'Tus raíces son profundas e inquebrantables.',
+    'Eres más fuerte de lo que crees.',
+    'El tiempo que llevas sobrio es tu mayor logro.',
+  ],
+  flower_lirio: [
+    'Tu constancia es admirable.',
+    'Cada paso completado nos acercó a este momento.',
+    'La persistencia es tu superpoder.',
+  ],
+  flower_crisantemo: [
+    'El equilibrio que encontraste es extraordinario.',
+    'Tu camino es único y valioso.',
+    'Has integrado cada parte de tu proceso con sabiduría.',
+  ],
+};
+
+export function getPetMessage(form: PetForm): string {
+  const messages = PET_MESSAGES[form] ?? PET_MESSAGES['seed'];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
 export const PET_BACKGROUNDS: Record<number, { primary: string; secondary: string; accent: string }> = {
   1: { primary: '#8B6914', secondary: '#A0785A', accent: '#C4936A' },
   2: { primary: '#4A7C59', secondary: '#6B9E78', accent: '#8FBC8F' },
   3: { primary: '#2D6A4F', secondary: '#40916C', accent: '#52B788' },
   4: { primary: '#6B4FA0', secondary: '#9B72CF', accent: '#C9A8E0' },
 };
-
-export const PET_MESSAGES: Record<number, string[]> = {
-  1: [
-    'Estoy creciendo contigo. ¡Sigue así!',
-    'Cada día cuenta. Estoy aquí.',
-    'Un pequeño paso hoy, un gran cambio mañana.',
-  ],
-  2: [
-    'Mira cuánto hemos avanzado juntos.',
-    'Tu esfuerzo me hace crecer.',
-    'Estás construyendo algo hermoso.',
-  ],
-  3: [
-    'Ya somos fuertes. No te rindas.',
-    'Tu constancia es increíble.',
-    'Cada registro es una victoria.',
-  ],
-  4: [
-    '¡Florecimos! Esto es solo el comienzo.',
-    'Eres más fuerte de lo que crees.',
-    'Tu camino es único y valioso.',
-  ],
-};
-
-export function getPetMessage(level: number): string {
-  const messages = PET_MESSAGES[level] ?? PET_MESSAGES[1];
-  return messages[Math.floor(Math.random() * messages.length)];
-}
 
 export const XP_THRESHOLDS = [
   { form: 'seed'              as PetForm, xp: 0,    label: 'Semilla',    evolution: 1 },

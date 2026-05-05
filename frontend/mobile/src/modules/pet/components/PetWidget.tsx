@@ -1,17 +1,16 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { usePet } from '../hooks/usePet';
 import XpBar from './XpBar';
-import { getPetMessage, PET_IMAGES } from '../utils/petHelpers';
+import { PET_IMAGES } from '../utils/petHelpers';
 
 type Props = {
   onPress?: () => void;
 };
 
 export default function PetWidget({ onPress }: Props) {
-  const { pet, loading } = usePet();
-  const message = useMemo(() => getPetMessage(pet.level), [pet.level]);
+  const { pet, message, loading } = usePet();
 
   if (loading) return null;
 
@@ -72,7 +71,7 @@ const styles = StyleSheet.create({
   },
   bubbleTail: {
     position: 'absolute',
-    right: -9,
+    right: -10,
     top: '110%',
     marginTop: -10,
     width: 0,

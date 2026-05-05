@@ -25,6 +25,7 @@ export interface AddXpResponse {
   unlocked_forms: PetForm[];
   new_unlocks: PetForm[];
   evolved: boolean;
+  already_given: boolean;
 }
 
 export type XpAction = 'checkin' | 'sober_day' | 'module_complete';

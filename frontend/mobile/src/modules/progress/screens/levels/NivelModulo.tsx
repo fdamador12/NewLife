@@ -7,6 +7,7 @@ import ReflectivePhrase from './components/ReflectivePhrase';
 import CompleteSentence from './components/CompleteSentence';
 import { useLevelProgress } from '../../../../hooks/useLevelProgress';
 import { useToast } from '../../../../feedback/ToastContext';
+import { usePet } from '../../../pet/hooks/usePet';
 import { MODULES_CONTENT } from './data/index';
 import { StepType } from './data/types';
 
@@ -23,8 +24,9 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [advancing, setAdvancing] = useState(false);
 
-    const { advance } = useLevelProgress();
+    const { progress, advance } = useLevelProgress();
     const { showToast } = useToast();
+    const { addXp } = usePet();
 
     const content = MODULES_CONTENT[level]?.[sublevel];
 
@@ -34,7 +36,6 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
     const step: StepType = steps[stepIndex];
     const isLast = stepIndex === steps.length - 1;
 
-    // Contadores para saber qué índice del array usar según el tipo
     const countBefore = (type: StepType, upTo: number) =>
         steps.slice(0, upTo).filter((s: StepType) => s === type).length;
 
@@ -54,10 +55,36 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
         if (isLast) {
             setAdvancing(true);
             try {
-                const newProgress = await advance(level, sublevel);
-                console.log('✅ Módulo completado. Nuevo progreso:', newProgress);
-                showToast('¡Módulo completado!', 'success');
-                setTimeout(() => navigation.navigate('Path'), 1500);
+                // Verificar si este es el módulo actual ANTES de advance()
+                const isCurrentModule = progress.nivel === level && progress.subnivel === sublevel;
+
+                await advance(level, sublevel);
+                console.log('✅ Módulo completado.');
+
+                if (isCurrentModule) {
+                    const xpResponse = await addXp('module_complete', level, sublevel);
+
+                    if (xpResponse && xpResponse.evolved) {
+                        showToast('¡Módulo completado!', 'success');
+                        setTimeout(() => {
+                            navigation.navigate('PetEvolution', {
+                                newForm: xpResponse.selected_form,
+                                xp: xpResponse.xp,
+                                destination: 'Path',
+                            });
+                        }, 1000);
+                    } else {
+                        const xpMsg = xpResponse && !xpResponse.already_given
+                            ? `¡Módulo completado! +${xpResponse.xp_gained} XP`
+                            : '¡Módulo completado!';
+                        showToast(xpMsg, 'success');
+                        setTimeout(() => navigation.navigate('Path'), 1500);
+                    }
+                } else {
+                    showToast('¡Módulo completado!', 'success');
+                    setTimeout(() => navigation.navigate('Path'), 1500);
+                }
+
             } catch (error: any) {
                 console.log('❌ Error guardando progreso:', error);
                 if (!error.response) {
