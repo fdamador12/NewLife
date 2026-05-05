@@ -11,6 +11,7 @@ import { CommunitiesModule } from './modules/communities/communities.module';
 import { MotivationModule } from './modules/motivation/motivation.module';
 import { SosModule } from './modules/sos/sos.module';
 import { GuidedMeditationModule } from './modules/guided-meditation/guided-meditation.module';
+import { PetModule } from './modules/pet/pet.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { GuidedMeditationModule } from './modules/guided-meditation/guided-medit
     MotivationModule,
     SosModule,
     GuidedMeditationModule,
+    PetModule,
   ],
 })
 export class AppModule {}
