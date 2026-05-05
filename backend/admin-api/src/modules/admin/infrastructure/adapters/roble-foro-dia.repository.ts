@@ -1,5 +1,4 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
 import { RobleHttpService } from '../../infrastructure/services/roble-http.service';
 import { IForoDiaRepository, CreateForoDiaInput, UpdateForoDiaInput } from '../../domain/ports/foro-dia.repository.port';
 import { ForoDia } from '../../domain/entities/foro-dia.entity';
@@ -31,33 +30,48 @@ export class RobleForoDiaRepository implements IForoDiaRepository {
 
   async create(data: CreateForoDiaInput): Promise<ForoDia> {
     const now = new Date().toISOString();
-    const payload = { 
-      ...data, 
-      _id: uuidv4(),
-      creado_por: 'admin-system', 
-      created_at: now 
+    const payload = {
+      ...data,
+      // _id lo autogenera ROBLE
+      creado_por: 'admin-system',
+      created_at: now,
     };
 
-    const result = await this.roble.dbInsert<{ inserted: any[], skipped: any[] }>(TABLE, [payload]);
+    const result = await this.roble.dbInsert<{ inserted: any[]; skipped: any[] }>(
+      TABLE,
+      [payload],
+    );
+
     if (!result.inserted || result.inserted.length === 0) {
-      throw new InternalServerErrorException('Error al crear el foro del día.');
+      throw new InternalServerErrorException(
+        `No se pudo crear el foro del día. Skipped: ${JSON.stringify(result.skipped)}`,
+      );
     }
     return this.mapEntity(result.inserted[0]);
   }
 
-  // Lógica de carga masiva
   async createBulk(data: CreateForoDiaInput[]): Promise<void> {
     const now = new Date().toISOString();
     const payloads = data.map(item => ({
       ...item,
-      _id: uuidv4(),
+      // _id lo autogenera ROBLE
       creado_por: 'admin-system',
-      created_at: now
+      created_at: now,
     }));
 
-    const result = await this.roble.dbInsert<{ inserted: any[], skipped: any[] }>(TABLE, payloads);
+    const result = await this.roble.dbInsert<{ inserted: any[]; skipped: any[] }>(
+      TABLE,
+      payloads,
+    );
+
     if (!result.inserted || result.inserted.length === 0) {
-      throw new InternalServerErrorException('Error al insertar foros masivamente.');
+      throw new InternalServerErrorException(
+        `No se pudieron insertar los foros masivamente. Skipped: ${JSON.stringify(result.skipped)}`,
+      );
+    }
+
+    if (result.skipped && result.skipped.length > 0) {
+      console.warn(`Carga masiva parcial: ${result.inserted.length} insertados, ${result.skipped.length} rechazados`, result.skipped);
     }
   }
 

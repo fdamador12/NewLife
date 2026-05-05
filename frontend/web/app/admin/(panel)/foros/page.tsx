@@ -37,7 +37,7 @@ import {
   Pencil, Plus, Search, MessageSquare, CalendarIcon, CalendarDays,
   List, ChevronLeft, ChevronRight, Upload, Loader2, AlertCircle
 } from "lucide-react"
-import { format, parse, isValid, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addDays } from "date-fns"
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addDays } from "date-fns"
 import { es } from "date-fns/locale"
 
 // --- Integración Backend ---
@@ -51,10 +51,10 @@ interface DailyForum {
   createdAt: string
 }
 
-const emptyFormData = { 
-  date: undefined as Date | undefined, 
+const emptyFormData = {
+  date: undefined as Date | undefined,
   question: "",
-  description: "" 
+  description: ""
 }
 
 export default function ForosPage() {
@@ -63,16 +63,19 @@ export default function ForosPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState("")
 
+  // ✅ FIX BUG 2: Estado controlado del tab activo (antes usaba defaultValue y se reseteaba)
+  const [activeTab, setActiveTab] = useState("calendar")
+
   const [showModal, setShowModal] = useState(false)
   const [editingForum, setEditingForum] = useState<DailyForum | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [formData, setFormData] = useState(emptyFormData)
-  
+
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [dateRangeStart, setDateRangeStart] = useState<Date | undefined>(undefined)
   const [dateRangeEnd, setDateRangeEnd] = useState<Date | undefined>(undefined)
   const [lockedDate, setLockedDate] = useState<Date | undefined>(undefined)
-  
+
   // Bulk import state
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkText, setBulkText] = useState("")
@@ -166,22 +169,32 @@ export default function ForosPage() {
   }
 
   // --- GUARDAR INDIVIDUAL ---
+  // ✅ FIX BUG 1: En update enviamos descripcion explícita (incluso vacía) para permitir borrarla.
+  // En create la omitimos si está vacía, ya que la columna es nullable en ROBLE.
   const handleSave = async () => {
     if (!formData.date || !formData.question.trim()) return
     setFormError("")
     setIsSaving(true)
 
-    const payload = {
-      fecha: format(formData.date, "yyyy-MM-dd"),
-      pregunta: formData.question.trim(),
-      descripcion: formData.description?.trim() || undefined
-    }
+    const fecha = format(formData.date, "yyyy-MM-dd")
+    const pregunta = formData.question.trim()
+    const descripcion = formData.description?.trim() ?? ""
 
     try {
       if (editingForum) {
-        await updateForo(editingForum.id, payload)
+        // En update: descripcion siempre va, así "" significa "borrar el contenido previo"
+        await updateForo(editingForum.id, {
+          fecha,
+          pregunta,
+          descripcion,
+        })
       } else {
-        await createForo(payload)
+        // En create: si está vacía, omitimos el campo para que la columna quede null en ROBLE
+        await createForo({
+          fecha,
+          pregunta,
+          ...(descripcion ? { descripcion } : {}),
+        })
       }
 
       await loadForos()
@@ -226,29 +239,30 @@ export default function ForosPage() {
   }, [bulkText])
 
   // --- CARGA MASIVA ---
+  // ✅ Mejora: usamos un Set local en vez de mutar el Map memoizado de forumsByDate
   const handleBulkImport = async () => {
     if (parsedBulkQuestions.length === 0 || !bulkStartDate) return
     setBulkError("")
     setIsBulkSaving(true)
 
     const startDate = parseLocalDate(bulkStartDate)
+    const reservedDates = new Set<string>(forumsByDate.keys())
     let currentDate = startDate
-    const payloadForos = []
+    const payloadForos: { fecha: string; pregunta: string }[] = []
 
     for (const questionText of parsedBulkQuestions) {
-      while (forumsByDate.has(format(currentDate, "yyyy-MM-dd"))) {
+      while (reservedDates.has(format(currentDate, "yyyy-MM-dd"))) {
         currentDate = addDays(currentDate, 1)
       }
-      
+
       const dayStr = format(currentDate, "yyyy-MM-dd")
       payloadForos.push({
         fecha: dayStr,
-        pregunta: questionText
-        // descripción se envía vacío por defecto en carga masiva
+        pregunta: questionText,
+        // descripción se omite en carga masiva
       })
 
-      // Apartar el día localmente para el loop
-      forumsByDate.set(dayStr, { id: 'temp', date: dayStr, question: '', createdAt: '' })
+      reservedDates.add(dayStr)
       currentDate = addDays(currentDate, 1)
     }
 
@@ -261,7 +275,6 @@ export default function ForosPage() {
     } catch (error) {
       console.error("Error en carga masiva:", error)
       setBulkError("Hubo un error al procesar las preguntas. Intenta de nuevo.")
-      await loadForos() // Restablecer mapa local
     } finally {
       setIsBulkSaving(false)
     }
@@ -332,7 +345,7 @@ export default function ForosPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="calendar" className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="bg-[#f8f6f3] p-1">
               <TabsTrigger value="calendar" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-[#1a1a1a] text-[#737373]">
                 <CalendarDays className="w-4 h-4" />
@@ -560,7 +573,7 @@ export default function ForosPage() {
               <DialogDescription>Pega una lista de preguntas. El sistema rellenará los próximos días vacíos saltándose los días que ya tengan foros programados.</DialogDescription>
             </DialogHeader>
           </div>
-          
+
           <div className="p-6 flex-1 flex flex-col min-h-0 space-y-4">
             {bulkError && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex-shrink-0">
@@ -588,15 +601,14 @@ export default function ForosPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            
+
             <div className="space-y-2 flex-1 flex flex-col min-h-0">
               <Label>Preguntas (una por línea)</Label>
               <div className="flex-1 min-h-0 relative rounded-md border border-[#e5e5e5] focus-within:ring-1 focus-within:ring-[#d4854a] transition-shadow">
-                <textarea 
-                  value={bulkText} 
-                  onChange={(e) => setBulkText(e.target.value)} 
+                <textarea
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
                   className="w-full h-full p-3 resize-none outline-none bg-transparent text-[#1a1a1a]"
-                  placeholder="¿Qué te motiva hoy?&#10;¿Cómo enfrentas la tentación?&#10;..."
                 />
               </div>
               <p className="text-sm text-[#737373] text-right pt-1 font-medium flex-shrink-0">
