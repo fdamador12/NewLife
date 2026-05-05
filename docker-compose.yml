@@ -63,3 +63,20 @@ services:
     depends_on:
       - admin-api
     restart: unless-stopped
+
+  # ── Almacenamiento de Media (MinIO) ──────────────────────────────
+  minio:
+    # newlife-media.openlab.uninorte.edu.co (Futuro subdominio sugerido)
+    image: minio/minio:latest
+    container_name: newlife-minio
+    ports:
+      - "5183:9000" # API compatible con S3 (Lo que usará tu NestJS)
+      - "5184:9001" # Consola Web (Para que ustedes vean los archivos visualmente)
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_newlife}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-NewLifeMedia2026!}
+    volumes:
+      # Mapea el almacenamiento al disco físico de OPENLAB
+      - ./media-data:/data 
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
