@@ -16,12 +16,19 @@ import SobrietyCard from './components/SobrietyCard';
 import SavingsCard from './components/SavingsCard';
 import GuestBanner from './components/GuestBanner';
 import PetWidget from '../../pet/components/PetWidget';
+import { usePet } from '../../pet/hooks/usePet';
 
 export default function HomeScreen({ navigation }: any) {
   const [apodo, setApodo] = useState('');
   const [sobriety, setSobriety] = useState({ dias: 0, horas: 0, minutos: 0 });
   const [gastoSemanal, setGastoSemanal] = useState(0);
   const [isGuest, setIsGuest] = useState(false);
+  const { resetPet, fetchPet } = usePet();
+
+  // Cargar mascota al entrar a home
+  useEffect(() => {
+    fetchPet();
+  }, []);
 
   useEffect(() => {
     const checkGuest = async () => {
@@ -104,6 +111,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const handleLogout = async () => {
     try {
+      resetPet();
       if (isGuest) {
         await clearGuestData();
       } else {
@@ -121,13 +129,10 @@ export default function HomeScreen({ navigation }: any) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header saludo */}
         <Text style={styles.greeting}>¡Hola {apodo ? apodo : ''}!</Text>
 
-        {/* Mascota */}
         <PetWidget onPress={() => navigation.navigate('PetScreen')} />
 
-        {/* Lo que has logrado */}
         <Text style={styles.sectionTitle}>Lo que has logrado</Text>
         <SobrietyCard
           dias={sobriety.dias}
@@ -135,7 +140,6 @@ export default function HomeScreen({ navigation }: any) {
           minutos={sobriety.minutos}
         />
 
-        {/* Dinero ahorrado */}
         {!isGuest && (
           <>
             <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
@@ -143,24 +147,18 @@ export default function HomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* Banner invitado o cerrar sesión */}
         {isGuest ? (
           <GuestBanner
             onCreateAccount={() => navigation.navigate('Register')}
             onLogout={handleLogout}
           />
         ) : (
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutText}>Cerrar sesión</Text>
           </TouchableOpacity>
         )}
-
       </ScrollView>
 
-      {/* SOS fijo abajo */}
       <View style={styles.sosWrapper}>
         <TouchableOpacity
           style={styles.sosButton}

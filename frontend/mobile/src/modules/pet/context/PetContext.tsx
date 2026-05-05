@@ -18,6 +18,7 @@ interface PetContextType {
   loading: boolean;
   error: string | null;
   fetchPet: () => Promise<void>;
+  resetPet: () => void;
   addXp: (action: XpAction, nivel?: number, subnivel?: number) => Promise<AddXpResponse | null>;
   selectForm: (form: PetForm) => Promise<void>;
 }
@@ -49,6 +50,13 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchPet();
   }, [fetchPet]);
+
+  const resetPet = useCallback(() => {
+    setPet(DEFAULT_PET);
+    setMessage(getPetMessage('seed'));
+    setError(null);
+    setLoading(false);
+  }, []);
 
   const addXp = useCallback(async (
     action: XpAction,
@@ -93,7 +101,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   }, [pet.selected_form, showToast]);
 
   return (
-    <PetContext.Provider value={{ pet, message, loading, error, fetchPet, addXp, selectForm }}>
+    <PetContext.Provider value={{ pet, message, loading, error, fetchPet, resetPet, addXp, selectForm }}>
       {children}
     </PetContext.Provider>
   );
