@@ -17,11 +17,12 @@ import SavingsCard from './components/SavingsCard';
 import GuestBanner from './components/GuestBanner';
 import PetWidget from '../../pet/components/PetWidget';
 import { usePet } from '../../pet/hooks/usePet';
+import { getAhorro } from '../../../services/progressService';
 
 export default function HomeScreen({ navigation }: any) {
   const [apodo, setApodo] = useState('');
   const [sobriety, setSobriety] = useState({ dias: 0, horas: 0, minutos: 0 });
-  const [gastoSemanal, setGastoSemanal] = useState(0);
+  const [ahorro, setAhorro] = useState({ ahorro_total: 0, dias_limpios: 0 });
   const [isGuest, setIsGuest] = useState(false);
   const { resetPet, fetchPet } = usePet();
 
@@ -95,18 +96,21 @@ export default function HomeScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
-    const fetchGastoSemanal = async () => {
+    const fetchAhorro = async () => {
       try {
         const guest = await isGuestMode();
         if (!guest) {
-          const data = await getHomeSummary();
-          setGastoSemanal(data.gasto_semanal || 0);
+          const data = await getAhorro();
+          setAhorro({
+            ahorro_total: data.ahorro_total ?? 0,
+            dias_limpios: data.dias_limpios ?? 0,
+          });
         }
       } catch (e) {
-        console.log('Error obteniendo gasto semanal:', e);
+        console.log('Error obteniendo ahorro:', e);
       }
     };
-    fetchGastoSemanal();
+    fetchAhorro();
   }, []);
 
   const handleLogout = async () => {
@@ -143,7 +147,11 @@ export default function HomeScreen({ navigation }: any) {
         {!isGuest && (
           <>
             <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
-            <SavingsCard gastoSemanal={gastoSemanal} />
+            <SavingsCard
+              ahorroTotal={ahorro.ahorro_total}
+              diasLimpios={ahorro.dias_limpios}
+              onPress={() => navigation.navigate('SavingsScreen')}
+            />
           </>
         )}
 

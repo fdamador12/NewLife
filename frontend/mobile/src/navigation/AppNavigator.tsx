@@ -35,6 +35,7 @@ import BreathingScreen from '../modules/home/screens/crisis/BreathingScreen';
 import MotivationalPhrasesScreen from '../modules/home/screens/crisis/MotivationalPhrasesScreen';
 import GuidedMeditationScreen from '../modules/home/screens/guided-audios/GuidedMeditationScreen';
 import CongratulationsScreen from '../modules/auth/screens/AdditionalData/Congratulations';
+import SavingsScreen from '../modules/home/screens/SavingsScreen';
 import AppTourScreen from '../modules/auth/screens/AppTourScreen';
 import GratitudeHistoryScreen from '../modules/progress/screens/GratitudeHistoryScreen';
 import DailyCheckInScreen from '../modules/progress/screens/DailyCheckInScreen';
@@ -126,6 +127,7 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="MotivationalPhrasesScreen" component={MotivationalPhrasesScreen} />
                   <Stack.Screen name="GuidedMeditationScreen" component={GuidedMeditationScreen} />
                   <Stack.Screen name="Congratulations" component={CongratulationsScreen} />
+                  <Stack.Screen name="SavingsScreen" component={SavingsScreen} />
                   <Stack.Screen name="AppTour" component={AppTourScreen} />
                   <Stack.Screen name="GratitudeHistory" component={GratitudeHistoryScreen} />
                   <Stack.Screen name="DailyCheckIn" component={DailyCheckInScreen} />

@@ -1,25 +1,31 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 
 type Props = {
-  gastoSemanal: number;
+  ahorroTotal: number;
+  diasLimpios: number;
+  onPress?: () => void;
 };
 
-export default function SavingsCard({ gastoSemanal }: Props) {
+export default function SavingsCard({ ahorroTotal, diasLimpios, onPress }: Props) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.moneyRow}>
         <View style={styles.moneyIcon}>
           <Icon name="dollar-sign" size={22} color="#F5A623" />
         </View>
-        <View>
-          <Text style={styles.moneyAmount}>${gastoSemanal.toLocaleString()}</Text>
-          <Text style={styles.moneySub}>Ahorro semanal promedio</Text>
+        <View style={styles.moneyInfo}>
+          <Text style={styles.moneyAmount}>${ahorroTotal.toLocaleString()}</Text>
+          <Text style={styles.moneySub}>ahorrado hasta ahora</Text>
+        </View>
+        <View style={styles.diasBadge}>
+          <Text style={styles.diasNumber}>{diasLimpios}</Text>
+          <Text style={styles.diasLabel}>días{'\n'}limpios</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -48,6 +54,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  moneyInfo: {
+    flex: 1,
+  },
   moneyAmount: {
     fontSize: fontSizes.lg,
     fontWeight: '700',
@@ -56,5 +65,22 @@ const styles = StyleSheet.create({
   moneySub: {
     fontSize: fontSizes.sm,
     color: colors.textMuted,
+  },
+  diasBadge: {
+    alignItems: 'center',
+    backgroundColor: '#F0FFF4',
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    minWidth: 56,
+  },
+  diasNumber: {
+    fontSize: fontSizes.xl,
+    fontWeight: '800',
+    color: '#2ECC71',
+  },
+  diasLabel: {
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });
