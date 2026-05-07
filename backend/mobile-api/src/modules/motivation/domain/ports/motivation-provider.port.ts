@@ -8,6 +8,13 @@ export interface SobrietyRecord {
   updated_at: string;
 }
 
+export interface CaminoRecord {
+  usuario_id: string;
+  nivel: number;
+  subnivel: number;
+  updated_at: string;
+}
+
 export interface IMotivationProviderPort {
   getFraseDelDia(fecha: string, masterToken: string): Promise<FraseDiaEntity | null>;
   getFraseById(fraseId: string, masterToken: string): Promise<FraseDiaEntity | null>;
@@ -23,6 +30,7 @@ export interface IMotivationProviderPort {
   startChallenge(data: Partial<UserChallengeEntity>, masterToken: string): Promise<UserChallengeEntity>;
   updateChallengeProgress(userRetoId: string, progreso: number, estado: string, masterToken: string, nuevaFechaInicio?: string): Promise<void>;
   getSobrietyRecord(usuarioId: string, masterToken: string): Promise<SobrietyRecord | null>;
+  getCaminoRecord(usuarioId: string, masterToken: string): Promise<CaminoRecord | null>;
 }
 
 export interface IChallengeEvaluator {

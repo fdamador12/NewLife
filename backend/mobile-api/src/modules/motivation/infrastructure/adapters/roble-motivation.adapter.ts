@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/infrastructure/database.service';
-import { IMotivationProviderPort, SobrietyRecord } from '../../domain/ports/motivation-provider.port';
+import { IMotivationProviderPort, SobrietyRecord, CaminoRecord } from '../../domain/ports/motivation-provider.port';
 import { FraseDiaEntity, FraseGuardadaEntity } from '../../domain/entities/frase.entity';
 import { ChallengeEntity } from '../../domain/entities/challenge.entity';
 import { UserChallengeEntity } from '../../domain/entities/user-challenge.entity';
@@ -91,6 +91,7 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
       estado: data.estado,
       progreso_actual: data.progreso_actual,
       fecha_inicio: fechaArranque,
+      fecha_completado: data.estado === 'COMPLETED' ? now : null,
       updated_at: now,
     }], masterToken);
     return new UserChallengeEntity(result.inserted[0]);
@@ -127,6 +128,17 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
       return rows[0] ?? null;
     } catch (error) {
       console.error('❌ Error en getSobrietyRecord:', error);
+      return null;
+    }
+  }
+
+  async getCaminoRecord(usuarioId: string, masterToken: string): Promise<CaminoRecord | null> {
+    try {
+      const result = await this.dbService.find('camino', { usuario_id: usuarioId }, masterToken);
+      const rows = Array.isArray(result) ? result : (result?.rows ?? []);
+      return rows[0] ?? null;
+    } catch (error) {
+      console.error('❌ Error en getCaminoRecord:', error);
       return null;
     }
   }

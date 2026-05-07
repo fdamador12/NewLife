@@ -41,6 +41,18 @@ export class GetMyChallengesUseCase {
       }
     }
 
+    // ✅ Obtener nivel actual una sola vez si hay retos PATH_LEVEL activos
+    const tienePathActivo = myChallenges.some(
+      mc => mc.estado === 'ACTIVE' &&
+      allPublished.find(c => c.reto_id === mc.reto_id)?.tipo === 'PATH_LEVEL'
+    );
+
+    let nivelActual = 0;
+    if (tienePathActivo) {
+      const camino = await this.motivationProvider.getCaminoRecord(usuarioId, masterToken);
+      nivelActual = camino?.nivel ?? 0;
+    }
+
     const activos = [];
     const terminados = [];
     const disponibles = [];
@@ -59,19 +71,37 @@ export class GetMyChallengesUseCase {
           texto_progreso: `0% completado — Únete para comenzar`,
         });
       } else {
-        // ✅ Para SOBRIETY_DAYS activo: usar progreso en tiempo real
-        const progreso =
-          catalogo.tipo === 'SOBRIETY_DAYS' && userChallenge.estado === 'ACTIVE'
-            ? Math.min(diasSobrioActual, catalogo.target)
-            : userChallenge.progreso_actual;
+        // ✅ Calcular progreso en tiempo real según tipo
+        let progreso = userChallenge.progreso_actual;
+
+        if (userChallenge.estado === 'ACTIVE') {
+          if (catalogo.tipo === 'SOBRIETY_DAYS') {
+            progreso = Math.min(diasSobrioActual, catalogo.target);
+          } else if (catalogo.tipo === 'PATH_LEVEL') {
+            progreso = Math.min(nivelActual, catalogo.target);
+          }
+        }
 
         const target = catalogo.target;
         const porcentaje = Math.min(Math.floor((progreso / target) * 100), 100);
 
+        // ✅ Auto-completar si progreso >= target y estado es ACTIVE
+        let estadoFinal = userChallenge.estado;
+        if (userChallenge.estado === 'ACTIVE' && progreso >= target) {
+          estadoFinal = 'COMPLETED';
+          // Actualizar en BD en background — no bloqueamos la respuesta
+          this.motivationProvider.updateChallengeProgress(
+            userChallenge.user_reto_id,
+            progreso,
+            'COMPLETED',
+            masterToken,
+          ).catch(err => console.error('Error auto-completando reto:', err));
+        }
+
         let textoProgreso = '';
-        if (userChallenge.estado === 'COMPLETED') {
+        if (estadoFinal === 'COMPLETED') {
           textoProgreso = `${target} de ${target} cumplidos`;
-        } else if (userChallenge.estado === 'FAILED') {
+        } else if (estadoFinal === 'FAILED') {
           textoProgreso = `Reto interrumpido - Llegaste a ${userChallenge.progreso_actual}/${target}`;
         } else {
           switch (catalogo.tipo) {
@@ -99,13 +129,13 @@ export class GetMyChallengesUseCase {
           descripcion: catalogo.descripcion,
           dificultad: catalogo.dificultad,
           target: target,
-          estado: userChallenge.estado,
+          estado: estadoFinal,
           progreso_actual: progreso,
           porcentaje: porcentaje,
           texto_progreso: textoProgreso,
         };
 
-        if (userChallenge.estado === 'ACTIVE') {
+        if (estadoFinal === 'ACTIVE') {
           activos.push(retoFormateado);
         } else {
           terminados.push(retoFormateado);
