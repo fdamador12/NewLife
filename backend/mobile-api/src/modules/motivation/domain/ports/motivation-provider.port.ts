@@ -31,6 +31,7 @@ export interface IMotivationProviderPort {
   updateChallengeProgress(userRetoId: string, progreso: number, estado: string, masterToken: string, nuevaFechaInicio?: string): Promise<void>;
   getSobrietyRecord(usuarioId: string, masterToken: string): Promise<SobrietyRecord | null>;
   getCaminoRecord(usuarioId: string, masterToken: string): Promise<CaminoRecord | null>;
+  marcarXpReclamado(userRetoId: string, masterToken: string): Promise<void>;
 }
 
 export interface IChallengeEvaluator {

@@ -2,6 +2,9 @@ export const XP_PER_ACTION: Record<string, number> = {
   checkin: 10,
   sober_day: 20,
   module_complete: 15,
+  challenge_complete_suave: 50,
+  challenge_complete_moderada: 100,
+  challenge_complete_intensa: 200,
 };
 
 export const FORM_THRESHOLDS: { form: string; xp: number }[] = [

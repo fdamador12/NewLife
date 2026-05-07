@@ -19,12 +19,14 @@ import { CheckinTotalStrategy } from './application/strategies/checkin-total.str
 import { PathLevelStrategy } from './application/strategies/path-level.strategy';
 import { ProgressEventsListener } from './application/listeners/progress-events.listener';
 import { GetMisMedallasUseCase } from './application/use-cases/get-mis-medallas.use-case';
+import { ReclamarXpUseCase } from './application/use-cases/reclamar-xp.use-case';
 import { MotivationController } from './presentation/controllers/motivation.controller';
+import { PetModule } from '../pet/pet.module';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, EventEmitterModule, ProgressModule],
+  imports: [DatabaseModule, AuthModule, EventEmitterModule, ProgressModule, PetModule],
   controllers: [
-    MotivationController
+    MotivationController,
   ],
   providers: [
     {
@@ -46,7 +48,8 @@ import { MotivationController } from './presentation/controllers/motivation.cont
     PathLevelStrategy,
     ProgressEventsListener,
     GetMisMedallasUseCase,
+    ReclamarXpUseCase,
   ],
-  exports: ['IMotivationProviderPort', GetFrasesPorFechaUseCase], // ✅ AGREGAR ESTO
+  exports: ['IMotivationProviderPort', GetFrasesPorFechaUseCase],
 })
 export class MotivationModule {}

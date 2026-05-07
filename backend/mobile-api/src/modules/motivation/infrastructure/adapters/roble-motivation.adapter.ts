@@ -92,6 +92,7 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
       progreso_actual: data.progreso_actual,
       fecha_inicio: fechaArranque,
       fecha_completado: data.estado === 'COMPLETED' ? now : null,
+      xp_reclamado: false,
       updated_at: now,
     }], masterToken);
     return new UserChallengeEntity(result.inserted[0]);
@@ -116,6 +117,7 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
 
     if (nuevaFechaInicio) {
       updates.fecha_inicio = nuevaFechaInicio;
+      updates.xp_reclamado = false;
     }
 
     await this.dbService.update('user_retos', 'user_reto_id', userRetoId, updates, masterToken);
@@ -141,5 +143,15 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
       console.error('❌ Error en getCaminoRecord:', error);
       return null;
     }
+  }
+
+  async marcarXpReclamado(userRetoId: string, masterToken: string): Promise<void> {
+    await this.dbService.update(
+      'user_retos',
+      'user_reto_id',
+      userRetoId,
+      { xp_reclamado: true, updated_at: new Date().toISOString() },
+      masterToken,
+    );
   }
 }
