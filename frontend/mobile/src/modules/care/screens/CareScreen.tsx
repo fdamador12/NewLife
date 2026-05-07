@@ -68,15 +68,12 @@ export default function CareScreen({ navigation }: any) {
             case 'groups':
                 navigation.navigate('GroupsScreen');
                 break;
-
             case 'emergency':
                 navigation.navigate('CareContacts');
                 break;
-
             case 'motivation':
                 navigation.navigate('MotivationalScreen');
                 break;
-
             case 'content':
                 navigation.navigate('ContentScreen');
                 break;
@@ -88,10 +85,14 @@ export default function CareScreen({ navigation }: any) {
         a.getMonth() === b.getMonth() &&
         a.getFullYear() === b.getFullYear();
 
-    const todayEvents = eventos
-        .filter((e) => isSameDay(e.date, new Date()))
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const upcomingEvents = eventos
+        .filter((e) => isSameDay(e.date, now))
+        .filter((e) => timeToMinutes(e.timeFrom) >= currentMinutes)
         .sort((a, b) => timeToMinutes(a.timeFrom) - timeToMinutes(b.timeFrom))
-        .slice(0, 3);
+        .slice(0, 2);
 
     return (
         <View style={styles.container}>
@@ -99,17 +100,14 @@ export default function CareScreen({ navigation }: any) {
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
             >
-
                 {/* Header */}
                 <Text style={styles.title}>Cuidado</Text>
-
                 <Text style={styles.subtitle}>
                     Encuentra grupos de apoyo, contactos de emergencia y contenido útil.
                 </Text>
 
                 {/* Acciones rápidas */}
                 <Text style={styles.sectionTitle}>Acciones rápidas</Text>
-
                 <View style={styles.actionsGrid}>
                     {QUICK_ACTIONS.map((action) => (
                         <TouchableOpacity
@@ -118,24 +116,14 @@ export default function CareScreen({ navigation }: any) {
                             onPress={() => handleQuickAction(action.key)}
                             activeOpacity={0.8}
                         >
-                            <Feather
-                                name={action.icon as any}
-                                size={20}
-                                color={action.color}
-                            />
-
-                            <Text style={styles.actionLabel}>
-                                {action.label}
-                            </Text>
+                            <Feather name={action.icon as any} size={20} color={action.color} />
+                            <Text style={styles.actionLabel}>{action.label}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
 
                 {/* Mapa */}
-                <Text style={styles.sectionTitle}>
-                    Marcadores de apoyo y riesgo
-                </Text>
-
+                <Text style={styles.sectionTitle}>Marcadores de apoyo y riesgo</Text>
                 <View style={styles.mapCard}>
                     <WebView
                         source={{ html: MAP_HTML }}
@@ -143,18 +131,12 @@ export default function CareScreen({ navigation }: any) {
                         scrollEnabled={false}
                         javaScriptEnabled
                     />
-
                     <View style={styles.mapFooter}>
                         <Text style={styles.mapFooterText}>
                             Encuentra tus zonas de apoyo y peligro
                         </Text>
-
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('ZonesScreen')}
-                        >
-                            <Text style={styles.mapLink}>
-                                Ver más zonas
-                            </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('ZonesScreen')}>
+                            <Text style={styles.mapLink}>Ver más zonas</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -164,43 +146,38 @@ export default function CareScreen({ navigation }: any) {
                     style={styles.sectionHeaderAgenda}
                     onPress={() => navigation.navigate('AgendaScreen')}
                 >
-                    <Text style={styles.sectionTitleAgenda}>
-                        Agenda
-                    </Text>
-
-                    <Feather
-                        name="chevron-right"
-                        size={20}
-                        color={colors.text}
-                    />
+                    <Text style={styles.sectionTitleAgenda}>Agenda</Text>
+                    <Feather name="chevron-right" size={20} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.agendaCard}>
-                    {todayEvents.length > 0 ? (
-                        todayEvents.map((item, i) => (
+                    {upcomingEvents.length > 0 ? (
+                        upcomingEvents.map((item, i) => (
                             <View
                                 key={item.id}
                                 style={[
                                     styles.agendaRow,
-                                    i < todayEvents.length - 1 &&
-                                    styles.agendaRowBorder,
+                                    i < upcomingEvents.length - 1 && styles.agendaRowBorder,
                                 ]}
                             >
-                                <Text style={styles.agendaTime}>
-                                    {item.timeFrom}
-                                </Text>
-
-                                <Text style={styles.agendaTitle}>
-                                    {item.title}
-                                </Text>
+                                <Text style={styles.agendaTime}>{item.timeFrom}</Text>
+                                <Text style={styles.agendaTitle}>{item.title}</Text>
                             </View>
                         ))
                     ) : (
-                        <View style={styles.emptyAgenda}>
+                        <TouchableOpacity
+                            style={styles.emptyAgenda}
+                            onPress={() => navigation.navigate('AgendaScreen')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.emptyAgendaEmoji}>📅</Text>
                             <Text style={styles.emptyAgendaText}>
-                                No tienes eventos para hoy
+                                No tienes más eventos por hoy
                             </Text>
-                        </View>
+                            <Text style={styles.emptyAgendaAction}>
+                                Agregar evento
+                            </Text>
+                        </TouchableOpacity>
                     )}
                 </View>
 
@@ -215,27 +192,23 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.background,
     },
-
     scroll: {
         paddingHorizontal: spacing.xl,
         paddingTop: 60,
         paddingBottom: spacing.xl,
     },
-
     title: {
         fontSize: fontSizes.xxl,
         fontWeight: '800',
         color: colors.text,
         marginBottom: spacing.xs,
     },
-
     subtitle: {
         fontSize: fontSizes.sm,
         color: colors.textMuted,
         lineHeight: 20,
         marginBottom: spacing.sm,
     },
-
     sectionTitle: {
         fontSize: fontSizes.md,
         fontWeight: '700',
@@ -243,7 +216,6 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         marginTop: spacing.sm,
     },
-
     sectionTitleAgenda: {
         fontSize: fontSizes.lg,
         fontWeight: '700',
@@ -251,7 +223,6 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         marginTop: spacing.sm,
     },
-
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -259,21 +230,18 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         marginTop: spacing.sm,
     },
-
     sectionHeaderAgenda: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.xs,
         marginTop: spacing.sm,
     },
-
     actionsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: spacing.md,
         marginBottom: spacing.lg,
     },
-
     actionCard: {
         width: '47%',
         height: 60,
@@ -290,13 +258,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 4,
     },
-
     actionLabel: {
         fontSize: fontSizes.md,
         fontWeight: '600',
         color: '#406ADF',
     },
-
     mapCard: {
         backgroundColor: colors.white,
         borderRadius: borderRadius.md,
@@ -308,29 +274,24 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 4,
     },
-
     map: {
         height: 140,
     },
-
     mapFooter: {
         padding: spacing.md,
         alignItems: 'center',
         gap: 4,
     },
-
     mapFooterText: {
         fontSize: fontSizes.sm,
         color: colors.textMuted,
     },
-
     mapLink: {
         fontSize: fontSizes.sm,
         color: colors.accent,
         fontWeight: '600',
         textDecorationLine: 'underline',
     },
-
     agendaCard: {
         backgroundColor: colors.white,
         borderRadius: borderRadius.md,
@@ -341,39 +302,44 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 4,
     },
-
     agendaRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.md,
         padding: spacing.lg,
     },
-
     agendaRowBorder: {
         borderBottomWidth: 1,
         borderBottomColor: '#F0F0F0',
     },
-
     agendaTime: {
         fontSize: fontSizes.sm,
         color: colors.textMuted,
         width: 60,
     },
-
     agendaTitle: {
         fontSize: fontSizes.sm,
         fontWeight: '600',
         color: colors.text,
         flex: 1,
     },
-
     emptyAgenda: {
-        padding: spacing.lg,
+        padding: spacing.xl,
         alignItems: 'center',
+        gap: spacing.sm,
     },
-
+    emptyAgendaEmoji: {
+        fontSize: 32,
+    },
     emptyAgendaText: {
         fontSize: fontSizes.sm,
         color: colors.textMuted,
+        textAlign: 'center',
+    },
+    emptyAgendaAction: {
+        fontSize: fontSizes.sm,
+        color: colors.primary,
+        fontWeight: '700',
+        textDecorationLine: 'underline',
     },
 });
