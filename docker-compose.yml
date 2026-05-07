@@ -1,12 +1,12 @@
 # docker-compose.yml
-# Levanta: admin-api, mobile-api, frontend-web
+# Levanta: admin-api, mobile-api, frontend-web, minio
 # La app móvil (React Native) no se dockeriza — corre en emulador/dispositivo
 name: newlife
 services:
 
   # ── Backend Web (admin-api) ──────────────────────────────────────
   admin-api:
-   # newlife-web-api.openlab.uninorte.edu.co
+    # newlife-admin-api.openlab.uninorte.edu.co
     build:
       context: ./backend/admin-api
       dockerfile: Dockerfile
@@ -15,19 +15,36 @@ services:
       - "5180:3001"
     environment:
       PORT: 3001
+      # ── Roble ─────────────────────────────────────────────────────
       ROBLE_BASE_URL: ${ROBLE_BASE_URL}
       ROBLE_PROJECT_TOKEN: ${ROBLE_PROJECT_TOKEN}
       ROBLE_DB_NAME: ${ROBLE_DB_NAME}
       ROBLE_SYSTEM_EMAIL: ${ROBLE_SYSTEM_EMAIL}
       ROBLE_SYSTEM_PASSWORD: ${ROBLE_SYSTEM_PASSWORD}
+      # ── Admin Auth ────────────────────────────────────────────────
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
       ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      # ── MinIO ─────────────────────────────────────────────────────
+      # Endpoint interno: el backend habla con MinIO por la red de Docker
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      # Endpoint público: URL que se devuelve al frontend para mostrar imágenes
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      MINIO_REGION: ${MINIO_REGION}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_PUBLIC: ${MINIO_BUCKET_PUBLIC}
+      # ── Límites de upload ─────────────────────────────────────────
+      MEDIA_MAX_FILE_SIZE_MB: ${MEDIA_MAX_FILE_SIZE_MB}
+      MEDIA_MAX_IMAGE_DIMENSION: ${MEDIA_MAX_IMAGE_DIMENSION}
+      MEDIA_MIN_IMAGE_DIMENSION: ${MEDIA_MIN_IMAGE_DIMENSION}
+    depends_on:
+      - minio
     restart: unless-stopped
 
   # ── Backend Mobile (api) ─────────────────────────────────────────
   api:
-  # newlife-mobile-api.openlab.uninorte.edu.co
+    # newlife-mobile-api.openlab.uninorte.edu.co
     build:
       context: ./backend/mobile-api
       dockerfile: Dockerfile
@@ -66,17 +83,17 @@ services:
 
   # ── Almacenamiento de Media (MinIO) ──────────────────────────────
   minio:
-    # newlife-media.openlab.uninorte.edu.co (Futuro subdominio sugerido)
+    # newlife-media.openlab.uninorte.edu.co (futuro subdominio sugerido)
     image: minio/minio:latest
     container_name: newlife-minio
     ports:
-      - "5183:9000" # API compatible con S3 (Lo que usará tu NestJS)
-      - "5184:9001" # Consola Web (Para que ustedes vean los archivos visualmente)
+      - "5183:9000" # API compatible con S3 (lo que usa NestJS)
+      - "5184:9001" # Consola web (para ver los archivos visualmente)
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_newlife}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-NewLifeMedia2026!}
     volumes:
-      # Mapea el almacenamiento al disco físico de OPENLAB
-      - ./media-data:/data 
+      # Mapea el almacenamiento al disco físico
+      - ./media-data:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped

@@ -1,6 +1,7 @@
 import { AdminModule } from './modules/admin/admin.module';
 import { MotivationModule } from './modules/motivation/motivation.module';
 import { CareModule } from './modules/care/care.module';
+import { MediaModule } from './modules/media/media.module';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -22,7 +23,7 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-  
+
   // ── Swagger panel web ────────────────────────────────────────────────────
   const webConfig = new DocumentBuilder()
     .setTitle('NewLife — Panel de Administración')
@@ -33,10 +34,11 @@ async function bootstrap() {
     .addTag('Admin — Frases del Día')
     .addTag('Admin — Retos')
     .addTag('Admin — Grupos de Apoyo')
+    .addTag('Media — Imágenes')
     .build();
 
   const webDocument = SwaggerModule.createDocument(app, webConfig, {
-    include: [AdminModule, MotivationModule, CareModule],
+    include: [AdminModule, MotivationModule, CareModule, MediaModule],
   });
 
   SwaggerModule.setup('api/docs/web', app, webDocument);
