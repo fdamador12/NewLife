@@ -21,7 +21,7 @@ type Props = {
 
 export default function NivelModulo({ navigation, level, sublevel }: Props) {
     const [stepIndex, setStepIndex] = useState(0);
-    const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
     const [advancing, setAdvancing] = useState(false);
 
     const { progress, advance } = useLevelProgress();
@@ -43,19 +43,20 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
     const currentChoiceIndex = countBefore('mascot_choice', stepIndex);
     const currentOpenIndex = countBefore('mascot_open', stepIndex);
     const currentSentenceIndex = countBefore('complete_sentence', stepIndex);
+    const currentChecklistIndex = countBefore('mascot_checklist', stepIndex);
 
     const answerKey = `${step}_${countBefore(step, stepIndex)}`;
 
     const isDisabled =
         (step === 'mascot_choice' && !answers[answerKey]) ||
-        (step === 'mascot_open' && !answers[answerKey]?.trim()) ||
-        (step === 'complete_sentence' && !answers[answerKey]?.trim());
+        (step === 'mascot_open' && !answers[answerKey]?.toString().trim()) ||
+        (step === 'complete_sentence' && !answers[answerKey]?.toString().trim()) ||
+        (step === 'mascot_checklist' && (!answers[answerKey] || (answers[answerKey] as string[]).length === 0));
 
     const handleContinue = async () => {
         if (isLast) {
             setAdvancing(true);
             try {
-                // Verificar si este es el módulo actual ANTES de advance()
                 const isCurrentModule = progress.nivel === level && progress.subnivel === sublevel;
 
                 await advance(level, sublevel);
@@ -119,7 +120,7 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
                     <MascotBubble text={data.question} />
                     <MultipleChoice
                         options={data.options}
-                        selected={answers[answerKey] ?? null}
+                        selected={answers[answerKey] as string ?? null}
                         onSelect={(val) => setAnswers(prev => ({ ...prev, [answerKey]: val }))}
                     />
                 </>
@@ -134,7 +135,7 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
                     <MascotBubble text={data.question} />
                     <OpenQuestion
                         placeholder="Escribe aquí..."
-                        value={answers[answerKey] ?? ''}
+                        value={answers[answerKey] as string ?? ''}
                         onChange={(val) => setAnswers(prev => ({ ...prev, [answerKey]: val }))}
                     />
                 </>
@@ -153,9 +154,31 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
             return (
                 <CompleteSentence
                     prefix={data.prefix}
-                    value={answers[answerKey] ?? ''}
+                    value={answers[answerKey] as string ?? ''}
                     onChange={(val) => setAnswers(prev => ({ ...prev, [answerKey]: val }))}
                 />
+            );
+        }
+
+        if (step === 'mascot_checklist') {
+            const data = content.mascot_checklist?.[currentChecklistIndex];
+            if (!data) return null;
+            return (
+                <>
+                    <MascotBubble text={data.question} />
+                    <MultipleChoice
+                        options={data.options}
+                        selected={answers[answerKey] as string[] ?? []}
+                        onSelect={(val) => {
+                            const current = (answers[answerKey] as string[]) ?? [];
+                            const updated = current.includes(val)
+                                ? current.filter(v => v !== val)
+                                : [...current, val];
+                            setAnswers(prev => ({ ...prev, [answerKey]: updated }));
+                        }}
+                        multiple={true}
+                    />
+                </>
             );
         }
 
