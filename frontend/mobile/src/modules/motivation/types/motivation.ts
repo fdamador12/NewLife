@@ -21,6 +21,7 @@ export interface UserChallenge {
   user_reto_id?: string;
   fecha_inicio?: string;
   fecha_completado?: string | null;
+  xp_reclamado?: boolean;
 }
 
 export interface Medal {

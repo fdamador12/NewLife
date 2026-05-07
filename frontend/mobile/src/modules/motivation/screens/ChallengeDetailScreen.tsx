@@ -1,78 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useMotivation } from '../hooks/useMotivation';
 import { useToast } from '../../../feedback/ToastContext';
+import { reclamarXp } from '../../../services/motivationService';
+import { ProgressDots } from './challenge-detail/ProgressDots';
+import { MedalCard } from './challenge-detail/MedalCard';
+import { XpClaimButton } from './challenge-detail/XpClaimButton';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   SUAVE: '#4CAF50',
   MODERADA: '#FFC107',
   INTENSA: '#FF6B6B',
-};
-
-const CheckIcon = () => (
-  <Svg width={14} height={14} viewBox="0 0 24 24">
-    <Path
-      d="M5 12L10 17L19 7"
-      stroke="#FFF"
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </Svg>
-);
-
-const ProgressDot = ({
-  isActive,
-  isCompleted,
-  index,
-}: {
-  isActive: boolean;
-  isCompleted: boolean;
-  index: number;
-}) => {
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.delay(index * 80),
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 5,
-          tension: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, []);
-
-  const dotStyle = isActive || isCompleted ? styles.dotFilled : styles.dotEmpty;
-
-  return (
-    <Animated.View
-      style={[
-        styles.dotWrapper,
-        { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
-      ]}
-    >
-      <View style={[styles.dot, dotStyle]}>
-        {(isActive || isCompleted) && <CheckIcon />}
-      </View>
-      {(isActive || isCompleted) && <View style={styles.dotGlow} />}
-    </Animated.View>
-  );
 };
 
 export default function ChallengeDetailScreen({ navigation, route }: any) {
@@ -131,6 +73,27 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     }
   };
 
+  const handleClaim = async () => {
+    if (!challenge.user_reto_id) return;
+    try {
+      const result = await reclamarXp(challenge.user_reto_id);
+      await fetchMisChallenges();
+
+      if (result.evolved) {
+        navigation.navigate('PetEvolution', {
+          newForm: result.new_form,
+          xpGained: result.xp_gained,
+          destination: 'Home',
+          destinationParams: { initialTab: 'Motivation' },
+        });
+      } else {
+        showToast(`+${result.xp_gained} XP para tu mascota 🌱`, 'success');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'No se pudo reclamar la XP', 'error');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -169,46 +132,29 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
           </View>
 
           {challenge.target <= 30 && (
-            <View style={styles.dotsRow}>
-              {Array.from({ length: challenge.target }).map((_, i) => (
-                <ProgressDot
-                  key={i}
-                  index={i}
-                  isActive={i < (challenge.progreso_actual || 0)}
-                  isCompleted={isCompleted && i < (challenge.progreso_actual || 0)}
-                />
-              ))}
-            </View>
+            <ProgressDots
+              target={challenge.target}
+              progreso={challenge.progreso_actual || 0}
+              isCompleted={isCompleted}
+            />
           )}
         </View>
 
-        <View style={[
-          styles.medalCard,
-          isCompleted && styles.medalCardCompleted,
-          isFailed && styles.medalCardFailed,
-        ]}>
-          <Text style={[styles.medalEmoji, !isCompleted && styles.medalEmojiGray]}>
-            {isFailed ? '💔' : '🏅'}
-          </Text>
-          <Text style={[styles.medalTitle, !isCompleted && styles.medalTitleGray]}>
-            {isFailed ? 'Reto interrumpido' : challenge.titulo}
-          </Text>
-          {isFailed && (
-            <Text style={styles.medalFailedSubtext}>
-              Llegaste a {challenge.progreso_actual}/{challenge.target} — ¡puedes volver a intentarlo!
-            </Text>
-          )}
-        </View>
+        <MedalCard
+          titulo={challenge.titulo}
+          isCompleted={isCompleted}
+          isFailed={isFailed}
+          progreso_actual={challenge.progreso_actual || 0}
+          target={challenge.target}
+          onRetry={handleRetry}
+        />
 
-        {isFailed && (
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={handleRetry}
-            activeOpacity={0.85}
-          >
-            <Feather name="refresh-cw" size={18} color={colors.white} />
-            <Text style={styles.retryButtonText}>Volver a intentarlo</Text>
-          </TouchableOpacity>
+        {isCompleted && (
+          <XpClaimButton
+            xp_reclamado={challenge.xp_reclamado ?? false}
+            dificultad={challenge.dificultad}
+            onClaim={handleClaim}
+          />
         )}
 
         <View style={styles.difficultyRow}>
@@ -302,102 +248,6 @@ const styles = StyleSheet.create({
   },
   progressBarFailed: {
     backgroundColor: '#FF6B6B',
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  dotWrapper: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  dotFilled: {
-    backgroundColor: '#406ADF',
-    shadowColor: '#406ADF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  dotEmpty: {
-    backgroundColor: '#cbe2fc',
-    borderWidth: 2,
-    borderColor: 'rgba(90, 116, 230, 0.39)',
-    borderStyle: 'dashed',
-  },
-  dotGlow: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(90, 116, 230, 0.39)',
-    zIndex: 1,
-  },
-  medalCard: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: borderRadius.md,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  medalCardCompleted: {
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-  },
-  medalCardFailed: {
-    backgroundColor: '#FFF5F5',
-  },
-  medalEmoji: {
-    fontSize: 56,
-  },
-  medalEmojiGray: {
-    opacity: 0.3,
-  },
-  medalTitle: {
-    fontSize: fontSizes.md,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  medalTitleGray: {
-    color: colors.textMuted,
-  },
-  medalFailedSubtext: {
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  retryButtonText: {
-    color: colors.white,
-    fontSize: fontSizes.md,
-    fontWeight: '700',
   },
   difficultyRow: {
     flexDirection: 'row',

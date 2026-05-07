@@ -133,6 +133,7 @@ export class GetMyChallengesUseCase {
           progreso_actual: progreso,
           porcentaje: porcentaje,
           texto_progreso: textoProgreso,
+          xp_reclamado: userChallenge.xp_reclamado ?? false, // ✅ agregar esto
         };
 
         if (estadoFinal === 'ACTIVE') {
