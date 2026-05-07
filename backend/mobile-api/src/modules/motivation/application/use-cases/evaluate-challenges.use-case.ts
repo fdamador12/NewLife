@@ -15,30 +15,21 @@ export class EvaluateChallengesUseCase {
   ) {}
 
   async execute(usuarioId: string, userToken: string) {
-    this.logger.log(
-      `🎯 [EvaluateChallengesUseCase] Iniciando evaluación para usuario: ${usuarioId}`,
-    );
+    this.logger.log(`🎯 [EvaluateChallengesUseCase] Iniciando evaluación para usuario: ${usuarioId}`);
 
     try {
       const masterToken = await this.systemAuth.getMasterToken();
-      const activeChallenges =
-        await this.motivationProvider.getActiveUserChallenges(usuarioId, userToken);
+      const activeChallenges = await this.motivationProvider.getActiveUserChallenges(usuarioId, userToken);
 
-      this.logger.log(
-        `🎯 [EvaluateChallengesUseCase] Retos activos encontrados: ${activeChallenges.length}`,
-      );
+      this.logger.log(`🎯 [EvaluateChallengesUseCase] Retos activos encontrados: ${activeChallenges.length}`);
 
       if (activeChallenges.length === 0) {
-        this.logger.log(
-          `🎯 [EvaluateChallengesUseCase] No hay retos activos, nada que evaluar`,
-        );
+        this.logger.log(`🎯 [EvaluateChallengesUseCase] No hay retos activos, nada que evaluar`);
         return;
       }
 
       for (const userChallenge of activeChallenges) {
-        this.logger.log(
-          `🎯 [EvaluateChallengesUseCase] Evaluando reto: ${userChallenge.reto_id}`,
-        );
+        this.logger.log(`🎯 [EvaluateChallengesUseCase] Evaluando reto: ${userChallenge.reto_id}`);
 
         const retoCatalogo = await this.motivationProvider.getChallengeById(
           userChallenge.reto_id,
@@ -46,80 +37,57 @@ export class EvaluateChallengesUseCase {
         );
 
         if (!retoCatalogo) {
-          this.logger.warn(
-            `🎯 [EvaluateChallengesUseCase] Reto no encontrado: ${userChallenge.reto_id}`,
-          );
+          this.logger.warn(`🎯 [EvaluateChallengesUseCase] Reto no encontrado: ${userChallenge.reto_id}`);
           continue;
         }
 
         const evaluator = this.evaluatorFactory.getEvaluator(retoCatalogo.tipo);
-        this.logger.log(
-          `🎯 [EvaluateChallengesUseCase] Evaluador seleccionado: ${retoCatalogo.tipo}`,
-        );
+        this.logger.log(`🎯 [EvaluateChallengesUseCase] Evaluador seleccionado: ${retoCatalogo.tipo}`);
 
         const nuevoProgreso = await evaluator.evaluate(
           usuarioId,
           retoCatalogo.target,
+          userChallenge.fecha_inicio,
           userToken,
           masterToken,
         );
 
-        this.logger.log(
-          `🎯 [EvaluateChallengesUseCase] Reto: "${retoCatalogo.titulo}" (tipo: ${retoCatalogo.tipo})`,
-        );
-        this.logger.log(
-          `🎯 [EvaluateChallengesUseCase] Target: ${retoCatalogo.target}, Progreso anterior: ${userChallenge.progreso_actual}, Nuevo: ${nuevoProgreso}`,
-        );
+        this.logger.log(`🎯 [EvaluateChallengesUseCase] Reto: "${retoCatalogo.titulo}" (tipo: ${retoCatalogo.tipo})`);
+        this.logger.log(`🎯 [EvaluateChallengesUseCase] Target: ${retoCatalogo.target}, Progreso anterior: ${userChallenge.progreso_actual}, Nuevo: ${nuevoProgreso}`);
 
-        // ✅ Solo actualizar si el progreso cambió
         if (nuevoProgreso !== userChallenge.progreso_actual) {
           let estadoFinal = 'ACTIVE';
 
           if (nuevoProgreso >= retoCatalogo.target) {
             estadoFinal = 'COMPLETED';
-            this.logger.log(
-              `🎯 [EvaluateChallengesUseCase] ✅ RETO COMPLETADO: "${retoCatalogo.titulo}"`,
-            );
+            this.logger.log(`🎯 [EvaluateChallengesUseCase] ✅ RETO COMPLETADO: "${retoCatalogo.titulo}"`);
           } else if (
             nuevoProgreso < userChallenge.progreso_actual &&
-            (retoCatalogo.tipo === 'SOBRIETY_DAYS' ||
-              retoCatalogo.tipo === 'CHECKIN_STREAK')
+            (retoCatalogo.tipo === 'SOBRIETY_DAYS' || retoCatalogo.tipo === 'CHECKIN_STREAK')
           ) {
             estadoFinal = 'FAILED';
-            this.logger.log(
-              `🎯 [EvaluateChallengesUseCase] ❌ RETO FALLIDO: "${retoCatalogo.titulo}" (Retroceso en progreso)`,
-            );
+            this.logger.log(`🎯 [EvaluateChallengesUseCase] ❌ RETO FALLIDO: "${retoCatalogo.titulo}"`);
           }
 
-          this.logger.log(
-            `🎯 [EvaluateChallengesUseCase] Actualizando: user_reto_id=${userChallenge.user_reto_id}, progreso=${nuevoProgreso}, estado=${estadoFinal}`,
-          );
+          this.logger.log(`🎯 [EvaluateChallengesUseCase] Actualizando: user_reto_id=${userChallenge.user_reto_id}, progreso=${nuevoProgreso}, estado=${estadoFinal}`);
 
+          // ✅ Usar masterToken — no userToken que puede expirar
           await this.motivationProvider.updateChallengeProgress(
             userChallenge.user_reto_id,
             nuevoProgreso,
             estadoFinal,
-            userToken,
+            masterToken,
           );
 
-          this.logger.log(
-            `🎯 [EvaluateChallengesUseCase] ✅ Reto actualizado correctamente`,
-          );
+          this.logger.log(`🎯 [EvaluateChallengesUseCase] ✅ Reto actualizado correctamente`);
         } else {
-          this.logger.log(
-            `🎯 [EvaluateChallengesUseCase] ℹ️ Sin cambios en progreso (${nuevoProgreso} = ${userChallenge.progreso_actual})`,
-          );
+          this.logger.log(`🎯 [EvaluateChallengesUseCase] ℹ️ Sin cambios en progreso (${nuevoProgreso} = ${userChallenge.progreso_actual})`);
         }
       }
 
-      this.logger.log(
-        `🎯 [EvaluateChallengesUseCase] Evaluación completada exitosamente`,
-      );
+      this.logger.log(`🎯 [EvaluateChallengesUseCase] Evaluación completada exitosamente`);
     } catch (error: any) {
-      this.logger.error(
-        `🎯 [EvaluateChallengesUseCase] Error durante evaluación:`,
-        error.message,
-      );
+      this.logger.error(`🎯 [EvaluateChallengesUseCase] Error durante evaluación:`, error.message);
       throw error;
     }
   }

@@ -10,22 +10,45 @@ export class GetMyChallengesUseCase {
     private readonly systemAuth: SystemAuthService,
   ) {}
 
+  private calcularDiasSobrio(fechaUltimoConsumo: string): number {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const lastConsumption = new Date(fechaUltimoConsumo);
+    lastConsumption.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - lastConsumption.getTime();
+    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(days, 0);
+  }
+
   async execute(usuarioId: string, userToken: string) {
     const masterToken = await this.systemAuth.getMasterToken();
     const myChallenges = await this.motivationProvider.getUserChallenges(usuarioId, userToken);
     const allPublished = await this.motivationProvider.getPublishedChallenges(masterToken);
 
-    // Listas donde agruparemos todo
+    // ✅ Obtener sobriedad una sola vez si hay retos SOBRIETY_DAYS activos
+    const tieneSobrietyActivo = myChallenges.some(
+      mc => mc.estado === 'ACTIVE' &&
+      allPublished.find(c => c.reto_id === mc.reto_id)?.tipo === 'SOBRIETY_DAYS'
+    );
+
+    let diasSobrioActual = 0;
+    if (tieneSobrietyActivo) {
+      const sobrietyRecord = await this.motivationProvider.getSobrietyRecord(usuarioId, masterToken);
+      if (sobrietyRecord?.fecha_ultimo_consumo) {
+        diasSobrioActual = this.calcularDiasSobrio(sobrietyRecord.fecha_ultimo_consumo);
+      }
+    }
+
     const activos = [];
     const terminados = [];
     const disponibles = [];
 
     for (const catalogo of allPublished) {
-      // Buscamos si el usuario tiene este reto
       const userChallenge = myChallenges.find(mc => mc.reto_id === catalogo.reto_id);
 
       if (!userChallenge) {
-        // NUNCA SE HA INSCRITO -> Va a DISPONIBLES
         disponibles.push({
           reto_id: catalogo.reto_id,
           titulo: catalogo.titulo,
@@ -36,23 +59,36 @@ export class GetMyChallengesUseCase {
           texto_progreso: `0% completado — Únete para comenzar`,
         });
       } else {
-        // YA ESTÁ INSCRITO -> Calculamos su data
-        const progreso = userChallenge.progreso_actual;
+        // ✅ Para SOBRIETY_DAYS activo: usar progreso en tiempo real
+        const progreso =
+          catalogo.tipo === 'SOBRIETY_DAYS' && userChallenge.estado === 'ACTIVE'
+            ? Math.min(diasSobrioActual, catalogo.target)
+            : userChallenge.progreso_actual;
+
         const target = catalogo.target;
         const porcentaje = Math.min(Math.floor((progreso / target) * 100), 100);
-        
+
         let textoProgreso = '';
         if (userChallenge.estado === 'COMPLETED') {
           textoProgreso = `${target} de ${target} cumplidos`;
         } else if (userChallenge.estado === 'FAILED') {
-          textoProgreso = `Reto interrumpido - Llegaste a ${progreso}/${target}`;
+          textoProgreso = `Reto interrumpido - Llegaste a ${userChallenge.progreso_actual}/${target}`;
         } else {
           switch (catalogo.tipo) {
-            case 'SOBRIETY_DAYS': textoProgreso = `${porcentaje}% completado — ${progreso}/${target} días sin consumir`; break;
-            case 'CHECKIN_STREAK': textoProgreso = `${porcentaje}% completado — Racha de ${progreso}/${target} días`; break;
-            case 'CHECKIN_TOTAL': textoProgreso = `${porcentaje}% completado — ${progreso}/${target} registros totales`; break;
-            case 'PATH_LEVEL': textoProgreso = `${porcentaje}% completado — Nivel ${progreso} alcanzado`; break;
-            default: textoProgreso = `${porcentaje}% completado`;
+            case 'SOBRIETY_DAYS':
+              textoProgreso = `${porcentaje}% completado — ${progreso}/${target} días sin consumir`;
+              break;
+            case 'CHECKIN_STREAK':
+              textoProgreso = `${porcentaje}% completado — Racha de ${progreso}/${target} días`;
+              break;
+            case 'CHECKIN_TOTAL':
+              textoProgreso = `${porcentaje}% completado — ${progreso}/${target} registros totales`;
+              break;
+            case 'PATH_LEVEL':
+              textoProgreso = `${porcentaje}% completado — Nivel ${progreso} alcanzado`;
+              break;
+            default:
+              textoProgreso = `${porcentaje}% completado`;
           }
         }
 
@@ -69,11 +105,10 @@ export class GetMyChallengesUseCase {
           texto_progreso: textoProgreso,
         };
 
-        // Lo empujamos a la lista correcta
         if (userChallenge.estado === 'ACTIVE') {
           activos.push(retoFormateado);
         } else {
-          terminados.push(retoFormateado); // Aquí caen los COMPLETED y los FAILED
+          terminados.push(retoFormateado);
         }
       }
     }
