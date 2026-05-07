@@ -1,12 +1,13 @@
 import React, { useRef } from 'react';
 import {
-    View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, Alert, ActivityIndicator, Animated,
+    View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useLevelProgress } from '../../../hooks/useLevelProgress';
 import { performAnimatedScroll } from '../utils/pathScreenAnimation';
 import { setLevelHeight } from '../utils/levelHeights';
+import { useToast } from '../../../feedback/ToastContext';
 
 const { width } = Dimensions.get('window');
 
@@ -18,7 +19,7 @@ export const LEVELS = [
     { id: 5, title: 'Compartir', shortDescription: 'Confesé la verdad sobre mis fallas.', description: 'Confesé ante mí, ante otro ser humano y ante mi poder superior la verdad sobre mis fallas.' },
     { id: 6, title: 'Prepararme', shortDescription: 'Estoy dispuesto a dejar atrás mis defectos.', description: 'Estuve dispuesto a dejar atrás mis defectos y viejas actitudes que me hacían daño.' },
     { id: 7, title: 'Pedir cambio', shortDescription: 'Pido humildemente ayuda para superar mis debilidades.', description: 'Le pedí humildemente a mi poder superior que me ayudara a superar esas debilidades.' },
-    { id: 8, title: 'Reparar', shortDescription: 'Hice una lista de quienes herí.', description: 'Hice una lista de las personas a las que herí y me preparé para enmendar el daño.' },
+    { id: 8, title: 'Reparar', shortDescription: 'Hice una lista de quienes herí.', description: 'Hice una revisión sincera y profunda de mí mismo: mis actos, errores y emociones.' },
     { id: 9, title: 'Actuar', shortDescription: 'Busqué reparar el daño sin causar más dolor.', description: 'Busqué reparar el daño directamente con quienes pude, sin causarles más dolor.' },
     { id: 10, title: 'Reflexionar', shortDescription: 'Reviso mi conducta y reconozco mis errores.', description: 'Sigo revisando mi conducta y reconozco mis errores en el momento que los cometo.' },
     { id: 11, title: 'Conectar', shortDescription: 'Me conecto con mi poder superior mediante la meditación.', description: 'Busco a mi poder superior con oración o meditación para mantener claridad y dirección.' },
@@ -41,7 +42,6 @@ function SubNode({ type, state, isCurrent }: SubnodeProps & { isCurrent?: boolea
             if (type === 'estrella') return require('../../../assets/images/estrella.png');
             return require('../../../assets/images/corazon.png');
         }
-        // pending
         if (type === 'libro') return require('../../../assets/images/librogris.png');
         if (type === 'estrella') return require('../../../assets/images/estrellagris.png');
         return require('../../../assets/images/corazongris.png');
@@ -76,11 +76,13 @@ function LevelCard({
     userProgress,
     navigation,
     isLocked,
+    showToast,
 }: {
     level: typeof LEVELS[0];
     userProgress: { level: number; sublevel: number };
     navigation: any;
     isLocked: (nivel: number, subnivel: number) => boolean;
+    showToast: (message: string, type?: 'error' | 'success' | 'info') => void;
 }) {
     const isCurrentLevel = userProgress.level === level.id;
     const isCompletedLevel = userProgress.level > level.id;
@@ -98,14 +100,10 @@ function LevelCard({
 
     const handleSubnodePress = (subnivel: number) => {
         console.log(`📌 Click en Nivel ${level.id} Módulo ${subnivel}`);
-        
+
         if (isLocked(level.id, subnivel)) {
             console.log('❌ Módulo bloqueado');
-            Alert.alert(
-                'Módulo Bloqueado',
-                `Completa el Nivel ${userProgress.level}, Módulo ${userProgress.sublevel} para desbloquear este.`,
-                [{ text: 'OK' }]
-            );
+            showToast(`Completa el Nivel ${userProgress.level}, Módulo ${userProgress.sublevel} primero`, 'info');
             return;
         }
 
@@ -117,7 +115,7 @@ function LevelCard({
     };
 
     return (
-        <View 
+        <View
             style={styles.levelWrapper}
             onLayout={(event) => {
                 const { height } = event.nativeEvent.layout;
@@ -186,6 +184,7 @@ function LevelCard({
 
 export default function PathScreen({ navigation }: any) {
     const { progress, loading, isLocked } = useLevelProgress();
+    const { showToast } = useToast();
     const flatListRef = useRef<FlatList>(null);
     const scrollAnimRef = useRef(new Animated.Value(0)).current;
     const hasScrolledRef = useRef(false);
@@ -230,6 +229,7 @@ export default function PathScreen({ navigation }: any) {
                             userProgress={userProgress}
                             navigation={navigation}
                             isLocked={isLocked}
+                            showToast={showToast}
                         />
                     )}
                     scrollEnabled={true}

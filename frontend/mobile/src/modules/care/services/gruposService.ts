@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const BASE_URL = 'http://10.0.2.2:5181';
+import api from '../../../services/api';
 
 export interface Grupo {
   grupo_id: string;
@@ -25,28 +23,10 @@ export interface GruposResponse {
 export const gruposService = {
   async getGrupos(): Promise<Grupo[]> {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      if (!token) {
-        throw new Error('No token found');
-      }
-
-      const response = await fetch(`${BASE_URL}/care/grupos`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: GruposResponse = await response.json();
-      return data.data || [];
-    } catch (error) {
-      console.error('Error fetching grupos:', error);
+      const response = await api.get<GruposResponse>('/care/grupos');
+      return response.data.data || [];
+    } catch (error: any) {
+      console.log('❌ Error obteniendo grupos:', error.message);
       throw error;
     }
   },
