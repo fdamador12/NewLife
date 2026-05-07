@@ -16,6 +16,8 @@ type ChallengeCardProps = {
   dificultad: string;
   progreso_actual?: number;
   target?: number;
+  porcentaje?: number;
+  texto_progreso?: string;
   onPress: () => void;
 };
 
@@ -25,11 +27,14 @@ export function ChallengeCard({
   dificultad,
   progreso_actual = 0,
   target = 0,
+  porcentaje,
+  texto_progreso,
   onPress,
 }: ChallengeCardProps) {
-  const percent = target > 0
-    ? Math.round((progreso_actual / target) * 100)
-    : 0;
+  // ✅ Usar porcentaje del backend si existe, sino calcular
+  const percent = porcentaje ?? (
+    target > 0 ? Math.round((progreso_actual / target) * 100) : 0
+  );
 
   const displayDifficulty = dificultad.charAt(0).toUpperCase()
     + dificultad.slice(1).toLowerCase();
@@ -53,8 +58,9 @@ export function ChallengeCard({
         <View style={[styles.progressFill, { width: `${percent}%` }]} />
       </View>
 
+      {/* ✅ Usar texto_progreso del backend si existe */}
       <Text style={styles.progressLabel}>
-        {percent}% completado — {progreso_actual}/{target} cumplidos
+        {texto_progreso || `${percent}% completado — ${progreso_actual}/${target} cumplidos`}
       </Text>
 
       <TouchableOpacity style={styles.button} onPress={onPress}>

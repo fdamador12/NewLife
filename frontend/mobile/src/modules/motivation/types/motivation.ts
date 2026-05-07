@@ -15,7 +15,8 @@ export interface UserChallenge {
   tipo: 'SOBRIETY_DAYS' | 'CHECKIN_STREAK' | 'CHECKIN_TOTAL' | 'PATH_LEVEL';
   target: number;
   progreso_actual?: number;
-  estado?: 'ACTIVE' | 'COMPLETED' | 'PENDING';
+  porcentaje?: number;
+  estado?: 'ACTIVE' | 'COMPLETED' | 'FAILED';
   texto_progreso?: string;
   user_reto_id?: string;
   fecha_inicio?: string;

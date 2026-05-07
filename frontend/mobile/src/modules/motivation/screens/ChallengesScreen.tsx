@@ -5,6 +5,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useMotivation } from '../hooks/useMotivation';
+import { useToast } from '../../../feedback/ToastContext';
 
 type ChallengeTab = 'activos' | 'disponibles' | 'terminados';
 
@@ -40,9 +41,12 @@ function ChallengeCard({
   onJoin?: () => void;
   isAvailable: boolean;
 }) {
-  const percent = challenge.target > 0
-    ? Math.round(((challenge.progreso_actual || 0) / challenge.target) * 100)
-    : 0;
+  // ✅ Usar porcentaje del backend
+  const percent = challenge.porcentaje ?? (
+    challenge.target > 0
+      ? Math.round(((challenge.progreso_actual || 0) / challenge.target) * 100)
+      : 0
+  );
 
   return (
     <View style={styles.card}>
@@ -55,8 +59,9 @@ function ChallengeCard({
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${percent}%` }]} />
           </View>
+          {/* ✅ Usar texto_progreso del backend */}
           <Text style={styles.progressLabel}>
-            {percent}% completado — {challenge.progreso_actual || 0}/{challenge.target} cumplidos
+            {challenge.texto_progreso || `${percent}% completado — ${challenge.progreso_actual || 0}/${challenge.target} cumplidos`}
           </Text>
         </>
       )}
@@ -77,6 +82,7 @@ function ChallengeCard({
 export default function ChallengesScreen({ navigation }: any) {
   const { misChallenges, loading, fetchMisChallenges, handleJoinChallenge } =
     useMotivation();
+  const { showToast } = useToast();
 
   const [tab, setTab] = useState<ChallengeTab>('disponibles');
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -90,6 +96,10 @@ export default function ChallengesScreen({ navigation }: any) {
     try {
       await handleJoinChallenge(retoId);
       await fetchMisChallenges();
+      showToast('¡Te uniste al reto exitosamente!', 'success');
+      setTab('activos');
+    } catch (err: any) {
+      showToast(err?.message || 'No se pudo unir al reto', 'error');
     } finally {
       setJoiningId(null);
     }
@@ -118,7 +128,6 @@ export default function ChallengesScreen({ navigation }: any) {
         <Text style={styles.headerTitle}>Retos</Text>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabsRow}>
         <TouchableOpacity
           style={[styles.tabButton, tab === 'disponibles' && styles.tabButtonActive]}

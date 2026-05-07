@@ -14,8 +14,9 @@ export class EvaluateChallengesUseCase {
     private readonly systemAuth: SystemAuthService,
   ) {}
 
-  async execute(usuarioId: string, userToken: string) {
+  async execute(usuarioId: string, userToken: string, consumo: boolean = false) {
     this.logger.log(`🎯 [EvaluateChallengesUseCase] Iniciando evaluación para usuario: ${usuarioId}`);
+    this.logger.log(`🎯 [EvaluateChallengesUseCase] ¿Hubo consumo? ${consumo}`);
 
     try {
       const masterToken = await this.systemAuth.getMasterToken();
@@ -41,6 +42,21 @@ export class EvaluateChallengesUseCase {
           continue;
         }
 
+        // ✅ Solo SOBRIETY_DAYS falla por consumo directo
+        // CHECKIN_STREAK falla por no registrar un día — el consumo no lo afecta
+        if (consumo && retoCatalogo.tipo === 'SOBRIETY_DAYS') {
+          this.logger.log(
+            `🎯 [EvaluateChallengesUseCase] ❌ RETO FALLIDO por consumo: "${retoCatalogo.titulo}" (tipo: ${retoCatalogo.tipo})`,
+          );
+          await this.motivationProvider.updateChallengeProgress(
+            userChallenge.user_reto_id,
+            userChallenge.progreso_actual,
+            'FAILED',
+            masterToken,
+          );
+          continue;
+        }
+
         const evaluator = this.evaluatorFactory.getEvaluator(retoCatalogo.tipo);
         this.logger.log(`🎯 [EvaluateChallengesUseCase] Evaluador seleccionado: ${retoCatalogo.tipo}`);
 
@@ -63,15 +79,15 @@ export class EvaluateChallengesUseCase {
             this.logger.log(`🎯 [EvaluateChallengesUseCase] ✅ RETO COMPLETADO: "${retoCatalogo.titulo}"`);
           } else if (
             nuevoProgreso < userChallenge.progreso_actual &&
-            (retoCatalogo.tipo === 'SOBRIETY_DAYS' || retoCatalogo.tipo === 'CHECKIN_STREAK')
+            retoCatalogo.tipo === 'CHECKIN_STREAK'
           ) {
+            // ✅ CHECKIN_STREAK falla solo cuando la racha baja (no registró un día)
             estadoFinal = 'FAILED';
-            this.logger.log(`🎯 [EvaluateChallengesUseCase] ❌ RETO FALLIDO: "${retoCatalogo.titulo}"`);
+            this.logger.log(`🎯 [EvaluateChallengesUseCase] ❌ RETO FALLIDO por racha rota: "${retoCatalogo.titulo}"`);
           }
 
           this.logger.log(`🎯 [EvaluateChallengesUseCase] Actualizando: user_reto_id=${userChallenge.user_reto_id}, progreso=${nuevoProgreso}, estado=${estadoFinal}`);
 
-          // ✅ Usar masterToken — no userToken que puede expirar
           await this.motivationProvider.updateChallengeProgress(
             userChallenge.user_reto_id,
             nuevoProgreso,

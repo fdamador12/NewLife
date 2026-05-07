@@ -85,6 +85,7 @@ export class DailyCheckinUseCase {
     this.eventEmitter.emit('progress.checkin.created', {
       usuarioId: uid,
       userToken,
+      consumo: dto.consumo, // ✅ agregar esto
     });
 
     return {

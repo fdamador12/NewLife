@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { useMotivation } from '../hooks/useMotivation';
+import { useToast } from '../../../feedback/ToastContext';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   SUAVE: '#4CAF50',
@@ -12,7 +14,6 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   INTENSA: '#FF6B6B',
 };
 
-// ── CheckIcon ────
 const CheckIcon = () => (
   <Svg width={14} height={14} viewBox="0 0 24 24">
     <Path
@@ -26,7 +27,6 @@ const CheckIcon = () => (
   </Svg>
 );
 
-// ── ProgressDot ───
 const ProgressDot = ({
   isActive,
   isCompleted,
@@ -75,17 +75,61 @@ const ProgressDot = ({
   );
 };
 
-// ── ChallengeDetailScreen ───
 export default function ChallengeDetailScreen({ navigation, route }: any) {
-  const { challenge } = route.params;
+  const { fetchMisChallenges, misChallenges, handleJoinChallenge } = useMotivation();
+  const { showToast } = useToast();
 
+  useEffect(() => {
+    fetchMisChallenges();
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchMisChallenges();
+    });
+    return unsubscribe;
+  }, [navigation, fetchMisChallenges]);
+
+  const { challenge: challengeParam } = route.params;
+
+  const challengeFresco =
+    [...(misChallenges.activos || []), ...(misChallenges.terminados || [])]
+      .find(c => c.reto_id === challengeParam.reto_id);
+
+  if (!challengeFresco) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  const challenge = challengeFresco;
   const isCompleted = challenge.estado === 'COMPLETED';
-  const percent = challenge.target > 0
-    ? Math.round(((challenge.progreso_actual || 0) / challenge.target) * 100)
-    : 0;
+  const isFailed = challenge.estado === 'FAILED';
+
+  const percent = challenge.porcentaje ?? (
+    challenge.target > 0
+      ? Math.round(((challenge.progreso_actual || 0) / challenge.target) * 100)
+      : 0
+  );
 
   const displayDifficulty = challenge.dificultad.charAt(0).toUpperCase()
     + challenge.dificultad.slice(1).toLowerCase();
+
+  const getHeaderSubtitle = () => {
+    if (isCompleted) return 'Reto completado';
+    if (isFailed) return 'Reto interrumpido';
+    return 'Reto activo';
+  };
+
+  const handleRetry = async () => {
+    try {
+      await handleJoinChallenge(challenge.reto_id);
+      showToast('¡Reto reiniciado! Sigue adelante 💪', 'success');
+      navigation.navigate('Home', { initialTab: 'Motivation' });
+    } catch (err: any) {
+      showToast(err?.message || 'No se pudo reiniciar el reto', 'error');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -95,18 +139,18 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>{challenge.titulo}</Text>
-          <Text style={styles.headerSubtitle}>
-            {isCompleted ? 'Reto completado' : 'Reto activo'}
-          </Text>
+          <Text style={styles.headerSubtitle}>{getHeaderSubtitle()}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>{challenge.descripcion}</Text>
 
-        {/* ── Progreso ── */}
+        {challenge.texto_progreso && !isCompleted && (
+          <Text style={styles.textoProgreso}>{challenge.texto_progreso}</Text>
+        )}
+
         <View style={styles.progressContainer}>
-          {/* Texto */}
           <View style={styles.progressHeader}>
             <Text style={styles.progressNumber}>{challenge.progreso_actual || 0}</Text>
             <Text style={styles.progressText}> de </Text>
@@ -114,17 +158,16 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
             <Text style={styles.progressText}> cumplidos</Text>
           </View>
 
-          {/* Barra */}
           <View style={styles.progressBarBg}>
             <View
               style={[
                 styles.progressBarFill,
                 { width: `${percent}%` },
+                isFailed && styles.progressBarFailed,
               ]}
             />
           </View>
 
-          {/* Dots animados */}
           {challenge.target <= 30 && (
             <View style={styles.dotsRow}>
               {Array.from({ length: challenge.target }).map((_, i) => (
@@ -139,17 +182,35 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
           )}
         </View>
 
-        {/* ── Medalla ── */}
-        <View style={[styles.medalCard, isCompleted && styles.medalCardCompleted]}>
+        <View style={[
+          styles.medalCard,
+          isCompleted && styles.medalCardCompleted,
+          isFailed && styles.medalCardFailed,
+        ]}>
           <Text style={[styles.medalEmoji, !isCompleted && styles.medalEmojiGray]}>
-            🏅
+            {isFailed ? '💔' : '🏅'}
           </Text>
           <Text style={[styles.medalTitle, !isCompleted && styles.medalTitleGray]}>
-            {challenge.titulo}
+            {isFailed ? 'Reto interrumpido' : challenge.titulo}
           </Text>
+          {isFailed && (
+            <Text style={styles.medalFailedSubtext}>
+              Llegaste a {challenge.progreso_actual}/{challenge.target} — ¡puedes volver a intentarlo!
+            </Text>
+          )}
         </View>
 
-        {/* ── Dificultad ── */}
+        {isFailed && (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={handleRetry}
+            activeOpacity={0.85}
+          >
+            <Feather name="refresh-cw" size={18} color={colors.white} />
+            <Text style={styles.retryButtonText}>Volver a intentarlo</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.difficultyRow}>
           <View
             style={[
@@ -166,11 +227,14 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   );
 }
 
-// ── Styles ───
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -197,10 +261,13 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.textLight || colors.text,
     lineHeight: 24,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
-
-  // ── Progreso
+  textoProgreso: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
+  },
   progressContainer: {
     alignItems: 'center',
     marginBottom: spacing.xl,
@@ -233,14 +300,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#406ADF',
     borderRadius: 3,
   },
+  progressBarFailed: {
+    backgroundColor: '#FF6B6B',
+  },
   dotsRow: {
     flexDirection: 'row',
     gap: 12,
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-
-  // ── Dots
   dotWrapper: {
     position: 'relative',
     alignItems: 'center',
@@ -276,8 +344,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(90, 116, 230, 0.39)',
     zIndex: 1,
   },
-
-  // ── Medalla
   medalCard: {
     backgroundColor: '#F0F0F0',
     borderRadius: borderRadius.md,
@@ -294,6 +360,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
+  medalCardFailed: {
+    backgroundColor: '#FFF5F5',
+  },
   medalEmoji: {
     fontSize: 56,
   },
@@ -309,8 +378,27 @@ const styles = StyleSheet.create({
   medalTitleGray: {
     color: colors.textMuted,
   },
-
-  // ── Dificultad
+  medalFailedSubtext: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontSize: fontSizes.md,
+    fontWeight: '700',
+  },
   difficultyRow: {
     flexDirection: 'row',
     alignItems: 'center',
