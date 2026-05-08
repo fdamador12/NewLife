@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
 } from 'react-native';
-import { colors, fontSizes, spacing } from '../../../constants/theme';
+import { Feather } from '@expo/vector-icons';
+import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getProfile, getSobrietyTime, getHomeSummary } from '../../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authEventEmitter } from '../../../services/api';
@@ -26,7 +27,6 @@ export default function HomeScreen({ navigation }: any) {
   const [isGuest, setIsGuest] = useState(false);
   const { resetPet, fetchPet } = usePet();
 
-  // Cargar mascota al entrar a home
   useEffect(() => {
     fetchPet();
   }, []);
@@ -123,8 +123,15 @@ export default function HomeScreen({ navigation }: any) {
       }
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (e) {
-      console.log('Error cerrando sesión:', e);
+      console.log('Error cerrando sesion:', e);
     }
+  };
+
+  const getGreetingTime = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Buenos dias,';
+    if (hour < 19) return 'Buenas tardes,';
+    return 'Buenas noches,';
   };
 
   return (
@@ -133,28 +140,52 @@ export default function HomeScreen({ navigation }: any) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greeting}>¡Hola {apodo ? apodo : ''}!</Text>
+        {/* Header mejorado */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greetingTime}>{getGreetingTime()}</Text>
+            <Text style={styles.greeting}>
+              {apodo ? apodo : 'Amigo'}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Feather name="settings" size={22} color={colors.text} />
+          </TouchableOpacity>
+        </View>
 
+        {/* Pet Widget */}
         <PetWidget onPress={() => navigation.navigate('PetScreen')} />
 
-        <Text style={styles.sectionTitle}>Lo que has logrado</Text>
-        <SobrietyCard
-          dias={sobriety.dias}
-          horas={sobriety.horas}
-          minutos={sobriety.minutos}
-        />
+        {/* Seccion de logros */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Tu progreso</Text>
+          </View>
+          <SobrietyCard
+            dias={sobriety.dias}
+            horas={sobriety.horas}
+            minutos={sobriety.minutos}
+          />
+        </View>
 
+        {/* Seccion de ahorro */}
         {!isGuest && (
-          <>
-            <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
+            </View>
             <SavingsCard
               ahorroTotal={ahorro.ahorro_total}
               diasLimpios={ahorro.dias_limpios}
               onPress={() => navigation.navigate('SavingsScreen')}
             />
-          </>
+          </View>
         )}
 
+        {/* Banner de invitado o logout */}
         {isGuest ? (
           <GuestBanner
             onCreateAccount={() => navigation.navigate('Register')}
@@ -162,18 +193,32 @@ export default function HomeScreen({ navigation }: any) {
           />
         ) : (
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Cerrar sesión</Text>
+            <Feather name="log-out" size={18} color="#443e3e" />
+            <Text style={styles.logoutText}>Cerrar sesion</Text>
           </TouchableOpacity>
         )}
+
+        <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Boton SOS flotante mejorado */}
       <View style={styles.sosWrapper}>
         <TouchableOpacity
           style={styles.sosButton}
           onPress={() => navigation.navigate('SOS')}
           activeOpacity={0.85}
         >
-          <Text style={styles.sosText}>SOS</Text>
+          <View style={styles.sosInner}>
+            <View style={styles.sosIconContainer}>
+              <Feather name="phone" size={20} color={colors.white} />
+            </View>
+            <View style={styles.sosTextContainer}>
+              <Text style={styles.sosTitle}>SOS</Text>
+            </View>
+          </View>
+          <View style={styles.sosArrow}>
+            <Feather name="chevron-right" size={24} color="rgba(255,255,255,0.8)" />
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -186,56 +231,141 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.xxl,
-    paddingTop: spacing.xl * 2,
-    paddingBottom: spacing.xl,
-    gap: spacing.sm,
+    padding: spacing.xl,
+    paddingTop: 60,
+    gap: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  headerLeft: {
+    gap: 2,
+  },
+  greetingTime: {
+    fontSize: fontSizes.lg,
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   greeting: {
-    fontSize: fontSizes.xl,
+    fontSize: 28,
     fontWeight: '800',
     color: colors.text,
-    marginBottom: spacing.sm,
+    letterSpacing: -0.5,
+  },
+  wave: {
+    fontSize: 26,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sectionIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.text,
-    marginTop: spacing.sm,
   },
   logoutButton: {
-    backgroundColor: '#FF6B6B',
-    padding: spacing.md,
-    borderRadius: 8,
-    marginBottom: spacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#fdfdfd',
+    padding: spacing.md,
+    borderRadius: 12,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#a5a2a2',
   },
   logoutText: {
-    color: colors.white,
-    fontWeight: '700',
+    color: '#443e3e',
+    fontWeight: '600',
     fontSize: fontSizes.md,
   },
   sosWrapper: {
-    paddingHorizontal: spacing.xxl,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xl,
-    paddingTop: spacing.md,
-    backgroundColor: colors.background,
+    paddingTop: spacing.lg,
+    backgroundColor: 'transparent',
   },
   sosButton: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 50,
-    paddingVertical: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 120,
-    shadowColor: '#FF9AA2',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 20,
+    justifyContent: 'space-between',
+    backgroundColor: '#FF6B6B',
+    borderRadius: 20,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    elevation: 8,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
   },
-  sosText: {
-    fontSize: fontSizes.xl,
+  sosInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  sosIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosTextContainer: {
+    gap: 2,
+  },
+  sosTitle: {
+    fontSize: fontSizes.lg,
     fontWeight: '800',
     color: colors.white,
-    letterSpacing: 3,
+    letterSpacing: 1,
+  },
+  sosSubtitle: {
+    fontSize: fontSizes.sm,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  sosArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
