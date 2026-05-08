@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Linking, Alert, Modal, TextInput, ActivityIndicator,
+  Linking, Modal, TextInput, ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -13,6 +13,9 @@ import {
   deleteGuestContact,
   isGuestMode,
 } from '../../../services/guestService';
+import FieldError from '../../../feedback/FieldError';
+import { useToast } from '../../../feedback/ToastContext';
+import { useConfirm } from '../../../feedback/ConfirmContext';
 
 type Contact = {
   contacto_id?: string;
@@ -28,7 +31,11 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
+  const { showToast } = useToast();
+  const { showConfirm } = useConfirm();
 
   useEffect(() => {
     fetchContacts();
@@ -53,7 +60,8 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   };
 
   const openModal = (contact?: Contact) => {
-    setErrorMessage('');
+    setNameError('');
+    setPhoneError('');
     if (contact) {
       setEditingContact(contact);
       setName(contact.nombre);
@@ -67,14 +75,37 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   };
 
   const saveContact = async () => {
-    if (!name.trim() || !phone.trim()) {
-      setErrorMessage('Nombre y teléfono son obligatorios');
-      return;
+    setNameError('');
+    setPhoneError('');
+
+    let valid = true;
+
+    if (!name.trim()) {
+      setNameError('El nombre es obligatorio');
+      valid = false;
     }
-    if (phone.length !== 10) {
-      setErrorMessage('Número inválido. Debe tener 10 dígitos.');
-      return;
+
+    if (!phone.trim()) {
+      setPhoneError('El número de teléfono es obligatorio');
+      valid = false;
+    } else if (phone.length !== 10) {
+      setPhoneError('Debe tener exactamente 10 dígitos');
+      valid = false;
+    } else {
+      const isDuplicate = contacts.some((c) => {
+        const isSelf = editingContact ? (
+          (editingContact.contacto_id !== undefined && c.contacto_id === editingContact.contacto_id) ||
+          (editingContact.id !== undefined && c.id === editingContact.id)
+        ) : false;
+        return !isSelf && String(c.telefono) === String(phone);
+      });
+      if (isDuplicate) {
+        setPhoneError('Este número ya está registrado en tus contactos');
+        valid = false;
+      }
     }
+
+    if (!valid) return;
 
     try {
       const guest = await isGuestMode();
@@ -91,34 +122,38 @@ export default function EmergencyContactsScreen({ navigation }: any) {
           await createContact(name, phone);
         }
       }
-      setErrorMessage('');
       setShowModal(false);
       fetchContacts();
+      showToast(editingContact ? 'Contacto actualizado' : 'Contacto guardado', 'success');
     } catch (e: any) {
       console.log('Error guardando contacto:', e);
-      setErrorMessage(e.response?.data?.message || e.message || 'Error al guardar contacto');
+      showToast(e.response?.data?.message || 'Error al guardar el contacto. Intenta de nuevo.', 'error');
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Eliminar contacto', '¿Estás seguro?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive', onPress: async () => {
-          try {
-            const guest = await isGuestMode();
-            if (guest) {
-              await deleteGuestContact(id);
-            } else {
-              await deleteContact(id);
-            }
-            fetchContacts();
-          } catch (e) {
-            console.log('Error eliminando contacto:', e);
+    showConfirm({
+      title: 'Eliminar contacto',
+      message: '¿Seguro que quieres eliminarlo? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const guest = await isGuestMode();
+          if (guest) {
+            await deleteGuestContact(id);
+          } else {
+            await deleteContact(id);
           }
+          fetchContacts();
+          showToast('Contacto eliminado', 'success');
+        } catch (e) {
+          console.log('Error eliminando contacto:', e);
+          showToast('No se pudo eliminar el contacto. Intenta de nuevo.', 'error');
         }
       },
-    ]);
+    });
   };
 
   const callContact = (phone: string) => {
@@ -132,7 +167,6 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.navigate('SOS')}>
           <Icon name="chevron-left" size={24} color={colors.text} />
@@ -180,36 +214,41 @@ export default function EmergencyContactsScreen({ navigation }: any) {
         </ScrollView>
       )}
 
-      {/* Modal agregar/editar */}
       <Modal visible={showModal} transparent animationType="slide" statusBarTranslucent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
               {editingContact ? 'Editar contacto' : 'Nuevo contacto'}
             </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre..."
-              placeholderTextColor={colors.border}
-              value={name}
-              onChangeText={setName}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Número telefónico..."
-              placeholderTextColor={colors.border}
-              value={phone}
-              onChangeText={(text) => {
-                const cleaned = text.replace(/[^0-9]/g, '');
-                setPhone(cleaned);
-              }}
-              keyboardType="phone-pad"
-            />
-            {errorMessage ? (
-              <Text style={{ color: 'red', marginTop: 4, textAlign: 'center' }}>
-                {errorMessage}
-              </Text>
-            ) : null}
+
+            <View>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre..."
+                placeholderTextColor={colors.border}
+                value={name}
+                onChangeText={(t) => { setName(t); if (nameError) setNameError(''); }}
+              />
+              <FieldError message={nameError} />
+            </View>
+
+            <View>
+              <TextInput
+                style={styles.input}
+                placeholder="Número telefónico..."
+                placeholderTextColor={colors.border}
+                value={phone}
+                onChangeText={(t) => {
+                  const cleaned = t.replace(/[^0-9]/g, '');
+                  setPhone(cleaned);
+                  if (phoneError) setPhoneError('');
+                }}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+              <FieldError message={phoneError} />
+            </View>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowModal(false)}>
                 <Text style={styles.modalCancelText}>Cancelar</Text>

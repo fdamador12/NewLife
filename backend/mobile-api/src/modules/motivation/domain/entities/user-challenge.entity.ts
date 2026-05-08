@@ -7,6 +7,7 @@ export class UserChallengeEntity {
   progreso_actual!: number;
   fecha_inicio!: string;
   fecha_completado?: string;
+  xp_reclamado?: boolean;
 
   constructor(partial: Partial<UserChallengeEntity>) {
     Object.assign(this, partial);

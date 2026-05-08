@@ -22,3 +22,7 @@ backend/admin-api/node_modules/
 backend/admin-api/tsconfig.tsbuildinfo
 
 .vscode/
+
+media-data/
+
+.idea/

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/infrastructure/database.service';
-import { IMotivationProviderPort } from '../../domain/ports/motivation-provider.port';
+import { IMotivationProviderPort, SobrietyRecord, CaminoRecord } from '../../domain/ports/motivation-provider.port';
 import { FraseDiaEntity, FraseGuardadaEntity } from '../../domain/entities/frase.entity';
 import { ChallengeEntity } from '../../domain/entities/challenge.entity';
 import { UserChallengeEntity } from '../../domain/entities/user-challenge.entity';
@@ -8,7 +8,7 @@ import { UserChallengeEntity } from '../../domain/entities/user-challenge.entity
 @Injectable()
 export class RobleMotivationAdapter implements IMotivationProviderPort {
   constructor(private readonly dbService: DatabaseService) {}
-  
+
   async getFraseDelDia(fecha: string, masterToken: string): Promise<FraseDiaEntity | null> {
     const result = await this.dbService.find('frases_dia', { dia: fecha }, masterToken);
     const rows = Array.isArray(result) ? result : (result?.rows ?? []);
@@ -21,19 +21,13 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
     return rows[0] ?? null;
   }
 
-  // ✅ NUEVO MÉTODO
   async getFrasesPorFecha(fecha: string, masterToken: string): Promise<FraseDiaEntity[]> {
     try {
-      // 1️⃣ Traer todas las frases de la tabla
       const result = await this.dbService.find('frases_dia', {}, masterToken);
       const todasLasFrases = Array.isArray(result) ? result : (result?.rows ?? []);
-
-      // 2️⃣ Filtrar en memoria: dia <= fecha (todas hasta esa fecha)
       const frasesFiltradas = todasLasFrases.filter(
         (f: FraseDiaEntity) => f.dia <= fecha
       );
-
-      // 3️⃣ Ordenar descendente (más reciente primero)
       return frasesFiltradas.sort(
         (a: FraseDiaEntity, b: FraseDiaEntity) =>
           new Date(b.dia).getTime() - new Date(a.dia).getTime()
@@ -87,7 +81,7 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
     return rows.map((r: any) => new UserChallengeEntity(r));
   }
 
-  async startChallenge(data: Partial<UserChallengeEntity>, token: string): Promise<UserChallengeEntity> {
+  async startChallenge(data: Partial<UserChallengeEntity>, masterToken: string): Promise<UserChallengeEntity> {
     const now = new Date().toISOString();
     const fechaArranque = data.fecha_inicio || now;
     const result = await this.dbService.insert('user_retos', [{
@@ -97,26 +91,67 @@ export class RobleMotivationAdapter implements IMotivationProviderPort {
       estado: data.estado,
       progreso_actual: data.progreso_actual,
       fecha_inicio: fechaArranque,
+      fecha_completado: data.estado === 'COMPLETED' ? now : null,
+      xp_reclamado: false,
       updated_at: now,
-    }], token);
+    }], masterToken);
     return new UserChallengeEntity(result.inserted[0]);
   }
 
-  async updateChallengeProgress(userRetoId: string, progreso: number, estado: string, token: string, nuevaFechaInicio?: string): Promise<void> {
-    const updates: any = { 
-      progreso_actual: progreso, 
-      estado: estado, 
-      updated_at: new Date().toISOString() 
+  async updateChallengeProgress(
+    userRetoId: string,
+    progreso: number,
+    estado: string,
+    masterToken: string,
+    nuevaFechaInicio?: string,
+  ): Promise<void> {
+    const updates: any = {
+      progreso_actual: progreso,
+      estado: estado,
+      updated_at: new Date().toISOString(),
     };
-    
+
     if (estado === 'COMPLETED') {
       updates.fecha_completado = new Date().toISOString();
     }
-    
+
     if (nuevaFechaInicio) {
       updates.fecha_inicio = nuevaFechaInicio;
+      updates.xp_reclamado = false;
     }
 
-    await this.dbService.update('user_retos', 'user_reto_id', userRetoId, updates, token);
+    await this.dbService.update('user_retos', 'user_reto_id', userRetoId, updates, masterToken);
+  }
+
+  async getSobrietyRecord(usuarioId: string, masterToken: string): Promise<SobrietyRecord | null> {
+    try {
+      const result = await this.dbService.find('sobriedad', { usuario_id: usuarioId }, masterToken);
+      const rows = Array.isArray(result) ? result : (result?.rows ?? []);
+      return rows[0] ?? null;
+    } catch (error) {
+      console.error('❌ Error en getSobrietyRecord:', error);
+      return null;
+    }
+  }
+
+  async getCaminoRecord(usuarioId: string, masterToken: string): Promise<CaminoRecord | null> {
+    try {
+      const result = await this.dbService.find('camino', { usuario_id: usuarioId }, masterToken);
+      const rows = Array.isArray(result) ? result : (result?.rows ?? []);
+      return rows[0] ?? null;
+    } catch (error) {
+      console.error('❌ Error en getCaminoRecord:', error);
+      return null;
+    }
+  }
+
+  async marcarXpReclamado(userRetoId: string, masterToken: string): Promise<void> {
+    await this.dbService.update(
+      'user_retos',
+      'user_reto_id',
+      userRetoId,
+      { xp_reclamado: true, updated_at: new Date().toISOString() },
+      masterToken,
+    );
   }
 }

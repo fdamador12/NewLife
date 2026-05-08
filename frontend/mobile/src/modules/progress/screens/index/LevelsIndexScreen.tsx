@@ -1,16 +1,18 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 import { useLevelProgress } from '../../../../hooks/useLevelProgress';
+import { useToast } from '../../../../feedback/ToastContext';
 
 const LEVELS = 12;
 const SUBLEVELS = 3;
 
 export default function LevelsIndexScreen({ navigation }: any) {
   const { progress, loading, isLocked, isCompleted } = useLevelProgress();
+  const { showToast } = useToast();
 
   console.log('🔍 LevelsIndexScreen - Progress actual:', progress);
 
@@ -21,16 +23,11 @@ export default function LevelsIndexScreen({ navigation }: any) {
 
     if (isLocked(nivel, subnivel)) {
       console.log('❌ Módulo bloqueado');
-      Alert.alert(
-        'Módulo Bloqueado',
-        `Completa el Nivel ${progress.nivel}, Módulo ${progress.subnivel} para desbloquear este.`,
-        [{ text: 'OK' }]
-      );
+      showToast(`Completa el Nivel ${progress.nivel}, Módulo ${progress.subnivel} primero`, 'info');
       return;
     }
 
     console.log('✅ Navegando a módulo');
-    // Navegar a módulo específico
     navigation.navigate(`Nivel${nivel}Modulo${subnivel}`);
   };
 

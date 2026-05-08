@@ -8,10 +8,10 @@ import {
   Image,
   Share,
   Linking,
-  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
+import { useToast } from '../../../../feedback/ToastContext';
 
 interface ContentItem {
   id: string;
@@ -31,6 +31,7 @@ interface ContentItem {
 
 export default function ArticleScreen({ navigation, route }: any) {
   const item: ContentItem = route.params?.item;
+  const { showToast } = useToast();
 
   if (!item) {
     return (
@@ -52,19 +53,18 @@ export default function ArticleScreen({ navigation, route }: any) {
 
   const handleOpenVideo = () => {
     if (!item.videoUrl) {
-      Alert.alert('Error', 'No hay video disponible');
+      showToast('No hay video disponible', 'info');
       return;
     }
 
     Linking.openURL(item.videoUrl).catch((err) => {
-      Alert.alert('Error', 'No se pudo abrir el video');
-      console.error('Error abriendo video:', err);
+      showToast('No se pudo abrir el video', 'error');
+      console.log('Error abriendo video:', err);
     });
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.text} />
@@ -81,26 +81,19 @@ export default function ArticleScreen({ navigation, route }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Imagen principal */}
         <Image source={{ uri: item.image }} style={styles.heroImage} resizeMode="cover" />
 
-        {/* Para VIDEO: botón para abrir */}
         {item.type === 'video' && item.videoUrl && (
           <View style={styles.videoContainer}>
-            <TouchableOpacity
-              style={styles.openVideoButton}
-              onPress={handleOpenVideo}
-            >
+            <TouchableOpacity style={styles.openVideoButton} onPress={handleOpenVideo}>
               <Feather name="play" size={20} color={colors.white} />
               <Text style={styles.openVideoText}>Ver video completo</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Título */}
         <Text style={styles.title}>{item.title}</Text>
 
-        {/* Meta: categoría y stats */}
         <View style={styles.metaRow}>
           <View style={styles.tag}>
             <Text style={styles.tagText}>{item.category}</Text>
@@ -113,7 +106,6 @@ export default function ArticleScreen({ navigation, route }: any) {
           </View>
         </View>
 
-        {/* Autor */}
         {item.author && (
           <View style={styles.authorRow}>
             <View style={styles.authorAvatar}>
@@ -130,12 +122,9 @@ export default function ArticleScreen({ navigation, route }: any) {
           </View>
         )}
 
-        {/* Contenido */}
         {item.body ? (
           item.body.split('\n\n').map((paragraph: string, i: number) => (
-            <Text key={i} style={styles.body}>
-              {paragraph}
-            </Text>
+            <Text key={i} style={styles.body}>{paragraph}</Text>
           ))
         ) : (
           <Text style={styles.body}>
@@ -145,7 +134,6 @@ export default function ArticleScreen({ navigation, route }: any) {
           </Text>
         )}
 
-        {/* Tags */}
         {item.tags.length > 0 && (
           <View style={styles.tagsRow}>
             {item.tags.map((tag: string) => (
@@ -246,10 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  authorImage: {
-    width: 44,
-    height: 44,
-  },
+  authorImage: { width: 44, height: 44 },
   authorName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text },
   authorRole: { fontSize: fontSizes.sm, color: colors.textMuted },
   body: {

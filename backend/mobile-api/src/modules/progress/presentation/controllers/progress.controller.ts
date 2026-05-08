@@ -16,6 +16,7 @@ import { InitSobrietyUseCase } from '../../application/use-cases/init-sobriety.u
 import { GetAllRegistrosDiarioUseCase } from '../../application/use-cases/get-all-registros-diario.use-case';
 import { Logger } from '@nestjs/common';
 import { GetConsumptionDatesUseCase } from '../../application/use-cases/get-consumption-dates.use-case';
+import { GetAhorroUseCase } from '../../application/use-cases/get-ahorro.use-case';
 
 @ApiTags('Progress')
 @ApiBearerAuth()
@@ -38,6 +39,7 @@ export class ProgressController {
     private readonly initSobrietyUseCase: InitSobrietyUseCase,
     private readonly getAllRegistrosDiarioUseCase: GetAllRegistrosDiarioUseCase,
     private readonly getConsumptionDatesUseCase: GetConsumptionDatesUseCase,
+    private readonly getAhorroUseCase: GetAhorroUseCase,
   ) { }
 
   @Post('init')
@@ -59,13 +61,12 @@ export class ProgressController {
     try {
       console.log('📤 Body recibido:', dto);
 
-      // ✨ GENERAR FECHA ACTUAL Y CONVERTIR A UTC-5
       const ahora = new Date();
       const fechaUTC5 = new Date(ahora.getTime() - (5 * 60 * 60 * 1000));
 
       const dataWithTimezone = {
         ...dto,
-        fecha: fechaUTC5.toISOString().slice(0, 19) + '-05:00', // "2026-04-19T01:10:19-05:00"
+        fecha: fechaUTC5.toISOString().slice(0, 19) + '-05:00',
       };
 
       console.log('📤 Data con timezone:', dataWithTimezone);
@@ -147,16 +148,8 @@ export class ProgressController {
     try {
       const usuarioId = req.user.uid;
       const token = req.headers.authorization?.split(' ')[1];
-
-      const registros = await this.getAllRegistrosDiarioUseCase.execute(
-        usuarioId,
-        token,
-      );
-
-      return {
-        registros,
-        total: registros.length,
-      };
+      const registros = await this.getAllRegistrosDiarioUseCase.execute(usuarioId, token);
+      return { registros, total: registros.length };
     } catch (error) {
       this.logger.error('Error obteniendo registros:', error);
       throw error;
@@ -169,18 +162,22 @@ export class ProgressController {
     try {
       const usuarioId = req.user.uid;
       const token = req.headers.authorization?.split(' ')[1];
-
-      const registros = await this.getConsumptionDatesUseCase.execute(
-        usuarioId,
-        token,
-      );
-
-      return {
-        registros,
-        total: registros.length,
-      };
+      const registros = await this.getConsumptionDatesUseCase.execute(usuarioId, token);
+      return { registros, total: registros.length };
     } catch (error) {
       this.logger.error('Error obteniendo fechas de consumo:', error);
+      throw error;
+    }
+  }
+
+  @Get('ahorro')
+  @ApiOperation({ summary: 'Obtiene el ahorro acumulado del usuario' })
+  async getAhorro(@Req() req: any) {
+    try {
+      const userToken = req.headers.authorization?.split(' ')[1];
+      return await this.getAhorroUseCase.execute(req.user.uid, userToken);
+    } catch (error) {
+      this.logger.error('Error obteniendo ahorro:', error);
       throw error;
     }
   }

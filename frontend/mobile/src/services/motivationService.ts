@@ -121,3 +121,18 @@ export const getMisMedallas = async () => {
     throw error;
   }
 };
+
+
+/**
+ * Reclama los XP de un reto completado
+ */
+
+export const reclamarXp = async (userRetoId: string) => {
+  try {
+    const response = await api.post(`/motivation/retos/${userRetoId}/reclamar-xp`);
+    return response.data;
+  } catch (error: any) {
+    console.log('❌ Error reclamando XP:', error.message);
+    throw error;
+  }
+};

@@ -15,9 +15,9 @@ import { GetSobrietyTimeUseCase } from './application/use-cases/get-sobriety-tim
 import { InitCaminoUseCase } from './application/use-cases/init-camino.use-case';
 import { InitSobrietyUseCase } from './application/use-cases/init-sobriety.use-case';
 import { GetAllRegistrosDiarioUseCase } from './application/use-cases/get-all-registros-diario.use-case';
-import { IProgressProviderPort } from './domain/ports/progress-provider.port';
 import { AuthModule } from '../auth/auth.module';
 import { GetConsumptionDatesUseCase } from './application/use-cases/get-consumption-dates.use-case';
+import { GetAhorroUseCase } from './application/use-cases/get-ahorro.use-case';
 
 @Module({
   imports: [DatabaseModule, AuthModule, EventEmitterModule],
@@ -36,6 +36,7 @@ import { GetConsumptionDatesUseCase } from './application/use-cases/get-consumpt
     InitSobrietyUseCase,
     GetAllRegistrosDiarioUseCase,
     GetConsumptionDatesUseCase,
+    GetAhorroUseCase,
     {
       provide: 'IProgressProviderPort',
       useClass: RobleProgressAdapter,
