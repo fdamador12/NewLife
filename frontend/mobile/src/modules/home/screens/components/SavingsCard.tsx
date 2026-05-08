@@ -20,10 +20,6 @@ export default function SavingsCard({ ahorroTotal, diasLimpios, onPress }: Props
           <Text style={styles.moneyAmount}>${ahorroTotal.toLocaleString()}</Text>
           <Text style={styles.moneySub}>ahorrado hasta ahora</Text>
         </View>
-        <View style={styles.diasBadge}>
-          <Text style={styles.diasNumber}>{diasLimpios}</Text>
-          <Text style={styles.diasLabel}>días{'\n'}limpios</Text>
-        </View>
       </View>
     </TouchableOpacity>
   );
@@ -65,22 +61,5 @@ const styles = StyleSheet.create({
   moneySub: {
     fontSize: fontSizes.sm,
     color: colors.textMuted,
-  },
-  diasBadge: {
-    alignItems: 'center',
-    backgroundColor: '#F0FFF4',
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    minWidth: 56,
-  },
-  diasNumber: {
-    fontSize: fontSizes.xl,
-    fontWeight: '800',
-    color: '#2ECC71',
-  },
-  diasLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
-    textAlign: 'center',
   },
 });
