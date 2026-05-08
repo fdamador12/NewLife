@@ -32,8 +32,9 @@ import {
   Mail, Globe, Instagram, Facebook, MessageCircle, X, Copy, Loader2, AlertCircle
 } from "lucide-react"
 
-// Importar servicios
 import { getGrupos, createGrupo, updateGrupo, deleteGrupo } from "@/lib/grupos"
+import { uploadImage, deleteImage } from "@/lib/media"
+import { ImageUploader, type ImageUploaderValue } from "@/components/admin/image-uploader"
 
 type GroupStatus = "ACTIVE" | "INACTIVE"
 
@@ -65,10 +66,17 @@ const emptyFormData = {
   instagram: "",
   facebook: "",
   community: "",
-  logoUrl: "",
   phones: [] as string[],
   whatsapps: [] as string[],
   status: "ACTIVE" as GroupStatus,
+}
+
+// Estado inicial vacío para el ImageUploader
+const emptyLogo: ImageUploaderValue = {
+  file: undefined,
+  previewUrl: undefined,
+  existingUrl: undefined,
+  removed: false,
 }
 
 export default function GruposApoyoPage() {
@@ -85,6 +93,7 @@ export default function GruposApoyoPage() {
   const [deleteGroupState, setDeleteGroupState] = useState<SupportGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [formData, setFormData] = useState(emptyFormData)
+  const [logoState, setLogoState] = useState<ImageUploaderValue>(emptyLogo)
   const [phoneInput, setPhoneInput] = useState("")
   const [whatsappInput, setWhatsappInput] = useState("")
 
@@ -92,7 +101,7 @@ export default function GruposApoyoPage() {
     try {
       setIsLoadingData(true)
       const data = await getGrupos()
-      
+
       const mapped: SupportGroup[] = data.map((item: any) => ({
         id: item.grupo_id || item.id,
         name: item.nombre,
@@ -137,6 +146,7 @@ export default function GruposApoyoPage() {
     setFormError("")
     setEditingGroup(null)
     setFormData(emptyFormData)
+    setLogoState(emptyLogo)
     setPhoneInput("")
     setWhatsappInput("")
     setShowModal(true)
@@ -155,10 +165,16 @@ export default function GruposApoyoPage() {
       instagram: group.instagram || "",
       facebook: group.facebook || "",
       community: group.community || "",
-      logoUrl: group.logoUrl || "",
       phones: group.phones,
       whatsapps: group.whatsapps,
       status: group.status,
+    })
+    // El logo existente se carga como preview pero NO como file (no hay cambios pendientes)
+    setLogoState({
+      file: undefined,
+      previewUrl: undefined,
+      existingUrl: group.logoUrl || undefined,
+      removed: false,
     })
     setPhoneInput("")
     setWhatsappInput("")
@@ -166,60 +182,117 @@ export default function GruposApoyoPage() {
     setShowModal(true)
   }
 
+  /**
+   * Orquesta el guardado del grupo + subida/borrado del logo si aplicó.
+   *
+   * Flujo:
+   * 1. Si hay file nuevo → subir a MinIO, obtener URL pública
+   * 2. Crear/actualizar el grupo con esa URL (o null si se quitó)
+   * 3. Si había logo viejo y se reemplazó/quitó → borrar el viejo de MinIO
+   *
+   * Si paso 1 falla → no se toca el grupo (no daño)
+   * Si paso 2 falla y subimos imagen → imagen huérfana (limpieza por job futuro)
+   * Si paso 3 falla → la operación principal ya tuvo éxito, solo loggeamos
+   */
   const handleSave = async () => {
     setFormError("")
     setIsSaving(true)
 
-    const payload = {
-      nombre: formData.name.trim(),
-      descripcion: formData.description.trim(),
-      direccion: formData.address.trim() || null,
-      lugar: formData.locationName.trim() || null,
-      email: formData.email.trim() || null,
-      sitio_web: formData.website.trim() || null,
-      instagram: formData.instagram.trim() || null,
-      facebook: formData.facebook.trim() || null,
-      telefonos: formData.phones,
-      whatsapp: formData.whatsapps,
-      comunidad_url: formData.community.trim() || null,
-      logo_url: formData.logoUrl.trim() || null,
-      estado: formData.status
-    }
-
     try {
+      // ── Paso 1: subir nuevo logo si lo hay ─────────────────────────────
+      let newLogoUrl: string | null | undefined = undefined
+      // - undefined = no se toca (no enviamos el campo)
+      // - null = se quita (enviamos null al backend)
+      // - string = nueva URL
+
+      if (logoState.file) {
+        const uploaded = await uploadImage(logoState.file, "avatars")
+        newLogoUrl = uploaded.url
+      } else if (logoState.removed) {
+        newLogoUrl = null
+      }
+
+      // ── Paso 2: crear/actualizar el grupo ──────────────────────────────
+      const payload: any = {
+        nombre: formData.name.trim(),
+        descripcion: formData.description.trim(),
+        direccion: formData.address.trim() || null,
+        lugar: formData.locationName.trim() || null,
+        email: formData.email.trim() || null,
+        sitio_web: formData.website.trim() || null,
+        instagram: formData.instagram.trim() || null,
+        facebook: formData.facebook.trim() || null,
+        telefonos: formData.phones,
+        whatsapp: formData.whatsapps,
+        comunidad_url: formData.community.trim() || null,
+        estado: formData.status,
+      }
+
+      // Solo incluimos logo_url si cambió (sea nuevo o si se quitó)
+      if (newLogoUrl !== undefined) {
+        payload.logo_url = newLogoUrl
+      }
+
       if (editingGroup) {
         await updateGrupo(editingGroup.id, payload)
       } else {
         await createGrupo(payload)
       }
-      
+
+      // ── Paso 3: borrar logo viejo si fue reemplazado o quitado ────────
+      const oldLogoUrl = editingGroup?.logoUrl
+      const logoChanged = newLogoUrl !== undefined // se subió nuevo o se quitó
+      if (oldLogoUrl && logoChanged) {
+        try {
+          await deleteImage(oldLogoUrl)
+        } catch (err) {
+          // No es crítico — el grupo ya se actualizó. Loggeamos para auditoría futura.
+          console.warn("No se pudo borrar el logo anterior:", err)
+        }
+      }
+
       await loadGroups()
       setShowModal(false)
       setFormData(emptyFormData)
+      setLogoState(emptyLogo)
       setEditingGroup(null)
     } catch (error: any) {
       console.error("Error al guardar grupo:", error)
-      setFormError("Hubo un error de conexión al guardar el grupo. Inténtalo de nuevo.")
+      const backendMsg = error.response?.data?.message
+      setFormError(
+        backendMsg ||
+        "Hubo un error al guardar el grupo. Inténtalo de nuevo."
+      )
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async () => {
-    if (deleteGroupState) {
-      setIsDeleting(true)
-      try {
-        await deleteGrupo(deleteGroupState.id)
-        await loadGroups()
-        setDeleteGroupState(null)
-        setShowDetailDialog(false)
-        setSelectedGroup(null)
-      } catch (error) {
-        console.error("Error al eliminar grupo:", error)
-        alert("Hubo un error al eliminar el grupo.")
-      } finally {
-        setIsDeleting(false)
+    if (!deleteGroupState) return
+
+    setIsDeleting(true)
+    try {
+      await deleteGrupo(deleteGroupState.id)
+
+      // Si el grupo tenía logo, lo borramos también del bucket
+      if (deleteGroupState.logoUrl) {
+        try {
+          await deleteImage(deleteGroupState.logoUrl)
+        } catch (err) {
+          console.warn("No se pudo borrar el logo del grupo eliminado:", err)
+        }
       }
+
+      await loadGroups()
+      setDeleteGroupState(null)
+      setShowDetailDialog(false)
+      setSelectedGroup(null)
+    } catch (error) {
+      console.error("Error al eliminar grupo:", error)
+      alert("Hubo un error al eliminar el grupo.")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -249,7 +322,7 @@ export default function GruposApoyoPage() {
     navigator.clipboard.writeText(text)
   }
 
-  // Validación en tiempo real: Si hay dirección, DEBE haber lugar.
+  // Validación: si hay dirección, DEBE haber lugar.
   const addressNeedsLocation = formData.address.trim() !== "" && formData.locationName.trim() === ""
 
   if (isLoadingData) {
@@ -323,7 +396,6 @@ export default function GruposApoyoPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Groups Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredGroups.map((group) => (
               <Card
@@ -335,6 +407,7 @@ export default function GruposApoyoPage() {
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 rounded-xl bg-[#f8f6f3] flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {group.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={group.logoUrl}
                           alt={group.name}
@@ -367,14 +440,12 @@ export default function GruposApoyoPage() {
                   </div>
 
                   <div className="mt-4 space-y-2">
-                    {/* Solo muestra la zona de mapa si existe lugar o dirección */}
                     {(group.locationName || group.address) && (
                       <div className="flex items-center gap-2 text-sm text-[#737373]">
                         <MapPin className="w-4 h-4 flex-shrink-0" />
                         <span className="truncate">{group.locationName || group.address}</span>
                       </div>
                     )}
-                    
                     {group.email && (
                       <div className="flex items-center gap-2 text-sm text-[#737373]">
                         <Mail className="w-4 h-4 flex-shrink-0" />
@@ -392,7 +463,6 @@ export default function GruposApoyoPage() {
                     )}
                   </div>
 
-                  {/* Social Links Preview */}
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#e5e5e5]">
                     {group.website && (
                       <div className="w-8 h-8 rounded-full bg-[#f8f6f3] flex items-center justify-center">
@@ -443,10 +513,10 @@ export default function GruposApoyoPage() {
           </DialogHeader>
           {selectedGroup && (
             <div className="space-y-6">
-              {/* Header */}
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-xl bg-[#f8f6f3] flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {selectedGroup.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={selectedGroup.logoUrl}
                       alt={selectedGroup.name}
@@ -476,7 +546,6 @@ export default function GruposApoyoPage() {
 
               <Separator className="bg-[#e5e5e5]" />
 
-              {/* Location (Solo si existe lugar o dirección) */}
               {(selectedGroup.locationName || selectedGroup.address) && (
                 <div>
                   <h3 className="text-sm font-semibold text-[#1a1a1a] mb-3">Ubicación</h3>
@@ -496,7 +565,6 @@ export default function GruposApoyoPage() {
                 </div>
               )}
 
-              {/* Contact (Solo se muestra si hay email, telefonos o whatsapps) */}
               {(selectedGroup.email || (selectedGroup.phones && selectedGroup.phones.length > 0) || (selectedGroup.whatsapps && selectedGroup.whatsapps.length > 0)) && (
                 <div>
                   <h3 className="text-sm font-semibold text-[#1a1a1a] mb-3">Contacto</h3>
@@ -518,14 +586,10 @@ export default function GruposApoyoPage() {
                       </div>
                     )}
 
-                    {/* Phones */}
                     {selectedGroup.phones && selectedGroup.phones.length > 0 && (
                       <div className="space-y-2">
                         {selectedGroup.phones.map((phone, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 rounded-lg bg-[#f8f6f3]"
-                          >
+                          <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-[#f8f6f3]">
                             <div className="flex items-center gap-3">
                               <Phone className="w-5 h-5 text-[#d4854a]" />
                               <span className="text-sm text-[#1a1a1a]">{phone}</span>
@@ -543,14 +607,10 @@ export default function GruposApoyoPage() {
                       </div>
                     )}
 
-                    {/* WhatsApps */}
                     {selectedGroup.whatsapps && selectedGroup.whatsapps.length > 0 && (
                       <div className="space-y-2">
                         {selectedGroup.whatsapps.map((wa, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 rounded-lg bg-green-50"
-                          >
+                          <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-green-50">
                             <div className="flex items-center gap-3">
                               <MessageCircle className="w-5 h-5 text-green-600" />
                               <span className="text-sm text-[#1a1a1a]">{wa}</span>
@@ -571,52 +631,31 @@ export default function GruposApoyoPage() {
                 </div>
               )}
 
-              {/* Social Links */}
               {(selectedGroup.website || selectedGroup.instagram || selectedGroup.facebook || selectedGroup.community) && (
                 <div>
                   <h3 className="text-sm font-semibold text-[#1a1a1a] mb-3">Redes y enlaces</h3>
                   <div className="flex flex-wrap gap-3">
                     {selectedGroup.website && (
-                      <a
-                        href={selectedGroup.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-[#d4854a]/10 flex items-center justify-center transition-colors"
-                        title="Sitio web"
-                      >
+                      <a href={selectedGroup.website} target="_blank" rel="noopener noreferrer"
+                         className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-[#d4854a]/10 flex items-center justify-center transition-colors" title="Sitio web">
                         <Globe className="w-5 h-5 text-[#737373] hover:text-[#d4854a]" />
                       </a>
                     )}
                     {selectedGroup.instagram && (
-                      <a
-                        href={selectedGroup.instagram}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-pink-100 flex items-center justify-center transition-colors"
-                        title="Instagram"
-                      >
+                      <a href={selectedGroup.instagram} target="_blank" rel="noopener noreferrer"
+                         className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-pink-100 flex items-center justify-center transition-colors" title="Instagram">
                         <Instagram className="w-5 h-5 text-[#737373] hover:text-pink-600" />
                       </a>
                     )}
                     {selectedGroup.facebook && (
-                      <a
-                        href={selectedGroup.facebook}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-blue-100 flex items-center justify-center transition-colors"
-                        title="Facebook"
-                      >
+                      <a href={selectedGroup.facebook} target="_blank" rel="noopener noreferrer"
+                         className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-blue-100 flex items-center justify-center transition-colors" title="Facebook">
                         <Facebook className="w-5 h-5 text-[#737373] hover:text-blue-600" />
                       </a>
                     )}
                     {selectedGroup.community && (
-                      <a
-                        href={selectedGroup.community}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-[#d4854a]/10 flex items-center justify-center transition-colors"
-                        title="Comunidad"
-                      >
+                      <a href={selectedGroup.community} target="_blank" rel="noopener noreferrer"
+                         className="w-10 h-10 rounded-full bg-[#f8f6f3] hover:bg-[#d4854a]/10 flex items-center justify-center transition-colors" title="Comunidad">
                         <MessageCircle className="w-5 h-5 text-[#737373] hover:text-[#d4854a]" />
                       </a>
                     )}
@@ -624,20 +663,12 @@ export default function GruposApoyoPage() {
                 </div>
               )}
 
-              {/* Actions */}
               <div className="flex gap-3 pt-4 border-t border-[#e5e5e5]">
-                <Button
-                  onClick={() => openEditModal(selectedGroup)}
-                  className="flex-1 bg-[#d4854a] hover:bg-[#c07842] text-white gap-2"
-                >
+                <Button onClick={() => openEditModal(selectedGroup)} className="flex-1 bg-[#d4854a] hover:bg-[#c07842] text-white gap-2">
                   <Pencil className="w-4 h-4" />
                   Editar
                 </Button>
-                <Button
-                  onClick={() => setDeleteGroupState(selectedGroup)}
-                  variant="outline"
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-2"
-                >
+                <Button onClick={() => setDeleteGroupState(selectedGroup)} variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-2">
                   <Trash2 className="w-4 h-4" />
                   Eliminar
                 </Button>
@@ -655,9 +686,7 @@ export default function GruposApoyoPage() {
               {editingGroup ? "Editar grupo de apoyo" : "Nuevo grupo de apoyo"}
             </DialogTitle>
             <DialogDescription className="text-[#737373]">
-              {editingGroup
-                ? "Modifica la información del grupo"
-                : "Completa los campos para registrar un nuevo grupo"}
+              {editingGroup ? "Modifica la información del grupo" : "Completa los campos para registrar un nuevo grupo"}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
@@ -667,46 +696,45 @@ export default function GruposApoyoPage() {
                 <p>{formError}</p>
               </div>
             )}
+
+            {/* Logo uploader */}
+            <ImageUploader
+              value={logoState}
+              onChange={setLogoState}
+              aspectRatio="1:1"
+              maxSizeMB={5}
+              label="Logo del grupo"
+              hint="Recomendado: imagen cuadrada, mínimo 256×256 px"
+              disabled={isSaving}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Basic Info */}
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-[#1a1a1a]">Nombre del grupo *</Label>
-                <Input
-                  placeholder="Nombre del grupo de apoyo"
-                  value={formData.name}
+                <Input placeholder="Nombre del grupo de apoyo" value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]"
-                />
+                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]" />
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-[#1a1a1a]">Descripción *</Label>
-                <Textarea
-                  placeholder="Descripción detallada del grupo, horarios, misión..."
-                  value={formData.description}
+                <Textarea placeholder="Descripción detallada del grupo, horarios, misión..." value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3] min-h-32"
-                />
+                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3] min-h-32" />
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-[#1a1a1a]">Dirección física</Label>
-                <Input
-                  placeholder="Calle, número, colonia, ciudad, CP..."
-                  value={formData.address}
+                <Input placeholder="Calle, número, colonia, ciudad, CP..." value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]"
-                />
+                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]" />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-[#1a1a1a]">Nombre del lugar</Label>
-                <Input
-                  placeholder="Ej: Centro Comunitario..."
-                  value={formData.locationName}
+                <Input placeholder="Ej: Centro Comunitario..." value={formData.locationName}
                   onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
-                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]"
-                />
+                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]" />
                 {addressNeedsLocation && (
                   <p className="text-xs text-red-500 mt-1">El nombre del lugar es obligatorio si indicas una dirección.</p>
                 )}
@@ -714,44 +742,20 @@ export default function GruposApoyoPage() {
 
               <div className="space-y-2">
                 <Label className="text-[#1a1a1a]">Email</Label>
-                <Input
-                  type="email"
-                  placeholder="contacto@grupo.com"
-                  value={formData.email}
+                <Input type="email" placeholder="contacto@grupo.com" value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]"
-                />
+                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]" />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-[#1a1a1a]">Logo URL (opcional)</Label>
-                <Input
-                  type="url"
-                  placeholder="https://..."
-                  value={formData.logoUrl}
-                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                  className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a] placeholder:text-[#a3a3a3]"
-                />
-              </div>
-
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label className="text-[#1a1a1a]">Estado *</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: GroupStatus) =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
+                <Select value={formData.status} onValueChange={(value: GroupStatus) => setFormData({ ...formData, status: value })}>
                   <SelectTrigger className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-[#e5e5e5]">
-                    <SelectItem value="ACTIVE" className="text-[#1a1a1a] hover:bg-[#f8f6f3]">
-                      Activo
-                    </SelectItem>
-                    <SelectItem value="INACTIVE" className="text-[#1a1a1a] hover:bg-[#f8f6f3]">
-                      Inactivo
-                    </SelectItem>
+                    <SelectItem value="ACTIVE" className="text-[#1a1a1a] hover:bg-[#f8f6f3]">Activo</SelectItem>
+                    <SelectItem value="INACTIVE" className="text-[#1a1a1a] hover:bg-[#f8f6f3]">Inactivo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -762,43 +766,23 @@ export default function GruposApoyoPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[#1a1a1a]">Sitio Web</Label>
-                    <Input
-                      type="url"
-                      placeholder="https://mi-sitio.com"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="bg-white border-[#e5e5e5] text-[#1a1a1a]"
-                    />
+                    <Input type="url" placeholder="https://mi-sitio.com" value={formData.website}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="bg-white border-[#e5e5e5] text-[#1a1a1a]" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#1a1a1a]">Instagram (URL completa)</Label>
-                    <Input
-                      type="url"
-                      placeholder="https://instagram.com/mi_grupo"
-                      value={formData.instagram}
-                      onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                      className="bg-white border-[#e5e5e5] text-[#1a1a1a]"
-                    />
+                    <Input type="url" placeholder="https://instagram.com/mi_grupo" value={formData.instagram}
+                      onChange={(e) => setFormData({ ...formData, instagram: e.target.value })} className="bg-white border-[#e5e5e5] text-[#1a1a1a]" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#1a1a1a]">Facebook (URL completa)</Label>
-                    <Input
-                      type="url"
-                      placeholder="https://facebook.com/mi_pagina"
-                      value={formData.facebook}
-                      onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                      className="bg-white border-[#e5e5e5] text-[#1a1a1a]"
-                    />
+                    <Input type="url" placeholder="https://facebook.com/mi_pagina" value={formData.facebook}
+                      onChange={(e) => setFormData({ ...formData, facebook: e.target.value })} className="bg-white border-[#e5e5e5] text-[#1a1a1a]" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#1a1a1a]">Comunidad (Discord/Telegram)</Label>
-                    <Input
-                      type="url"
-                      placeholder="https://t.me/mi_grupo"
-                      value={formData.community}
-                      onChange={(e) => setFormData({ ...formData, community: e.target.value })}
-                      className="bg-white border-[#e5e5e5] text-[#1a1a1a]"
-                    />
+                    <Input type="url" placeholder="https://t.me/mi_grupo" value={formData.community}
+                      onChange={(e) => setFormData({ ...formData, community: e.target.value })} className="bg-white border-[#e5e5e5] text-[#1a1a1a]" />
                   </div>
                 </div>
               </div>
@@ -807,36 +791,21 @@ export default function GruposApoyoPage() {
               <div className="space-y-2">
                 <Label className="text-[#1a1a1a]">Teléfonos</Label>
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="+52 55 1234 5678"
-                    value={phoneInput}
+                  <Input placeholder="+57 300 123 4567" value={phoneInput}
                     onChange={(e) => setPhoneInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhone())}
-                    className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a]"
-                  />
-                  <Button
-                    type="button"
-                    onClick={addPhone}
-                    variant="outline"
-                    className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3]"
-                  >
+                    className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a]" />
+                  <Button type="button" onClick={addPhone} variant="outline" className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3]">
                     Añadir
                   </Button>
                 </div>
                 {formData.phones.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {formData.phones.map((phone) => (
-                      <Badge
-                        key={phone}
-                        className="bg-[#d4854a]/10 text-[#d4854a] hover:bg-[#d4854a]/20 gap-1"
-                      >
+                      <Badge key={phone} className="bg-[#d4854a]/10 text-[#d4854a] hover:bg-[#d4854a]/20 gap-1">
                         <Phone className="w-3 h-3" />
                         {phone}
-                        <button
-                          type="button"
-                          onClick={() => removePhone(phone)}
-                          className="ml-1 hover:text-red-500"
-                        >
+                        <button type="button" onClick={() => removePhone(phone)} className="ml-1 hover:text-red-500">
                           <X className="w-3 h-3" />
                         </button>
                       </Badge>
@@ -849,36 +818,21 @@ export default function GruposApoyoPage() {
               <div className="space-y-2">
                 <Label className="text-[#1a1a1a]">WhatsApp</Label>
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="+52 55 1234 5678"
-                    value={whatsappInput}
+                  <Input placeholder="+57 300 123 4567" value={whatsappInput}
                     onChange={(e) => setWhatsappInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addWhatsapp())}
-                    className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a]"
-                  />
-                  <Button
-                    type="button"
-                    onClick={addWhatsapp}
-                    variant="outline"
-                    className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3]"
-                  >
+                    className="bg-[#f8f6f3] border-[#e5e5e5] text-[#1a1a1a]" />
+                  <Button type="button" onClick={addWhatsapp} variant="outline" className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3]">
                     Añadir
                   </Button>
                 </div>
                 {formData.whatsapps.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {formData.whatsapps.map((wa) => (
-                      <Badge
-                        key={wa}
-                        className="bg-green-100 text-green-700 hover:bg-green-200 gap-1"
-                      >
+                      <Badge key={wa} className="bg-green-100 text-green-700 hover:bg-green-200 gap-1">
                         <MessageCircle className="w-3 h-3" />
                         {wa}
-                        <button
-                          type="button"
-                          onClick={() => removeWhatsapp(wa)}
-                          className="ml-1 hover:text-red-500"
-                        >
+                        <button type="button" onClick={() => removeWhatsapp(wa)} className="ml-1 hover:text-red-500">
                           <X className="w-3 h-3" />
                         </button>
                       </Badge>
@@ -889,19 +843,13 @@ export default function GruposApoyoPage() {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowModal(false)}
-              disabled={isSaving}
-              className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3] hover:text-[#1a1a1a]"
-            >
+            <Button variant="outline" onClick={() => setShowModal(false)} disabled={isSaving}
+              className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3] hover:text-[#1a1a1a]">
               Cancelar
             </Button>
-            <Button
-              onClick={handleSave}
+            <Button onClick={handleSave}
               disabled={isSaving || !formData.name.trim() || !formData.description.trim() || addressNeedsLocation}
-              className="bg-[#d4854a] hover:bg-[#c07842] text-white"
-            >
+              className="bg-[#d4854a] hover:bg-[#c07842] text-white">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {editingGroup ? "Guardar cambios" : "Crear grupo"}
             </Button>
@@ -915,19 +863,14 @@ export default function GruposApoyoPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-[#1a1a1a]">¿Eliminar grupo?</AlertDialogTitle>
             <AlertDialogDescription className="text-[#737373]">
-              Esta acción no se puede deshacer. El grupo &quot;{deleteGroupState?.name}&quot; será
-              eliminado permanentemente.
+              Esta acción no se puede deshacer. El grupo &quot;{deleteGroupState?.name}&quot; será eliminado permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting} className="border-[#e5e5e5] text-[#737373] hover:bg-[#f8f6f3] hover:text-[#1a1a1a]">
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700 text-white">
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Eliminar
             </AlertDialogAction>
