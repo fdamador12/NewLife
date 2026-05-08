@@ -24,3 +24,5 @@ backend/admin-api/tsconfig.tsbuildinfo
 .vscode/
 
 media-data/
+
+.idea/
