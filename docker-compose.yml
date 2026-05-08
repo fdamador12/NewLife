@@ -83,12 +83,12 @@ services:
 
   # ── Almacenamiento de Media (MinIO) ──────────────────────────────
   minio:
-    # newlife-media.openlab.uninorte.edu.co (futuro subdominio sugerido)
+    # newlife-media.openlab.uninorte.edu.co (futuro subdominio)
     image: minio/minio:latest
     container_name: newlife-minio
     ports:
-      - "5183:9000" # API compatible con S3 (lo que usa NestJS)
-      - "5184:9001" # Consola web (para ver los archivos visualmente)
+      - "5183:9000" # API compatible con S3
+      - "5184:9001" # Consola web
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_newlife}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-NewLifeMedia2026!}
