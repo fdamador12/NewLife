@@ -8,18 +8,45 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { loginUser, getOnboardingStatus } from '../../../services/authService';
+import FieldError from '../../../feedback/FieldError';
+import { useToast } from '../../../feedback/ToastContext';
 
 const INPUT_HEIGHT = 52;
+
+// 🔥 SOLO MEJORAMOS ESTO
+const parsearErrorServidor = (msg: string, status?: number): string => {
+  const m = (msg || '').toLowerCase();
+
+  if (status === 401) {
+    if (m.includes('contraseña')) {
+      return 'Contraseña incorrecta. Verifica e intenta de nuevo.';
+    }
+
+    if (m.includes('no encontrado') || m.includes('no verificado')) {
+      return 'No encontramos una cuenta con ese correo.';
+    }
+
+    return 'Credenciales incorrectas. Intenta de nuevo.';
+  }
+
+  if (status === 500) {
+    return 'Error del servidor. Intenta más tarde.';
+  }
+
+  return 'Algo salió mal. Intenta de nuevo.';
+};
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
-  // Cargar email y contraseña guardados si rememberMe estaba activo
+  const { showToast } = useToast();
+
   useEffect(() => {
     const loadSavedCredentials = async () => {
       try {
@@ -39,16 +66,32 @@ export default function LoginScreen({ navigation }: any) {
   }, []);
 
   const handleLogin = async () => {
-    setError('');
-    if (!email || !password) {
-      setError('Por favor completa todos los campos.');
-      return;
+    setEmailError('');
+    setPasswordError('');
+
+    let valid = true;
+
+    if (!email.trim()) {
+      setEmailError('El correo es obligatorio');
+      valid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setEmailError('Ingresa un correo válido, ej: nombre@correo.com');
+      valid = false;
     }
+
+    if (!password) {
+      setPasswordError('La contraseña es obligatoria');
+      valid = false;
+    } else if (password.length < 8) {
+      setPasswordError('La contraseña debe tener al menos 8 caracteres');
+      valid = false;
+    }
+
+    if (!valid) return;
 
     try {
       setLoading(true);
 
-      // Guardar o borrar credenciales según rememberMe
       if (rememberMe) {
         await AsyncStorage.multiSet([
           ['rememberMe', 'true'],
@@ -65,7 +108,22 @@ export default function LoginScreen({ navigation }: any) {
       navigation.navigate(status.completed ? 'Home' : 'Story');
 
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Correo o contraseña incorrectos.');
+      // 🔥 AQUÍ ESTÁ LA CLAVE
+      if (!err.response) {
+        showToast('Sin conexión o servidor no disponible', 'error');
+        return;
+      }
+
+      const status = err.response.status;
+      const data = err.response.data;
+
+      const msg =
+        typeof data?.message === 'string'
+          ? data.message
+          : '';
+
+      showToast(parsearErrorServidor(msg, status), 'error');
+
     } finally {
       setLoading(false);
     }
@@ -84,40 +142,45 @@ export default function LoginScreen({ navigation }: any) {
 
       <View style={styles.inputsContainer}>
 
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe tu correo aquí..."
-            placeholderTextColor={colors.border}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-        </View>
-
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe tu contraseña..."
-            placeholderTextColor={colors.border}
-            secureTextEntry={!showPassword}
-            value={password}
-            onChangeText={setPassword}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
-            style={styles.eyeButton}
-          >
-            <Icon
-              name={showPassword ? 'eye-off' : 'eye'}
-              size={18}
-              color={colors.textMuted}
+        <View>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe tu correo aquí..."
+              placeholderTextColor={colors.border}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(''); }}
             />
-          </TouchableOpacity>
+          </View>
+          <FieldError message={emailError} />
         </View>
 
-        {/* Switch Recordarme — ahora solo autocompleta credenciales */}
+        <View>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe tu contraseña..."
+              placeholderTextColor={colors.border}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(''); }}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+            >
+              <Icon
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={18}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
+          <FieldError message={passwordError} />
+        </View>
+
         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
           <Switch
             value={rememberMe}
@@ -131,8 +194,6 @@ export default function LoginScreen({ navigation }: any) {
         <TouchableOpacity style={styles.forgotContainer}>
           <Text style={styles.forgotText}>¿Se te olvidó la contraseña?</Text>
         </TouchableOpacity>
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       </View>
 
@@ -202,12 +263,6 @@ const styles = StyleSheet.create({
   forgotText: {
     color: colors.textMuted,
     fontSize: fontSizes.xs,
-  },
-  errorText: {
-    color: 'red',
-    fontSize: fontSizes.sm,
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
   buttonPrimary: {
     backgroundColor: colors.primary,

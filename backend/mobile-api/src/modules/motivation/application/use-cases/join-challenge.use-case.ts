@@ -15,7 +15,7 @@ export class JoinChallengeUseCase {
 
   async execute(usuarioId: string, retoId: string, userToken: string) {
     const masterToken = await this.systemAuth.getMasterToken();
-    
+
     const reto = await this.motivationProvider.getChallengeById(retoId, masterToken);
     if (!reto || reto.estado !== 'PUBLISHED') {
       throw new NotFoundException('El reto no está disponible o no existe.');
@@ -34,41 +34,37 @@ export class JoinChallengeUseCase {
     }
 
     const fechaInicioNueva = new Date().toISOString();
-
     const evaluator = this.evaluatorFactory.getEvaluator(reto.tipo);
     const progresoReal = await evaluator.evaluate(usuarioId, reto.target, fechaInicioNueva, userToken, masterToken);
-    
     const nuevoEstado = progresoReal >= reto.target ? 'COMPLETED' : 'ACTIVE';
 
     if (inscripcionExistente && inscripcionExistente.estado === 'FAILED') {
-      
+      // ✅ Usar masterToken
       await this.motivationProvider.updateChallengeProgress(
         inscripcionExistente.user_reto_id,
         progresoReal,
         nuevoEstado,
-        userToken,
-        fechaInicioNueva
+        masterToken,
+        fechaInicioNueva,
       );
-      
-      return { 
-        message: nuevoEstado === 'COMPLETED' 
-          ? '¡Reto reiniciado y completado automáticamente!' 
-          : '¡Reto reiniciado! Sigue adelante.', 
+
+      return {
+        message: nuevoEstado === 'COMPLETED'
+          ? '¡Reto reiniciado y completado automáticamente!'
+          : '¡Reto reiniciado! Sigue adelante.',
         estado: nuevoEstado,
-        progreso_actual: progresoReal 
+        progreso_actual: progresoReal,
       };
-      
     } else {
-      
+      // ✅ Usar masterToken
       return this.motivationProvider.startChallenge({
         user_reto_id: uuidv4(),
         usuario_id: usuarioId,
         reto_id: retoId,
         estado: nuevoEstado,
         progreso_actual: progresoReal,
-        fecha_inicio: fechaInicioNueva
-      }, userToken);
-      
+        fecha_inicio: fechaInicioNueva,
+      }, masterToken);
     }
   }
 }

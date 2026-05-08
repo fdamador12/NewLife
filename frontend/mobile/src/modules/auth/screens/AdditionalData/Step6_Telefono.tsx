@@ -29,6 +29,8 @@ export default function Step6_Telefono({ navigation }: any) {
     setPhone(numbers);
   };
 
+  const isValid = name.trim().length > 0 && phone.length === 10;
+
   return (
     <>
       <StepLayout
@@ -42,6 +44,7 @@ export default function Step6_Telefono({ navigation }: any) {
           navigation.navigate('Step7');
         }}
         showButton={true}
+        disabled={!isValid}
       >
         <View style={styles.fieldsContainer}>
           <View style={styles.inputWrapper}>

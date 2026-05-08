@@ -5,11 +5,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-
-const AGENDA = [
-    { time: '9:00 am', title: 'Visitar la fundación Shalom' },
-    { time: '9:30 am', title: 'Hablar con el psicólogo Juan' },
-];
+import { useAgenda } from '../hooks/useAgenda';
 
 const MAP_HTML = `
 <!DOCTYPE html>
@@ -28,11 +24,19 @@ const MAP_HTML = `
   <script>
     const map = L.map('map').setView([10.9878, -74.7889], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
     L.marker([10.9878, -74.7889], {
-      icon: L.divIcon({ className: '', html: '<div style="background:#4A7BF7;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div>' })
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="background:#4A7BF7;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div>'
+      })
     }).addTo(map);
+
     L.marker([10.9920, -74.7950], {
-      icon: L.divIcon({ className: '', html: '<div style="background:#FF6B6B;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div>' })
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="background:#FF6B6B;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div>'
+      })
     }).addTo(map);
   </script>
 </body>
@@ -46,23 +50,61 @@ const QUICK_ACTIONS = [
     { key: 'content', label: 'Contenido', icon: 'book-open', color: '#406ADF' },
 ];
 
+function timeToMinutes(timeStr: string): number {
+    const [timePart, period] = timeStr.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+
+    if (period === 'pm' && hours !== 12) hours += 12;
+    if (period === 'am' && hours === 12) hours = 0;
+
+    return hours * 60 + minutes;
+}
+
 export default function CareScreen({ navigation }: any) {
+    const { eventos } = useAgenda();
+
     const handleQuickAction = (key: string) => {
         switch (key) {
-            case 'groups': navigation.navigate('GroupsScreen'); break;
-            case 'emergency': navigation.navigate('CareContacts'); break;
-            case 'motivation': navigation.navigate('MotivationalScreen'); break;
-            case 'content': navigation.navigate('ContentScreen'); break;
+            case 'groups':
+                navigation.navigate('GroupsScreen');
+                break;
+            case 'emergency':
+                navigation.navigate('CareContacts');
+                break;
+            case 'motivation':
+                navigation.navigate('MotivationalScreen');
+                break;
+            case 'content':
+                navigation.navigate('ContentScreen');
+                break;
         }
     };
 
+    const isSameDay = (a: Date, b: Date) =>
+        a.getDate() === b.getDate() &&
+        a.getMonth() === b.getMonth() &&
+        a.getFullYear() === b.getFullYear();
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const upcomingEvents = eventos
+        .filter((e) => isSameDay(e.date, now))
+        .filter((e) => timeToMinutes(e.timeFrom) >= currentMinutes)
+        .sort((a, b) => timeToMinutes(a.timeFrom) - timeToMinutes(b.timeFrom))
+        .slice(0, 2);
+
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
+            <ScrollView
+                contentContainerStyle={styles.scroll}
+                showsVerticalScrollIndicator={false}
+            >
                 {/* Header */}
                 <Text style={styles.title}>Cuidado</Text>
-                <Text style={styles.subtitle}>Encuentra grupos de apoyo, contactos de emergencia y contenido útil.</Text>
+                <Text style={styles.subtitle}>
+                    Encuentra grupos de apoyo, contactos de emergencia y contenido útil.
+                </Text>
 
                 {/* Acciones rápidas */}
                 <Text style={styles.sectionTitle}>Acciones rápidas</Text>
@@ -90,7 +132,9 @@ export default function CareScreen({ navigation }: any) {
                         javaScriptEnabled
                     />
                     <View style={styles.mapFooter}>
-                        <Text style={styles.mapFooterText}>Encuentra tus zonas de apoyo y peligro</Text>
+                        <Text style={styles.mapFooterText}>
+                            Encuentra tus zonas de apoyo y peligro
+                        </Text>
                         <TouchableOpacity onPress={() => navigation.navigate('ZonesScreen')}>
                             <Text style={styles.mapLink}>Ver más zonas</Text>
                         </TouchableOpacity>
@@ -107,12 +151,34 @@ export default function CareScreen({ navigation }: any) {
                 </TouchableOpacity>
 
                 <View style={styles.agendaCard}>
-                    {AGENDA.map((item, i) => (
-                        <View key={i} style={[styles.agendaRow, i < AGENDA.length - 1 && styles.agendaRowBorder]}>
-                            <Text style={styles.agendaTime}>{item.time}</Text>
-                            <Text style={styles.agendaTitle}>{item.title}</Text>
-                        </View>
-                    ))}
+                    {upcomingEvents.length > 0 ? (
+                        upcomingEvents.map((item, i) => (
+                            <View
+                                key={item.id}
+                                style={[
+                                    styles.agendaRow,
+                                    i < upcomingEvents.length - 1 && styles.agendaRowBorder,
+                                ]}
+                            >
+                                <Text style={styles.agendaTime}>{item.timeFrom}</Text>
+                                <Text style={styles.agendaTitle}>{item.title}</Text>
+                            </View>
+                        ))
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.emptyAgenda}
+                            onPress={() => navigation.navigate('AgendaScreen')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.emptyAgendaEmoji}>📅</Text>
+                            <Text style={styles.emptyAgendaText}>
+                                No tienes más eventos por hoy
+                            </Text>
+                            <Text style={styles.emptyAgendaAction}>
+                                Agregar evento
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <View style={{ height: spacing.xl }} />
@@ -256,5 +322,24 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: colors.text,
         flex: 1,
+    },
+    emptyAgenda: {
+        padding: spacing.xl,
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    emptyAgendaEmoji: {
+        fontSize: 32,
+    },
+    emptyAgendaText: {
+        fontSize: fontSizes.sm,
+        color: colors.textMuted,
+        textAlign: 'center',
+    },
+    emptyAgendaAction: {
+        fontSize: fontSizes.sm,
+        color: colors.primary,
+        fontWeight: '700',
+        textDecorationLine: 'underline',
     },
 });

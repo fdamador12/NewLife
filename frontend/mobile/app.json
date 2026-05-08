@@ -4,6 +4,21 @@
     "name": "NewLife",
     "slug": "newlife",
     "version": "1.0.0",
-    "platforms": ["ios", "android"]
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "dc84fe76-7bca-43f8-a517-ff80fe202cb5"
+      }
+    },
+    "android": {
+      "package": "com.newlife.app"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-audio"
+    ]
   }
 }

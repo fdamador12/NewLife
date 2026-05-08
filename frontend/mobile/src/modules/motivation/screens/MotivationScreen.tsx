@@ -18,11 +18,9 @@ export default function MotivationScreen({ navigation }: any) {
   } = useMotivation();
 
   useEffect(() => {
-    // ✅ Cargar inmediatamente al montar
     fetchFraseDia();
     fetchMisChallenges();
 
-    // ✅ Refetch cuando vuelves a la pantalla
     const unsubscribe = navigation.addListener('focus', () => {
       fetchFraseDia();
       fetchMisChallenges();
@@ -35,12 +33,15 @@ export default function MotivationScreen({ navigation }: any) {
     fetchFraseDia();
   };
 
-  // ✅ Obtener último reto activo
-  const ultimoRetoActivo = misChallenges.activos && misChallenges.activos.length > 0
-    ? misChallenges.activos[misChallenges.activos.length - 1]
+  // ✅ Mostrar el reto activo con más progreso porcentual en lugar del último
+  const retoMasAvanzado = misChallenges.activos && misChallenges.activos.length > 0
+    ? misChallenges.activos.reduce((prev, curr) => {
+        const prevPercent = prev.porcentaje ?? (prev.target > 0 ? Math.round(((prev.progreso_actual || 0) / prev.target) * 100) : 0);
+        const currPercent = curr.porcentaje ?? (curr.target > 0 ? Math.round(((curr.progreso_actual || 0) / curr.target) * 100) : 0);
+        return currPercent > prevPercent ? curr : prev;
+      })
     : null;
 
-  // ✅ Verificar si tiene retos activos
   const tieneRetosActivos = misChallenges.activos && misChallenges.activos.length > 0;
 
   return (
@@ -86,7 +87,6 @@ export default function MotivationScreen({ navigation }: any) {
             />
           </TouchableOpacity>
         ) : (
-          // ✅ EMPTY STATE CUANDO NO HAY FRASE DEL DÍA
           <View style={styles.emptyPhraseContainer}>
             <Feather name="inbox" size={48} color={colors.textMuted} />
             <Text style={styles.emptyPhraseTitle}>No hay frase del día</Text>
@@ -115,15 +115,17 @@ export default function MotivationScreen({ navigation }: any) {
           <View style={styles.challengeCardLoading}>
             <ActivityIndicator size="large" color={colors.accent} />
           </View>
-        ) : tieneRetosActivos && ultimoRetoActivo ? (
+        ) : tieneRetosActivos && retoMasAvanzado ? (
           <ChallengeCard
-            titulo={ultimoRetoActivo.titulo}
-            descripcion={ultimoRetoActivo.descripcion}
-            dificultad={ultimoRetoActivo.dificultad}
-            progreso_actual={ultimoRetoActivo.progreso_actual || 0}
-            target={ultimoRetoActivo.target}
+            titulo={retoMasAvanzado.titulo}
+            descripcion={retoMasAvanzado.descripcion}
+            dificultad={retoMasAvanzado.dificultad}
+            progreso_actual={retoMasAvanzado.progreso_actual || 0}
+            target={retoMasAvanzado.target}
+            porcentaje={retoMasAvanzado.porcentaje}
+            texto_progreso={retoMasAvanzado.texto_progreso}
             onPress={() =>
-              navigation.navigate('ChallengeDetail', { challenge: ultimoRetoActivo })
+              navigation.navigate('ChallengeDetail', { challenge: retoMasAvanzado })
             }
           />
         ) : (
@@ -201,8 +203,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.white,
   },
-
-  // ✅ EMPTY STATE FRASE DEL DÍA
   emptyPhraseContainer: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
@@ -239,7 +239,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '700',
   },
-
   challengeCardLoading: {
     borderRadius: borderRadius.md,
     overflow: 'hidden',

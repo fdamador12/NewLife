@@ -16,17 +16,35 @@ import { useGrupos } from '../../hooks/useGrupos';
 import { Grupo } from '../../services/gruposService';
 import GroupDetailModal from './components/GroupDetailModal';
 
+// ✅ Normaliza texto: quita acentos, símbolos y pasa a minúsculas
+const normalizeText = (text: string) => {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // quita acentos
+    .replace(/[^a-zA-Z0-9 ]/g, '')   // quita símbolos (opcional)
+    .toLowerCase();
+};
+
 export default function GroupsScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [selectedGrupo, setSelectedGrupo] = useState<Grupo | null>(null);
   const [showModal, setShowModal] = useState(false);
   const { grupos, loading, error } = useGrupos();
 
-  const filtered = grupos.filter((g) =>
-    g.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    (g.descripcion && g.descripcion.toLowerCase().includes(search.toLowerCase())) ||
-    (g.lugar && g.lugar.toLowerCase().includes(search.toLowerCase()))
-  );
+  // ✅ búsqueda normalizada
+  const normalizedSearch = normalizeText(search);
+
+  const filtered = grupos.filter((g) => {
+    const nombre = normalizeText(g.nombre);
+    const descripcion = normalizeText(g.descripcion || '');
+    const lugar = normalizeText(g.lugar || '');
+
+    return (
+      nombre.includes(normalizedSearch) ||
+      descripcion.includes(normalizedSearch) ||
+      lugar.includes(normalizedSearch)
+    );
+  });
 
   const handleCallPhone = (telefonos?: string[]) => {
     if (telefonos && telefonos.length > 0) {
@@ -132,7 +150,6 @@ export default function GroupsScreen({ navigation }: any) {
 
               {/* Acciones */}
               <View style={styles.groupActions}>
-                {/* Llamar */}
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
@@ -156,7 +173,6 @@ export default function GroupsScreen({ navigation }: any) {
                   </Text>
                 </TouchableOpacity>
 
-                {/* WhatsApp */}
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
@@ -180,7 +196,6 @@ export default function GroupsScreen({ navigation }: any) {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Ver Enlaces */}
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => handleOpenLinks(grupo)}
@@ -195,7 +210,6 @@ export default function GroupsScreen({ navigation }: any) {
         </ScrollView>
       )}
 
-      {/* Modal de Enlaces */}
       <GroupDetailModal
         visible={showModal}
         grupo={selectedGrupo}

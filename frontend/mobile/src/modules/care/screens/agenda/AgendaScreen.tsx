@@ -5,12 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../../constants/theme';
 import { useAgenda } from '../../hooks/useAgenda';
+import { useToast } from '../../../../feedback/ToastContext';
+import { useConfirm } from '../../../../feedback/ConfirmContext';
 import AgendaCalendar from './components/AgendaCalendar';
 import EventCard from './components/EventCard';
 
@@ -37,19 +38,19 @@ type AgendaEvent = {
   repeat: string;
 };
 
-// Función para convertir tiempo a minutos (para ordenar)
 function timeToMinutes(timeStr: string): number {
   const [timePart, period] = timeStr.split(' ');
   let [hours, minutes] = timePart.split(':').map(Number);
-
   if (period === 'pm' && hours !== 12) hours += 12;
   if (period === 'am' && hours === 12) hours = 0;
-
   return hours * 60 + minutes;
 }
 
 export default function AgendaScreen({ navigation }: any) {
   const { eventos, loading, error, deleteAgenda, refetch } = useAgenda();
+  const { showToast } = useToast();
+  const { showConfirm } = useConfirm();
+
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -66,27 +67,27 @@ export default function AgendaScreen({ navigation }: any) {
     e.date.getFullYear() === currentYear
   );
 
-  // Obtener eventos del día seleccionado y ordenarlos por hora (de más temprano a más tarde)
   let todayEvents = eventos.filter((e) => isSameDay(e.date, selectedDate));
   todayEvents = todayEvents.sort((a, b) => timeToMinutes(a.timeFrom) - timeToMinutes(b.timeFrom));
 
   const handleDelete = (id: string) => {
-    Alert.alert('Eliminar evento', '¿Deseas eliminar este evento?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteAgenda(id);
-            // ✅ REFETCH después de eliminar
-            await refetch();
-          } catch (err) {
-            Alert.alert('Error', 'No se pudo eliminar el evento');
-          }
-        },
+    showConfirm({
+      title: 'Eliminar evento',
+      message: '¿Seguro que quieres eliminar este evento? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteAgenda(id);
+          await refetch();
+          showToast('Evento eliminado', 'success');
+        } catch (err) {
+          console.log('Error eliminando evento:', err);
+          showToast('No se pudo eliminar el evento. Intenta de nuevo.', 'error');
+        }
       },
-    ]);
+    });
   };
 
   const formatSelectedDate = () => {
@@ -125,7 +126,6 @@ export default function AgendaScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <Feather name="chevron-left" size={24} color={COLORS.darkGray} />
@@ -133,7 +133,6 @@ export default function AgendaScreen({ navigation }: any) {
         <Text style={styles.headerTitle}>Mi Agenda</Text>
       </View>
 
-      {/* Calendario */}
       <AgendaCalendar
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
@@ -144,14 +143,12 @@ export default function AgendaScreen({ navigation }: any) {
         hasEvent={hasEvent}
       />
 
-      {/* Fecha seleccionada */}
       <View style={styles.dateHeader}>
         <Text style={styles.dateHeaderText}>{formatSelectedDate()}</Text>
         <Text style={styles.eventCount}>{todayEvents.length} eventos</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Lista de eventos - ORDENADOS POR HORA */}
         {todayEvents.length > 0 && (
           <View style={styles.eventsSection}>
             {todayEvents.map((event) => (
@@ -164,11 +161,8 @@ export default function AgendaScreen({ navigation }: any) {
                 timeTo={event.timeTo}
                 reminder={event.reminder}
                 onEdit={() => navigation.navigate('AddEventScreen', {
-                  event: {
-                    ...event,
-                    date: event.date.toISOString(),
-                  },
-                  refetch, // ✅ PASAR REFETCH
+                  event: { ...event, date: event.date.toISOString() },
+                  refetch,
                 })}
                 onDelete={() => handleDelete(event.id)}
               />
@@ -176,7 +170,6 @@ export default function AgendaScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Estado vacio */}
         {todayEvents.length === 0 && (
           <View style={styles.emptyState}>
             <Feather name="calendar" size={48} color={COLORS.gray} />
@@ -188,12 +181,11 @@ export default function AgendaScreen({ navigation }: any) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Boton agregar */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => navigation.navigate('AddEventScreen', {
           defaultDate: selectedDate.toISOString(),
-          refetch, // ✅ PASAR REFETCH
+          refetch,
         })}
       >
         <Feather name="plus" size={20} color={COLORS.white} />
@@ -222,11 +214,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: fontSizes.lg,
-    fontWeight: '700',
-    color: colors.text,
-  },
+  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
   dateHeader: {
     flexDirection: 'row',
     alignItems: 'center',

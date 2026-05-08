@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthService } from './application/services/auth.service';
 import { SystemAuthService } from './infrastructure/services/system-auth.service';
 import { RobleAuthAdapter } from './infrastructure/adapters/roble-auth.adapter';
@@ -12,7 +13,11 @@ import { MigrateGuestUseCase } from './application/use-cases/migrate-guest.use-c
 import { DatabaseModule } from '../database/database.module';
 
 @Module({
-  imports: [DatabaseModule, ConfigModule],
+  imports: [
+    DatabaseModule, 
+    ConfigModule, 
+    EventEmitterModule.forRoot() // Se recomienda .forRoot() si es la configuración global
+  ],
   controllers: [AuthController],
   providers: [
     AuthService,

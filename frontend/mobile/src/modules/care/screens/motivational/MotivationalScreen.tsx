@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-menu';
@@ -164,47 +165,77 @@ export default function MotivationalScreen({ navigation }: any) {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Cargando frases...</Text>
         </View>
-      ) : sortedFrases.length === 0 ? (
+      ) : frases.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Feather name="inbox" size={48} color={colors.textMuted} />
+          <View style={styles.emptyIconContainer}>
+            <Feather name="inbox" size={32} color="#9CA3AF" />
+          </View>
+          <Text style={styles.emptyTitle}>Sin frases disponibles</Text>
           <Text style={styles.emptyText}>
-            {sortBy === 'favorites'
-              ? 'No tienes frases favoritas aún'
-              : sortBy === 'non-favorites'
-              ? 'No hay frases sin marcar'
-              : 'No hay frases disponibles'}
+            Vuelve mas tarde para encontrar nuevas frases de inspiracion
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={sortedFrases}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          keyExtractor={(item) => item.frase_id}
-          style={{ flexGrow: 0 }}
-          renderItem={({ item }) => (
-            <View style={styles.cardWrapper}>
-              {/* Badge con fecha */}
-              <View style={styles.dateTab}>
-                <Text style={styles.dateTabText}>{formatDate(item.dia)}</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {frases.map((item, index) => (
+            <View key={item.frase_id} style={styles.cardContainer}>
+              {/* Indicador de timeline */}
+              <View style={styles.timelineIndicator}>
+                <View style={[
+                  styles.timelineDot,
+                  index === 0 && styles.timelineDotActive
+                ]} />
+                {index < frases.length - 1 && (
+                  <View style={styles.timelineLine} />
+                )}
               </View>
-              {/* Card */}
-              <MotivationalCard
-                id={item.frase_id}
-                text={item.frase}
-                image={require('../../../../assets/images/phrase.jpg')}
-                isFavorite={item.isFavorite || false}
-                onToggleFavorite={toggleFavorito}
-              />
+
+              {/* Card content */}
+              <View style={styles.cardContent}>
+                {/* Badge de fecha */}
+                <View style={styles.dateBadgeContainer}>
+                  <View style={[
+                    styles.dateBadge,
+                    index === 0 && styles.dateBadgeToday
+                  ]}>
+                    <Feather
+                      name="calendar"
+                      size={12}
+                      color={index === 0 ? colors.white : colors.primary}
+                    />
+                    <Text style={[
+                      styles.dateBadgeText,
+                      index === 0 && styles.dateBadgeTextToday
+                    ]}>
+                      {formatDate(item.dia)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Motivational Card */}
+                <MotivationalCard
+                  id={item.frase_id}
+                  text={item.frase}
+                  image={require('../../../../assets/images/phrase.jpg')}
+                  isFavorite={item.isFavorite || false}
+                  onToggleFavorite={toggleFavorito}
+                />
+              </View>
             </View>
-          )}
-        />
+          ))}
+
+        </ScrollView>
       )}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -212,6 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingTop: 60,
   },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,6 +251,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.md,
   },
+
   badge: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.full,
@@ -227,23 +260,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   badgeText: {
     fontSize: fontSizes.sm,
     color: colors.text,
     fontWeight: '600',
   },
+
   title: {
     fontSize: fontSizes.xxl,
     fontWeight: '800',
     color: colors.text,
     paddingHorizontal: spacing.xl,
   },
+
   subtitle: {
     fontSize: fontSizes.md,
     color: colors.textMuted,
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.lg,
   },
+
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,25 +288,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.lg,
   },
+
   filterLabelContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
+
   filterLabel: {
     fontSize: fontSizes.sm,
     color: colors.textMuted,
     fontWeight: '500',
   },
+
   filterValue: {
     fontSize: fontSizes.sm,
     color: colors.text,
     fontWeight: '700',
   },
+
   menuTriggerWrapper: {
     padding: spacing.sm,
   },
+
   menuOptionsWrapper: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
@@ -280,69 +322,160 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+
   menuOptionWrapper: {
     paddingHorizontal: 0,
     paddingVertical: 0,
   },
+
   menuOption: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+
   menuOptionActive: {
     backgroundColor: 'rgba(74, 123, 247, 0.1)',
   },
+
   menuOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+
   menuOptionText: {
     fontSize: fontSizes.sm,
     fontWeight: '600',
     color: colors.text,
   },
+
   menuOptionTextActive: {
     color: colors.primary,
   },
-  list: {
+
+  scrollView: {
+    flex: 1,
+  },
+
+  scrollContent: {
     paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxl,
+    paddingTop: spacing.md,
   },
-  cardWrapper: {
-    position: 'relative',
+
+  cardContainer: {
+    flexDirection: 'row',
+    marginBottom: spacing.lg,
   },
-  dateTab: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.md,
-    zIndex: 10,
+
+  timelineIndicator: {
+    width: 24,
+    alignItems: 'center',
+    paddingTop: 6,
+    marginRight: spacing.sm,
+  },
+
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#E5E7EB',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+
+  timelineDotActive: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
-  dateTabText: {
+
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: '#E5E7EB',
+    marginTop: spacing.xs,
+  },
+
+  cardContent: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+
+  dateBadgeContainer: {
+    flexDirection: 'row',
+  },
+
+  dateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  dateBadgeToday: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  dateBadgeText: {
     fontSize: fontSizes.xs,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: colors.text,
+    textTransform: 'capitalize',
+  },
+
+  dateBadgeTextToday: {
     color: colors.white,
   },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.md,
   },
+
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: fontSizes.md,
+    color: colors.textMuted,
+  },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.md,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.xxl,
   },
+
+  emptyIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  emptyTitle: {
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
   emptyText: {
     fontSize: fontSizes.md,
     color: colors.textMuted,
     textAlign: 'center',
+    lineHeight: 22,
   },
 });

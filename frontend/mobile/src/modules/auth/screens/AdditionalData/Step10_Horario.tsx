@@ -7,9 +7,9 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/
 import { useOnboarding } from '../../../../context/OnboardingContext';
 import { completeProfile, createContact } from '../../../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Agrega estos imports arriba
-import { isGuestMode, saveGuestProfile, saveGuestSobrietyStart, createGuestContact, markGuestProfileCompleted  } from '../../../../services/guestService';
+import { isGuestMode, saveGuestProfile, saveGuestSobrietyStart, createGuestContact, markGuestProfileCompleted } from '../../../../services/guestService';
 import { markOnboardingProfileCompleted } from '../../../../services/onboarding-storage';
+import { useToast } from '../../../../feedback/ToastContext';
 
 const { width } = Dimensions.get('window');
 const CLOCK_SIZE = width * 0.7;
@@ -23,6 +23,7 @@ export default function Step10_Horario({ navigation }: any) {
     const [mode, setMode] = useState<'hour' | 'minute'>('hour');
     const [loading, setLoading] = useState(false);
     const { data } = useOnboarding();
+    const { showToast } = useToast();
 
     const hourNumbers = Array.from({ length: 12 }, (_, i) => i + 1);
     const minuteNumbers = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -49,53 +50,47 @@ export default function Step10_Horario({ navigation }: any) {
         setMinute(m);
     };
 
-
-    // Reemplaza solo handleFinish
     const handleFinish = async () => {
-    try {
-        setLoading(true);
+        try {
+            setLoading(true);
 
-        const hourIn24 = period === 'PM' && hour !== 12
-        ? hour + 12
-        : period === 'AM' && hour === 12
-            ? 0
-            : hour;
-        const moment_motiv = `${hourIn24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
+            const hourIn24 = period === 'PM' && hour !== 12
+                ? hour + 12
+                : period === 'AM' && hour === 12
+                    ? 0
+                    : hour;
+            const moment_motiv = `${hourIn24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
 
-        const guest = await isGuestMode();
+            const guest = await isGuestMode();
 
-        if (guest) {
-        // Invitado → guardar todo localmente
-        const { nombre_contacto, ...profileData } = data;
-        await saveGuestProfile({ ...profileData, moment_motiv });
-        await saveGuestSobrietyStart(data.ult_fecha_consumo);
-        
-        if (nombre_contacto && profileData.telefono) {
-            await createGuestContact(nombre_contacto, profileData.telefono.toString());
+            if (guest) {
+                const { nombre_contacto, ...profileData } = data;
+                await saveGuestProfile({ ...profileData, moment_motiv });
+                await saveGuestSobrietyStart(data.ult_fecha_consumo);
+
+                if (nombre_contacto && profileData.telefono) {
+                    await createGuestContact(nombre_contacto, profileData.telefono.toString());
+                }
+
+                await markGuestProfileCompleted();
+                navigation.navigate('Congratulations');
+            } else {
+                const { nombre_contacto, ...profileData } = data;
+                await completeProfile({ ...profileData, moment_motiv });
+
+                if (nombre_contacto && profileData.telefono) {
+                    await createContact(nombre_contacto, profileData.telefono.toString());
+                }
+
+                navigation.navigate('Congratulations');
+            }
+        } catch (err: any) {
+            console.log('Error completando perfil:', err.response?.data);
+            showToast('No se pudo guardar tu perfil. Intenta de nuevo.', 'error');
+        } finally {
+            setLoading(false);
         }
-
-        // ✅ NUEVO: Marcar que el guest completó Story
-        await markGuestProfileCompleted();
-        
-        navigation.navigate('Congratulations');
-        } else {
-        // Registrado → enviar al backend
-        const { nombre_contacto, ...profileData } = data;
-        await completeProfile({ ...profileData, moment_motiv });
-
-        if (nombre_contacto && profileData.telefono) {
-            await createContact(nombre_contacto, profileData.telefono.toString());
-        }
-
-        navigation.navigate('Congratulations');
-        }
-    } catch (err: any) {
-        console.log('Error completando perfil:', err.response?.data);
-    } finally {
-        setLoading(false);
-    }
     };
-        
 
     return (
         <StepLayout
@@ -108,7 +103,6 @@ export default function Step10_Horario({ navigation }: any) {
         >
             <View style={styles.container}>
 
-                {/* Display de hora */}
                 <View style={styles.timeDisplay}>
                     <TouchableOpacity
                         style={[styles.timeBox, mode === 'hour' && styles.timeBoxActive]}
@@ -143,16 +137,13 @@ export default function Step10_Horario({ navigation }: any) {
                     </View>
                 </View>
 
-                {/* Label modo */}
                 <Text style={styles.modeLabel}>
                     {mode === 'hour' ? 'Selecciona la hora' : 'Selecciona los minutos'}
                 </Text>
 
-                {/* Reloj */}
                 <View style={styles.clockContainer}>
                     <View style={styles.clock}>
 
-                        {/* Manecilla */}
                         <View style={[
                             styles.hand,
                             {
@@ -163,10 +154,8 @@ export default function Step10_Horario({ navigation }: any) {
                             }
                         ]} />
 
-                        {/* Centro */}
                         <View style={styles.centerDot} />
 
-                        {/* Números horas */}
                         {mode === 'hour' && hourNumbers.map((h) => {
                             const pos = getPosition(h, 12);
                             return (
@@ -186,7 +175,6 @@ export default function Step10_Horario({ navigation }: any) {
                             );
                         })}
 
-                        {/* Números minutos */}
                         {mode === 'minute' && minuteNumbers.map((m) => {
                             const pos = getPosition(m, 60);
                             return (

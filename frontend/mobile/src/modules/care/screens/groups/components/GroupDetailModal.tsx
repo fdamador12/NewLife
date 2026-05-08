@@ -43,22 +43,25 @@ export default function GroupDetailModal({
     }
   };
 
-  // 🔹 NUEVA FUNCIÓN: obtener texto gris (username / dominio)
+  // ✅ PARSEO MANUAL (sin URL)
   const getDisplayValue = (id: string, value?: string) => {
     if (!value) return '';
 
     try {
       if (id === 'email') return value;
 
-      const url = new URL(value);
+      // quitar protocolo
+      let clean = value.replace(/^https?:\/\//, '');
+
+      // separar dominio y path
+      const [domain, ...pathParts] = clean.split('/');
 
       if (id === 'instagram' || id === 'facebook') {
-        const parts = url.pathname.split('/').filter(Boolean);
-        return parts[0] ? `@${parts[0]}` : url.hostname;
+        return pathParts[0] ? `@${pathParts[0]}` : domain;
       }
 
       if (id === 'sitio_web' || id === 'comunidad') {
-        return url.hostname.replace('www.', '');
+        return domain.replace('www.', '');
       }
 
       return value;
@@ -148,7 +151,6 @@ export default function GroupDetailModal({
                   <View style={styles.linkInfo}>
                     <Text style={styles.linkLabel}>{link.label}</Text>
 
-                    {/* 🔹 AHORA TODOS TIENEN TEXTO GRIS */}
                     <Text style={styles.linkValue} numberOfLines={1}>
                       {getDisplayValue(link.id, link.value)}
                     </Text>

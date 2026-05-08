@@ -19,6 +19,7 @@ export default function Step4_Motivo({ navigation }: any) {
         navigation.navigate('Step5');
       }}
       showButton={true}
+      disabled={!motivo.trim()}
     >
       <TextInput
         style={styles.input}

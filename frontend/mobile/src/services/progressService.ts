@@ -58,7 +58,7 @@ export const saveDailyCheckin = async (data: {
     console.log('✅ Daily-checkin guardado:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error guardando daily-checkin:', error.response?.data || error.message);
+    console.log('❌ Error guardando daily-checkin:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -225,6 +225,20 @@ export const getConsumptionRecords = async () => {
   }
 };
 
+
+/**
+ * Obtiene el ahorro acumulado del usuario
+ */
+export const getAhorro = async () => {
+  try {
+    const response = await api.get('/progress/ahorro');
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error obteniendo ahorro:', error.message);
+    throw error;
+  }
+};
+
 /**
  * Export default para facilitar imports
  */
@@ -242,4 +256,5 @@ export default {
   initCamino,
   getAllRegistros,
   getConsumptionRecords,
+  getAhorro,
 };

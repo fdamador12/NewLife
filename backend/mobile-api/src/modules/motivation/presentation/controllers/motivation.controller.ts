@@ -13,6 +13,7 @@ import { JoinChallengeUseCase } from '../../application/use-cases/join-challenge
 import { GetMyChallengesUseCase } from '../../application/use-cases/get-my-challenges.use-case';
 import { JoinChallengeDto } from '../dtos/join-challenge.dto';
 import { GetMisMedallasUseCase } from '../../application/use-cases/get-mis-medallas.use-case';
+import { ReclamarXpUseCase } from '../../application/use-cases/reclamar-xp.use-case';
 
 @ApiTags('Motivación')
 @ApiBearerAuth()
@@ -28,6 +29,7 @@ export class MotivationController {
     private readonly getMyChallengesUseCase: GetMyChallengesUseCase,
     private readonly joinChallengeUseCase: JoinChallengeUseCase,
     private readonly getMisMedallasUseCase: GetMisMedallasUseCase,
+    private readonly reclamarXpUseCase: ReclamarXpUseCase,
   ) {}
 
   @ApiOperation({ summary: 'Obtiene la frase del día actual y verifica si el usuario le dio corazón' })
@@ -44,7 +46,6 @@ export class MotivationController {
     return await this.getFrasesGuardadasUseCase.execute(req.user.uid, token);
   }
 
-  // ✅ NUEVO ENDPOINT
   @ApiOperation({ summary: 'Obtiene todas las frases hasta una fecha específica' })
   @ApiQuery({ name: 'hasta', description: 'Fecha en formato YYYY-MM-DD', example: '2026-04-21' })
   @Get('frases')
@@ -54,7 +55,7 @@ export class MotivationController {
   }
 
   @ApiOperation({ summary: 'Guarda una frase en la lista de favoritas (Darle corazón)' })
-  @Post('frases-guardadas') 
+  @Post('frases-guardadas')
   async guardarFrase(@Req() req: any, @Body() dto: FraseActionDto) {
     const token = req.headers.authorization.split(' ')[1];
     return await this.guardarFraseUseCase.execute(req.user.uid, dto.frase_id, token);
@@ -87,5 +88,13 @@ export class MotivationController {
   async getMisMedallas(@Req() req: any) {
     const token = req.headers.authorization.split(' ')[1];
     return await this.getMisMedallasUseCase.execute(req.user.uid, token);
+  }
+
+  @ApiOperation({ summary: 'Reclamar XP de un reto completado' })
+  @ApiParam({ name: 'userRetoId', description: 'El user_reto_id del reto completado' })
+  @Post('retos/:userRetoId/reclamar-xp')
+  async reclamarXp(@Req() req: any, @Param('userRetoId') userRetoId: string) {
+    const token = req.headers.authorization.split(' ')[1];
+    return await this.reclamarXpUseCase.execute(req.user.uid, userRetoId, token);
   }
 }

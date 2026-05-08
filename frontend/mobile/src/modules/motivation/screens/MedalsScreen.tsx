@@ -28,7 +28,6 @@ export default function MedalsScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.text} />
@@ -48,7 +47,6 @@ export default function MedalsScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* Content */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -59,12 +57,15 @@ export default function MedalsScreen({ navigation }: any) {
             <View key={medal.user_reto_id} style={styles.medalCard}>
               <Text style={styles.medalEmoji}>🏅</Text>
               <Text style={styles.medalTitle}>{medal.titulo}</Text>
+              {/* ✅ Manejo de fecha_completado null */}
               <Text style={styles.medalDate}>
-                {new Date(medal.fecha_completado).toLocaleDateString('es-ES', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {medal.fecha_completado
+                  ? new Date(medal.fecha_completado).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  : 'Fecha no disponible'}
               </Text>
               <View
                 style={[

@@ -9,6 +9,9 @@ import { HomeModule } from './modules/home/home.module';
 import { ProgressModule } from './modules/progress/progress.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
 import { MotivationModule } from './modules/motivation/motivation.module';
+import { SosModule } from './modules/sos/sos.module';
+import { GuidedMeditationModule } from './modules/guided-meditation/guided-meditation.module';
+import { PetModule } from './modules/pet/pet.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { MotivationModule } from './modules/motivation/motivation.module';
     ProgressModule,
     CommunitiesModule,
     MotivationModule,
+    SosModule,
+    GuidedMeditationModule,
+    PetModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

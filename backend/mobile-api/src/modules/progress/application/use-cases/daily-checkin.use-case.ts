@@ -45,39 +45,39 @@ export class DailyCheckinUseCase {
     };
 
     const existing = await this.progressProvider.getTodayCheckin(uid, userToken);
-    let checkin: any;
-    let isUpdate = !!existing;
+    const isUpdate = !!existing;
 
     this.logger.log(
       `📤 Procesando registro diario (${isUpdate ? 'Actualización' : 'Nuevo'})`,
     );
 
-    checkin = await this.progressProvider.createDailyCheckin(data, userToken);
+    const checkin = await this.progressProvider.createDailyCheckin(data, userToken);
 
     this.logger.log(`✅ Registro diario procesado exitosamente`);
 
     // ✅ SOLO actualizar sobriedad si hay CONSUMO
     if (dto.consumo) {
       try {
-        this.logger.log(
-          `🔄 Actualizando fecha de sobriedad a: ${new Date().toISOString()}`,
-        );
+        this.logger.log(`🔄 Actualizando fecha de sobriedad a: ${new Date().toISOString()}`);
         const masterToken = await this.systemAuth.getMasterToken();
-
         await this.progressProvider.updateSobrietyDate(
           uid,
-          new Date().toISOString(), // ← FECHA AHORA en UTC
+          new Date().toISOString(),
           masterToken,
         );
-
         this.logger.log(`✅ Sobriedad actualizada (fecha_ultimo_consumo = AHORA)`);
       } catch (error: any) {
         this.logger.error(`⚠️ Error actualizando sobriedad:`, error.message);
       }
     } else {
-      this.logger.log(
-        `✅ Sin consumo - fecha_ultimo_consumo NO se modifica (se mantiene igual)`,
-      );
+      this.logger.log(`✅ Sin consumo - fecha_ultimo_consumo NO se modifica`);
+    }
+
+    // ✅ LÓGICA DE AHORRO
+    try {
+      await this.actualizarAhorro(uid, dto.consumo, userToken);
+    } catch (error: any) {
+      this.logger.error(`⚠️ Error actualizando ahorro:`, error.message);
     }
 
     // ✅ EMITIR EVENTO para evaluar retos
@@ -85,6 +85,7 @@ export class DailyCheckinUseCase {
     this.eventEmitter.emit('progress.checkin.created', {
       usuarioId: uid,
       userToken,
+      consumo: dto.consumo, // ✅ agregar esto
     });
 
     return {
@@ -93,5 +94,50 @@ export class DailyCheckinUseCase {
         : 'Registro diario guardado exitosamente.',
       data: checkin,
     };
+  }
+
+  private async actualizarAhorro(uid: string, consumoNuevo: boolean, userToken: string): Promise<void> {
+    const masterToken = await this.systemAuth.getMasterToken();
+
+    // Obtener todos los registros de hoy
+    const registrosHoy = await this.progressProvider.getTodayCheckins(uid, userToken);
+
+    // Contar cuántos registros de hoy tienen consumo:true ANTES del que acabamos de guardar
+    // Como ya guardamos el nuevo, filtramos todos menos el último
+    const registrosAnteriores = registrosHoy.slice(0, -1);
+    const hayConsumoAnterior = registrosAnteriores.some(
+      (r: any) => r.consumo === true || r.consumo === 'true',
+    );
+    const hayLimpioAnterior = registrosAnteriores.some(
+      (r: any) => r.consumo === false || r.consumo === 'false',
+    );
+
+    const gastoSemanal = await this.progressProvider.getGastoSemanal(uid, masterToken);
+    const gastoDiario = gastoSemanal / 7;
+
+    const ahorroActual = await this.progressProvider.getAhorro(uid, masterToken);
+    const totalActual = ahorroActual?.ahorro_total ?? 0;
+
+    if (!consumoNuevo) {
+      // Nuevo registro es limpio
+      // Solo sumar si no había ningún consumo previo hoy
+      if (!hayConsumoAnterior) {
+        const nuevoTotal = totalActual + gastoDiario;
+        await this.progressProvider.upsertAhorro(uid, nuevoTotal, masterToken);
+        this.logger.log(`💰 Ahorro sumado: +${gastoDiario.toFixed(0)} → total: ${nuevoTotal.toFixed(0)}`);
+      } else {
+        this.logger.log(`💰 No se suma ahorro — ya hay consumo hoy`);
+      }
+    } else {
+      // Nuevo registro tiene consumo
+      // Solo restar si había registros limpios previos y no había consumo previo
+      if (hayLimpioAnterior && !hayConsumoAnterior) {
+        const nuevoTotal = Math.max(0, totalActual - gastoDiario);
+        await this.progressProvider.upsertAhorro(uid, nuevoTotal, masterToken);
+        this.logger.log(`💰 Ahorro restado: -${gastoDiario.toFixed(0)} → total: ${nuevoTotal.toFixed(0)}`);
+      } else {
+        this.logger.log(`💰 No se resta ahorro — no había limpio previo o ya había consumo`);
+      }
+    }
   }
 }

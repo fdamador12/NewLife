@@ -17,22 +17,18 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-// Obtener días del mes
 const getDaysInMonth = (month: number, year: number): number => {
   return new Date(year, month, 0).getDate();
 };
 
-// Obtener primer día de la semana del mes (0=Lun, 6=Dom)
 const getFirstDayOfMonth = (month: number, year: number): number => {
   const firstDay = new Date(year, month - 1, 1).getDay();
   return firstDay === 0 ? 6 : firstDay - 1;
 };
 
 export default function CalendarScreen() {
-  // ✅ TODOS LOS USESTATE PRIMERO
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  // ✅ LUEGO TODOS LOS HOOKS PERSONALIZADOS
   const {
     currentMonth,
     currentYear,
@@ -46,7 +42,6 @@ export default function CalendarScreen() {
     isNextDisabled,
   } = useCalendarData();
 
-  // ✅ LUEGO USEEFFECT
   useEffect(() => {
     loadInitial();
   }, [loadInitial]);
@@ -55,10 +50,11 @@ export default function CalendarScreen() {
     const today = new Date();
     if (today.getMonth() + 1 === currentMonth && today.getFullYear() === currentYear) {
       setSelectedDay(today.getDate());
+    } else {
+      setSelectedDay(null);
     }
   }, [currentMonth, currentYear]);
 
-  // ✅ FUNCIONES NORMALES (sin hooks)
   const generateCalendarGrid = () => {
     const daysInMonth = getDaysInMonth(currentMonth, currentYear);
     const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
@@ -97,37 +93,35 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.card}>
-      {/* Nav mes */}
       <View style={styles.calendarHeader}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.calendarNavButton, isPrevDisabled() && styles.buttonDisabled]}
           onPress={goToPreviousMonth}
           disabled={isPrevDisabled()}
         >
-          <Feather 
-            name="chevron-left" 
-            size={18} 
-            color={isPrevDisabled() ? colors.border : colors.text} 
+          <Feather
+            name="chevron-left"
+            size={18}
+            color={isPrevDisabled() ? colors.border : colors.text}
           />
         </TouchableOpacity>
         <View style={styles.calendarTitleWrapper}>
           <Text style={styles.calendarMonth}>{MONTH_NAMES[currentMonth - 1]}</Text>
           <Text style={styles.calendarYear}>{currentYear}</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.calendarNavButton, isNextDisabled() && styles.buttonDisabled]}
           onPress={goToNextMonth}
           disabled={isNextDisabled()}
         >
-          <Feather 
-            name="chevron-right" 
-            size={18} 
-            color={isNextDisabled() ? colors.border : colors.text} 
+          <Feather
+            name="chevron-right"
+            size={18}
+            color={isNextDisabled() ? colors.border : colors.text}
           />
         </TouchableOpacity>
       </View>
 
-      {/* Días de semana */}
       <View style={styles.weekRow}>
         {WEEK_DAYS.map((d) => (
           <Text key={d} style={styles.weekDay}>
@@ -136,7 +130,6 @@ export default function CalendarScreen() {
         ))}
       </View>
 
-      {/* Loading state */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -144,7 +137,6 @@ export default function CalendarScreen() {
         </View>
       ) : (
         <>
-          {/* Días */}
           <View style={styles.daysGrid}>
             {calendarGrid.map((day, i) => {
               if (day === null) {
@@ -155,7 +147,6 @@ export default function CalendarScreen() {
               const isSelected = selectedDay === day;
               const isClean = dayData?.tipo === 'limpio';
               const isDifficult = dayData?.tipo === 'dificil';
-              const isToday = isCurrentMonth && day === todayDate;
 
               return (
                 <TouchableOpacity
@@ -168,7 +159,7 @@ export default function CalendarScreen() {
                       styles.dayCircle,
                       isClean && styles.dayCircleClean,
                       isDifficult && styles.dayCircleDifficult,
-                      isToday && styles.dayCircleToday,
+                      isSelected && styles.dayCircleSelected,
                     ]}
                   >
                     <Text
@@ -176,19 +167,17 @@ export default function CalendarScreen() {
                         styles.dayText,
                         isClean && styles.dayTextClean,
                         isDifficult && styles.dayTextDifficult,
-                        isToday && styles.dayTextToday,
+                        isSelected && styles.dayTextSelected,
                       ]}
                     >
                       {day}
                     </Text>
-                    {isSelected && <View style={styles.selectionBorder} />}
                   </View>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Leyenda */}
           <View style={styles.calendarLegend}>
             <View style={styles.legendItem}>
               <View style={styles.legendDotOutline} />
@@ -204,7 +193,6 @@ export default function CalendarScreen() {
             </View>
           </View>
 
-          {/* Info día seleccionado */}
           {selectedDay && (
             <View style={styles.dayInfo}>
               {selectedDayInfo ? (
@@ -320,9 +308,10 @@ const styles = StyleSheet.create({
   dayCircleDifficult: {
     backgroundColor: colors.accent,
   },
-  dayCircleToday: {
-    borderWidth: 2,
-    borderColor: colors.text,
+  dayCircleSelected: {
+  borderWidth: 2,
+  borderColor: colors.text,
+  borderRadius: 16,
   },
   dayText: {
     fontSize: fontSizes.xs,
@@ -337,16 +326,8 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '700',
   },
-  dayTextToday: {
+  dayTextSelected: {
     fontWeight: '700',
-  },
-  selectionBorder: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.text,
   },
   calendarLegend: {
     flexDirection: 'row',
