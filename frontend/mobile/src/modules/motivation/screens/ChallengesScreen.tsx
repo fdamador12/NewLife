@@ -233,6 +233,7 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
+    paddingBottom: 100,
   },
   card: {
     backgroundColor: colors.white,
