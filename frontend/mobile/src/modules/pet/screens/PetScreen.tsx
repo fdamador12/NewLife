@@ -1,185 +1,180 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, ImageBackground,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
 import { usePet } from '../hooks/usePet';
-import PetAvatar from '../components/PetAvatar';
 import XpBar from '../components/XpBar';
-import { PET_BACKGROUNDS, PET_NAMES } from '../utils/petHelpers';
-
-const { height } = Dimensions.get('window');
+import { PET_BACKGROUND_IMAGES, PET_NAMES } from '../utils/petHelpers';
 
 export default function PetScreen({ navigation }: any) {
   const { pet, message, loading } = usePet();
 
   if (loading) return null;
 
-  const bg = PET_BACKGROUNDS[pet.level] ?? PET_BACKGROUNDS[1];
+  const backgroundImage = PET_BACKGROUND_IMAGES[pet.selected_form];
+  
+  // Usar colores claros para seed y sprout (fondos oscuros)
+  const useLightColors = pet.selected_form === 'seed' || pet.selected_form === 'sprout';
+  const textColor = useLightColors ? '#FFFFFF' : '#333';
+  const xpBarColor = useLightColors ? '#FFFFFF' : '#333';
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.background, { backgroundColor: bg.primary }]}>
-        <View style={[styles.bgCircle1, { backgroundColor: bg.secondary }]} />
-        <View style={[styles.bgCircle2, { backgroundColor: bg.accent }]} />
-        <View style={[styles.bgCircle3, { backgroundColor: bg.secondary }]} />
-      </View>
+    <ImageBackground
+      source={backgroundImage}
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <View style={styles.topSection}>
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
-          <Feather name="chevron-left" size={24} color={colors.white} />
-        </TouchableOpacity>
-        <View style={styles.levelBadge}>
-          <Text style={styles.levelText}>Nv {pet.level}</Text>
-        </View>
-        <View style={styles.headerRight}>
+        <View style={styles.leftButtons}>
           <TouchableOpacity
-            style={styles.headerBtn}
+            style={styles.sideBtn}
             onPress={() => navigation.navigate('PetInfo')}
           >
-            <Feather name="help-circle" size={24} color={colors.white} />
+            <Feather name="help-circle" size={24} color="#333" />
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={styles.headerBtn}
+            style={styles.sideBtn}
             onPress={() => navigation.navigate('PetCollection')}
           >
-            <Feather name="book-open" size={24} color={colors.white} />
+            <Feather name="book-open" size={24} color="#333" />
           </TouchableOpacity>
         </View>
+
+        <View style={styles.centerTop}>
+          <View style={styles.levelBadge}>
+            <Text style={styles.levelText}>Nv {pet.level}</Text>
+          </View>
+
+          <View style={styles.messageBubble}>
+            <Text style={styles.messageText}>{message}</Text>
+          </View>
+        </View>
+
       </View>
 
-      <View style={styles.petSection}>
-        <PetAvatar form={pet.selected_form} size={220} />
-      </View>
-
-      <View style={styles.messageSection}>
-        <View style={styles.messageBubble}>
-          <Text style={styles.messageText}>{message}</Text>
+      <View style={styles.bottomSection}>
+        <Text style={[styles.petName, { color: textColor }]}>{PET_NAMES[pet.selected_form]}</Text>
+        <View style={styles.xpContainer}>
+          <XpBar
+            xp={pet.xp}
+            level={pet.level}
+            labelColor={xpBarColor}
+            xpColor={xpBarColor}
+          />
+          <Text style={[styles.xpTotal, { color: textColor }]}> Total: {pet.xp} XP</Text>
         </View>
       </View>
 
-      <View style={styles.bottomCard}>
-        <Text style={styles.petName}>{PET_NAMES[pet.selected_form]}</Text>
-        <XpBar xp={pet.xp} level={pet.level} />
-        <Text style={styles.xpTotal}>{pet.xp} XP totales</Text>
-      </View>
-    </View>
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Feather name="chevron-left" size={28} color="#333" />
+      </TouchableOpacity>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    width: '100%',
+    height: '100%',
   },
-  background: {
+  leftButtons: {
+    gap: spacing.sm,
+    marginTop: 100,
+  },
+  backBtn: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.65,
-    overflow: 'hidden',
-  },
-  bgCircle1: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    top: -80,
-    right: -60,
-    opacity: 0.5,
-  },
-  bgCircle2: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    bottom: 40,
-    left: -50,
-    opacity: 0.4,
-  },
-  bgCircle3: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    top: 100,
-    left: 40,
-    opacity: 0.3,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    top: 50,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  headerRight: {
+  topSection: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingHorizontal: spacing.md,
+  },
+  sideBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  centerTop: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: 60,
   },
   levelBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 2,
+    borderColor: '#404040',
     borderRadius: 20,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
   },
   levelText: {
     fontSize: fontSizes.md,
     fontWeight: '700',
-    color: colors.white,
-  },
-  petSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    marginTop: -spacing.xl,
-  },
-  messageSection: {
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
+    color: '#333',
   },
   messageBubble: {
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     borderRadius: 16,
     padding: spacing.md,
+    maxWidth: '60%',
   },
   messageText: {
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.sm,
     color: colors.white,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
     fontWeight: '500',
   },
-  bottomCard: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: spacing.xl,
-    gap: spacing.md,
-    paddingBottom: 48,
+  bottomSection: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
   },
   petName: {
-    fontSize: fontSizes.xl,
+    fontSize: fontSizes.xxl,
     fontWeight: '800',
-    color: colors.text,
-    textAlign: 'center',
+    textAlign: 'left',
+  },
+  xpContainer: {
+    gap: spacing.xs,
   },
   xpTotal: {
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
+    fontSize: fontSizes.md,
     textAlign: 'right',
+    fontWeight: '700',
   },
 });

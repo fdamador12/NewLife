@@ -6,9 +6,16 @@ import { getXpProgress } from '../utils/petHelpers';
 type Props = {
   xp: number;
   level: number;
+  labelColor?: string;
+  xpColor?: string;
 };
 
-export default function XpBar({ xp, level }: Props) {
+export default function XpBar({
+  xp,
+  level,
+  labelColor = colors.text,
+  xpColor = colors.textMuted,
+}: Props) {
   const { current, next, progress } = getXpProgress(xp);
   const animWidth = useRef(new Animated.Value(0)).current;
 
@@ -23,8 +30,13 @@ export default function XpBar({ xp, level }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>Nivel {level}</Text>
-        <Text style={styles.xpText}>{current} / {next} XP</Text>
+        <Text style={[styles.label, { color: labelColor }]}>
+          Nivel {level}
+        </Text>
+
+        <Text style={[styles.xpText, { color: xpColor }]}>
+          {current} / {next} XP
+        </Text>
       </View>
       <View style={styles.track}>
         <Animated.View
@@ -54,7 +66,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.text,
   },

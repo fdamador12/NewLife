@@ -11,6 +11,17 @@ export const PET_IMAGES: Record<PetForm, any> = {
   flower_crisantemo: require('../../../assets/images/pet/flower_crisantemo.png'),
 };
 
+export const PET_BACKGROUND_IMAGES: Record<PetForm, any> = {
+  seed:              require('../../../assets/images/pet/Mascota_semilla.png'),
+  sprout:            require('../../../assets/images/pet/Mascota_brote.png'),
+  moss:              require('../../../assets/images/pet/Mascota_musgo.png'),
+  flower_lavanda:    require('../../../assets/images/pet/Mascota_lavanda.png'),
+  flower_azucena:    require('../../../assets/images/pet/Mascota_azucar.png'),
+  flower_baobab:     require('../../../assets/images/pet/Mascota_baobab.png'),
+  flower_lirio:      require('../../../assets/images/pet/Mascota_lirio.png'),
+  flower_crisantemo: require('../../../assets/images/pet/Mascota_crisantemo.png'),
+};
+
 export const PET_NAMES: Record<PetForm, string> = {
   seed:              'Semilla',
   sprout:            'Brote',

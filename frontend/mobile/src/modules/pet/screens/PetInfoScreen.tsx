@@ -19,7 +19,7 @@ export default function PetInfoScreen({ navigation }: any) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Card principal con fondo de color */}
-      <View style={[styles.heroCard, { backgroundColor: bg.primary }]}>
+      <View style={[styles.heroCard, { backgroundColor: '#5B8D47' }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.white} />
         </TouchableOpacity>
@@ -45,45 +45,99 @@ export default function PetInfoScreen({ navigation }: any) {
         <Text style={styles.descText}>{desc.description}</Text>
       </View>
 
-      {/* Árbol de evoluciones */}
+      {/* Árbol de evoluciones mejorado */}
       <View style={styles.evolutionCard}>
-        <Text style={styles.sectionTitle}>Camino de evolución</Text>
-        <View style={styles.evolutionTree}>
+        <View style={styles.sectionHeader}>
+          <Feather name="git-branch" size={20} color="#5B8D47" />
+          <Text style={styles.sectionTitle}>Camino de evolución</Text>
+        </View>
+        
+        <View style={styles.evolutionTimeline}>
           {XP_THRESHOLDS.map((threshold, index) => {
             const isUnlocked = pet.unlocked_forms.includes(threshold.form);
             const isCurrent = pet.selected_form === threshold.form;
+            const isLast = index === XP_THRESHOLDS.length - 1;
 
             return (
-              <View key={threshold.form} style={styles.evolutionItem}>
-                <View style={[
-                  styles.evolutionImageWrapper,
-                  isCurrent && styles.evolutionImageCurrent,
-                  !isUnlocked && styles.evolutionImageLocked,
-                ]}>
-                  <Image
-                    source={PET_IMAGES[threshold.form]}
-                    style={styles.evolutionImage}
-                    resizeMode="contain"
-                  />
-                  {!isUnlocked && (
-                    <View style={styles.lockedOverlay} />
-                  )}
+              <View key={threshold.form} style={styles.evolutionRow}>
+                {/* Línea conectora vertical */}
+                {!isLast && (
+                  <View style={styles.connectorContainer}>
+                    <View
+                      style={[
+                        styles.connectorLine,
+                        isUnlocked ? { backgroundColor: '#5B8D47' } : styles.connectorLocked,
+                      ]}
+                    />
+                    {isUnlocked && (
+                      <View style={[styles.connectorDot, { backgroundColor: '#5B8D47' }]} />
+                    )}
+                  </View>
+                )}
+
+                {/* Contenido del item */}
+                <View style={styles.evolutionItemRow}>
+                  {/* Círculo con imagen */}
+                  <View
+                    style={[
+                      styles.evolutionCircle,
+                      isCurrent && [styles.evolutionCircleCurrent, { borderColor: '#5B8D47', shadowColor: '#5B8D47' }],
+                      !isUnlocked && styles.evolutionCircleLocked,
+                    ]}
+                  >
+                    {isUnlocked ? (
+                      <Image
+                        source={PET_IMAGES[threshold.form]}
+                        style={styles.evolutionImg}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View style={styles.lockedContent}>
+                        <Feather name="lock" size={20} color="#9CA3AF" />
+                      </View>
+                    )}
+                    {isCurrent && (
+                      <View style={[styles.currentIndicator, { backgroundColor: '#5B8D47' }]}>
+                        <Feather name="check" size={10} color={colors.white} />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Info del nivel */}
+                  <View style={styles.evolutionInfo}>
+                    <View style={styles.evolutionHeader}>
+                      <Text
+                        style={[
+                          styles.evolutionName,
+                          !isUnlocked && styles.evolutionNameLocked,
+                        ]}
+                      >
+                        {isUnlocked ? threshold.label : '???'}
+                      </Text>
+                      {isCurrent && (
+                        <View style={[styles.currentBadge, { backgroundColor: '#5B8D47' + '20' }]}>
+                          <Text style={[styles.currentBadgeText, { color: '#5B8D47' }]}>Actual</Text>
+                        </View>
+                      )}
+                    </View>
+                    
+                    <Text style={styles.evolutionLevel}>Nivel {index + 1}</Text>
+                    
+                    {!isUnlocked && (
+                      <View style={styles.xpRequirement}>
+                        <Feather name="star" size={12} color="#C37A49" />
+                        <Text style={styles.xpText}>{threshold.xp} XP requeridos</Text>
+                      </View>
+                    )}
+                    
+                    {isUnlocked && !isCurrent && (
+                      <View style={styles.unlockedBadge}>
+                        <Feather name="unlock" size={12} color="#5B8D47" />
+                        <Text style={styles.unlockedText}>Desbloqueado</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-                <Text style={[
-                  styles.evolutionLabel,
-                  !isUnlocked && styles.evolutionLabelLocked,
-                ]}>
-                  {isUnlocked ? threshold.label : '???'}
-                </Text>
-                {!isUnlocked && (
-                  <Text style={styles.evolutionXp}>{threshold.xp} XP</Text>
-                )}
-                {index < XP_THRESHOLDS.length - 1 && (
-                  <View style={[
-                    styles.evolutionConnector,
-                    !isUnlocked && styles.evolutionConnectorLocked,
-                  ]} />
-                )}
               </View>
             );
           })}
@@ -177,75 +231,146 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
   sectionTitle: {
     fontSize: fontSizes.lg,
     fontWeight: '700',
     color: colors.text,
+  },
+  evolutionTimeline: {
+    paddingLeft: spacing.xs,
+  },
+  evolutionRow: {
+    position: 'relative',
     marginBottom: spacing.lg,
   },
-  evolutionTree: {
+  connectorContainer: {
+    position: 'absolute',
+    left: 30,
+    top: 64,
+    bottom: -spacing.lg,
+    width: 2,
+    alignItems: 'center',
+  },
+  connectorLine: {
+    flex: 1,
+    width: 2,
+    borderRadius: 1,
+  },
+  connectorLocked: {
+    backgroundColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  connectorDot: {
+    position: 'absolute',
+    bottom: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  evolutionItemRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: spacing.md,
-    justifyContent: 'center',
   },
-  evolutionItem: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    width: 70,
-  },
-  evolutionImageWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#F5F5F5',
+  evolutionCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#E5E7EB',
+  },
+  evolutionCircleCurrent: {
+    borderWidth: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    backgroundColor: colors.white,
+  },
+  evolutionCircleLocked: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  evolutionImg: {
+    width: 48,
+    height: 48,
+  },
+  lockedContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currentIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: colors.white,
   },
-  evolutionImageCurrent: {
-    borderColor: colors.accent,
+  evolutionInfo: {
+    flex: 1,
+    gap: 4,
   },
-  evolutionImageLocked: {
-    backgroundColor: '#E0E0E0',
+  evolutionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  evolutionImage: {
-    width: 44,
-    height: 44,
-  },
-  lockedOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-  },
-  evolutionLabel: {
-    fontSize: 10,
-    fontWeight: '600',
+  evolutionName: {
+    fontSize: fontSizes.md,
+    fontWeight: '700',
     color: colors.text,
-    textAlign: 'center',
   },
-  evolutionLabelLocked: {
+  evolutionNameLocked: {
+    color: '#9CA3AF',
+  },
+  currentBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+  },
+  currentBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  evolutionLevel: {
+    fontSize: fontSizes.sm,
     color: colors.textMuted,
   },
-  evolutionXp: {
-    fontSize: 9,
-    color: colors.textMuted,
-    textAlign: 'center',
+  xpRequirement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
-  evolutionConnector: {
-    position: 'absolute',
-    right: -spacing.md,
-    top: 28,
-    width: spacing.md,
-    height: 2,
-    backgroundColor: colors.accent,
+  xpText: {
+    fontSize: fontSizes.sm,
+    color: '#C37A49',
+    fontWeight: '600',
   },
-  evolutionConnectorLocked: {
-    backgroundColor: '#E0E0E0',
+  unlockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  unlockedText: {
+    fontSize: fontSizes.sm,
+    color: '#5B8D47',
+    fontWeight: '600',
   },
 });
