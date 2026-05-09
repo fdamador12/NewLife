@@ -27,6 +27,7 @@ import { GetAllForumsUseCase } from './application/use-cases/get-all-forums.use-
 import { LikeCommentUseCase } from './application/use-cases/like-comment.use-case';
 import { ReplyToCommentUseCase } from './application/use-cases/reply-to-comment.use-case';
 import { LikeCommentReplyUseCase } from './application/use-cases/like-comment-reply.use-case';
+import { DeleteReplyUseCase } from './application/use-cases/delete-reply.use-case';
 
 @Module({
   imports: [AuthModule, DatabaseModule],
@@ -57,6 +58,7 @@ import { LikeCommentReplyUseCase } from './application/use-cases/like-comment-re
     LikeCommentUseCase,
     ReplyToCommentUseCase,
     LikeCommentReplyUseCase,
+    DeleteReplyUseCase,
   ],
   exports: [ResolveUserIdHelper]
 })

@@ -33,6 +33,7 @@ import { GetAllForumsUseCase } from '../../application/use-cases/get-all-forums.
 import { LikeCommentUseCase } from '../../application/use-cases/like-comment.use-case';
 import { ReplyToCommentUseCase } from '../../application/use-cases/reply-to-comment.use-case';
 import { LikeCommentReplyUseCase } from '../../application/use-cases/like-comment-reply.use-case';
+import { DeleteReplyUseCase } from '../../application/use-cases/delete-reply.use-case';
 
 @ApiTags('Comunidades')
 @ApiBearerAuth()
@@ -64,6 +65,7 @@ export class CommunitiesController {
     private readonly likeCommentUseCase: LikeCommentUseCase,
     private readonly replyToCommentUseCase: ReplyToCommentUseCase,
     private readonly likeCommentReplyUseCase: LikeCommentReplyUseCase,
+    private readonly deleteReplyUseCase: DeleteReplyUseCase,
   ) { }
 
   // ── Comunidades ────────────────────────────────────────────────────────────
@@ -170,6 +172,19 @@ export class CommunitiesController {
     @Request() req: any,
   ) {
     return this.replyToCommentUseCase.execute(id, postId, commentId, req.user.uid, dto.contenido);
+  }
+
+  @Delete(':id/posts/:postId/comments/:commentId/replies/:replyId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar respuesta a comentario (propio o moderador)' })
+  async deleteReply(
+    @Param('id') id: string,
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Param('replyId') replyId: string,
+    @Request() req: any,
+  ) {
+    return this.deleteReplyUseCase.execute(id, postId, commentId, replyId, req.user.uid);
   }
 
   @Post(':id/posts/:postId/comments/:commentId/replies/:replyId/likes')

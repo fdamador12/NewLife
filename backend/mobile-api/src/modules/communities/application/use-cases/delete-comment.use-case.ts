@@ -35,6 +35,29 @@ export class DeleteCommentUseCase {
  
     if (!esAutor && !esModerador) throw new ForbiddenException('Solo puedes eliminar tus propios comentarios.');
  
+    const normalize = (r: any): any[] => Array.isArray(r) ? r : (r?.rows || []);
+
+    // Cascade: replies → reply likes → comment likes
+    const repliesRes = await this.dbService.find('comentario_respuestas', { comentario_id: commentId }, masterToken);
+    await Promise.all(
+      normalize(repliesRes).map(async (reply: any) => {
+        const replyLikesRes = await this.dbService.find('comentario_respuesta_likes', { respuesta_id: reply._id }, masterToken);
+        await Promise.all(
+          normalize(replyLikesRes).map((l: any) =>
+            this.dbService.delete('comentario_respuesta_likes', '_id', l._id, masterToken),
+          ),
+        );
+        await this.dbService.update('comentario_respuestas', '_id', reply._id, { eliminado: true }, masterToken);
+      }),
+    );
+
+    const commentLikesRes = await this.dbService.find('comentario_likes', { comentario_id: commentId }, masterToken);
+    await Promise.all(
+      normalize(commentLikesRes).map((l: any) =>
+        this.dbService.delete('comentario_likes', '_id', l._id, masterToken),
+      ),
+    );
+
     await this.dbService.update('comentarios', '_id', commentId, { eliminado: true }, masterToken);
     return { message: 'Comentario eliminado exitosamente.' };
   }

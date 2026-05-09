@@ -74,6 +74,11 @@ export const replyToComment = async (
   return res.data;
 };
 
+export const deleteReply = async (communityId: string, postId: string, commentId: string, replyId: string) => {
+  const res = await api.delete(`/communities/${communityId}/posts/${postId}/comments/${commentId}/replies/${replyId}`);
+  return res.data;
+};
+
 export const likeCommentReply = async (
   communityId: string,
   postId: string,

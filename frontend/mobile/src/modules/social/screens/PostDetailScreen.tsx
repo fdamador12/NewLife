@@ -10,7 +10,9 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../constants/the
 import {
   getComments,
   createComment,
+  deletePost,
   deleteComment,
+  deleteReply,
   reactToPost,
   likeComment,
   replyToComment,
@@ -55,12 +57,14 @@ function ReplyItem({
   postId,
   commentId,
   onRefresh,
+  onDelete,
 }: {
   reply: ReplyData;
   communityId: string;
   postId: string;
   commentId: string;
   onRefresh: () => void;
+  onDelete: () => void;
 }) {
   const [liking, setLiking] = useState(false);
 
@@ -77,6 +81,13 @@ function ReplyItem({
     }
   };
 
+  const showMenu = () => {
+    Alert.alert('Opciones', undefined, [
+      { text: 'Eliminar', style: 'destructive', onPress: onDelete },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
   return (
     <View style={styles.replyItem}>
       <View style={styles.replyHeader}>
@@ -85,6 +96,11 @@ function ReplyItem({
         </View>
         <Text style={styles.replyAuthor}>{reply.autor.nombre}</Text>
         <Text style={styles.replyTime}>{timeAgo(reply.created_at)}</Text>
+        {reply.es_mio && (
+          <TouchableOpacity onPress={showMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="more-horizontal" size={14} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
       <Text style={styles.replyContent}>{reply.contenido}</Text>
       <TouchableOpacity style={styles.replyLike} onPress={handleLike} disabled={liking}>
@@ -108,7 +124,6 @@ function CommentCard({
   communityId,
   postId,
   canComment,
-  esModerador,
   onRefresh,
   onDelete,
 }: {
@@ -116,7 +131,6 @@ function CommentCard({
   communityId: string;
   postId: string;
   canComment: boolean;
-  esModerador: boolean;
   onRefresh: () => void;
   onDelete: () => void;
 }) {
@@ -155,6 +169,30 @@ function CommentCard({
     }
   };
 
+  const handleDeleteReply = (replyId: string) => {
+    Alert.alert('Eliminar respuesta', '¿Estás seguro?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteReply(communityId, postId, comment.id, replyId);
+            onRefresh();
+          } catch (err: any) {
+            Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const showCommentMenu = () => {
+    Alert.alert('Opciones', undefined, [
+      { text: 'Eliminar', style: 'destructive', onPress: onDelete },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
   return (
     <View style={styles.commentCard}>
       {/* Header */}
@@ -166,9 +204,9 @@ function CommentCard({
           <Text style={styles.commentAuthor}>{comment.autor.nombre}</Text>
         </View>
         <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
-        {(comment.es_mio || esModerador) && (
-          <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="trash-2" size={14} color={colors.textMuted} />
+        {comment.es_mio && (
+          <TouchableOpacity onPress={showCommentMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="more-horizontal" size={16} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -255,6 +293,7 @@ function CommentCard({
               postId={postId}
               commentId={comment.id}
               onRefresh={onRefresh}
+              onDelete={() => handleDeleteReply(reply.id)}
             />
           ))}
         </View>
@@ -267,7 +306,6 @@ export default function PostDetailScreen({ navigation, route }: any) {
   const { post, community, communityId: paramCommunityId } = route.params;
   const communityId: string = post.comunidad_id ?? paramCommunityId ?? community?.id;
   const canComment = community?.tipo_acceso !== 'SOLO_VER';
-  const esModerador = community?.es_moderador === true;
 
   const [comments, setComments] = useState<CommentData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -319,6 +357,30 @@ export default function PostDetailScreen({ navigation, route }: any) {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleDeletePost = () => {
+    Alert.alert('Eliminar post', '¿Estás seguro?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePost(communityId, post.id);
+            navigation.goBack();
+          } catch (err: any) {
+            Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const showPostMenu = () => {
+    Alert.alert('Opciones', undefined, [
+      { text: 'Eliminar', style: 'destructive', onPress: handleDeletePost },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   };
 
   const handleDeleteComment = (commentId: string) => {
@@ -388,6 +450,11 @@ export default function PostDetailScreen({ navigation, route }: any) {
                 )}
               </View>
               <Text style={styles.postTime}>{timeAgo(post.created_at)}</Text>
+              {post.es_mio && (
+                <TouchableOpacity onPress={showPostMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="more-horizontal" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
 
             {post.titulo ? <Text style={styles.postTitle}>{post.titulo}</Text> : null}
@@ -436,7 +503,6 @@ export default function PostDetailScreen({ navigation, route }: any) {
                 communityId={communityId}
                 postId={post.id}
                 canComment={canComment}
-                esModerador={esModerador}
                 onRefresh={fetchComments}
                 onDelete={() => handleDeleteComment(comment.id)}
               />

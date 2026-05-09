@@ -35,6 +35,44 @@ export class DeletePostUseCase {
  
     if (!esAutor && !esModerador) throw new ForbiddenException('Solo puedes eliminar tus propios posts.');
  
+    const normalize = (r: any): any[] => Array.isArray(r) ? r : (r?.rows || []);
+
+    // Delete post reactions
+    const reaccionesRes = await this.dbService.find('reacciones', { post_id: postId }, masterToken);
+    await Promise.all(
+      normalize(reaccionesRes).map((r: any) =>
+        this.dbService.delete('reacciones', '_id', r._id, masterToken),
+      ),
+    );
+
+    // Cascade: comments → replies → reply likes → comment likes
+    const commentsRes = await this.dbService.find('comentarios', { post_id: postId }, masterToken);
+    await Promise.all(
+      normalize(commentsRes).map(async (comment: any) => {
+        const repliesRes = await this.dbService.find('comentario_respuestas', { comentario_id: comment._id }, masterToken);
+        await Promise.all(
+          normalize(repliesRes).map(async (reply: any) => {
+            const replyLikesRes = await this.dbService.find('comentario_respuesta_likes', { respuesta_id: reply._id }, masterToken);
+            await Promise.all(
+              normalize(replyLikesRes).map((l: any) =>
+                this.dbService.delete('comentario_respuesta_likes', '_id', l._id, masterToken),
+              ),
+            );
+            await this.dbService.update('comentario_respuestas', '_id', reply._id, { eliminado: true }, masterToken);
+          }),
+        );
+
+        const commentLikesRes = await this.dbService.find('comentario_likes', { comentario_id: comment._id }, masterToken);
+        await Promise.all(
+          normalize(commentLikesRes).map((l: any) =>
+            this.dbService.delete('comentario_likes', '_id', l._id, masterToken),
+          ),
+        );
+
+        await this.dbService.update('comentarios', '_id', comment._id, { eliminado: true }, masterToken);
+      }),
+    );
+
     await this.dbService.update('posts', '_id', postId, { eliminado: true }, masterToken);
     return { message: 'Post eliminado exitosamente.' };
   }

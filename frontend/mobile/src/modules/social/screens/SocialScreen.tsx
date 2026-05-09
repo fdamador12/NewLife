@@ -6,7 +6,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { getMyCommunities, getPosts, getDailyForum } from '../../../services/communityService';
+import { getMyCommunities, getPosts, getDailyForum, reactToPost } from '../../../services/communityService';
 
 type Post = {
   id: string;
@@ -34,10 +34,11 @@ function timeAgo(dateStr: string): string {
 }
 
 function PostCard({
-  post, onPress, onPressAuthor,
+  post, onPress, onPressAuthor, onReact,
 }: {
-  post: Post; onPress: () => void; onPressAuthor: () => void;
+  post: Post; onPress: () => void; onPressAuthor: () => void; onReact: () => void;
 }) {
+  const liked = post.mis_reacciones?.includes('LIKE') ?? false;
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.9}>
       <TouchableOpacity style={styles.postHeader} onPress={onPressAuthor} activeOpacity={0.7}>
@@ -55,15 +56,13 @@ function PostCard({
       {post.titulo ? <Text style={styles.postTitle}>{post.titulo}</Text> : null}
       <Text style={styles.postBody}>{post.contenido}</Text>
       <View style={styles.postActions}>
-        <TouchableOpacity style={styles.postAction}>
-          <Feather
-            name="heart"
-            size={18}
-            color={post.mis_reacciones?.includes('LIKE') ? colors.primary : colors.textMuted}
-          />
-          <Text style={styles.postActionText}>{post.total_reacciones ?? 0}</Text>
+        <TouchableOpacity style={styles.postAction} onPress={onReact}>
+          <Feather name="heart" size={18} color={liked ? '#FF6B6B' : colors.textMuted} />
+          <Text style={[styles.postActionText, liked && { color: '#FF6B6B' }]}>
+            {post.total_reacciones ?? 0}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction}>
+        <TouchableOpacity style={styles.postAction} onPress={onPress}>
           <Feather name="message-circle" size={18} color={colors.textMuted} />
           <Text style={styles.postActionText}>{post.total_comentarios ?? 0}</Text>
         </TouchableOpacity>
@@ -123,6 +122,23 @@ export default function SocialScreen({ navigation }: any) {
   }, []);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+
+  const handleReact = async (postId: string, comunidadId: string) => {
+    try {
+      const result = await reactToPost(comunidadId, postId, 'LIKE');
+      setAllPosts(prev => prev.map(p => {
+        if (p.id !== postId) return p;
+        const liked = result.accion === 'added';
+        return {
+          ...p,
+          total_reacciones: result.total ?? (liked ? p.total_reacciones + 1 : Math.max(0, p.total_reacciones - 1)),
+          mis_reacciones: liked
+            ? [...(p.mis_reacciones || []), 'LIKE']
+            : (p.mis_reacciones || []).filter((r: string) => r !== 'LIKE'),
+        };
+      }));
+    } catch {}
+  };
 
   const hasCommunities = communities.length > 0;
 
@@ -228,6 +244,7 @@ export default function SocialScreen({ navigation }: any) {
                 robleId: post.autor.id,
                 name: post.autor.nombre,
               })}
+              onReact={() => handleReact(post.id, post.comunidad_id)}
             />
           ))
         )}

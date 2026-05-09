@@ -6,7 +6,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { getPosts, getDailyForum, deletePost } from '../../../services/communityService';
+import { getPosts, getDailyForum, deletePost, reactToPost } from '../../../services/communityService';
 
 type Post = {
   id: string;
@@ -31,13 +31,15 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
 }
-function PostCard({ post, onPress, onPressAuthor, onDelete, esModerador }: {
+function PostCard({ post, onPress, onPressAuthor, onDelete, onReact, esModerador }: {
   post: Post;
   onPress: () => void;
   onPressAuthor: () => void;
   onDelete: () => void;
+  onReact: () => void;
   esModerador: boolean;
 }) {
+  const liked = post.mis_reacciones?.includes('LIKE') ?? false;
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.9}>
       <TouchableOpacity style={styles.postHeader} onPress={onPressAuthor} activeOpacity={0.7}>
@@ -57,15 +59,13 @@ function PostCard({ post, onPress, onPressAuthor, onDelete, esModerador }: {
       {post.contenido ? <Text style={styles.postBody}>{post.contenido}</Text> : null}
 
       <View style={styles.postActions}>
-        <TouchableOpacity style={styles.postAction}>
-          <Feather
-            name="heart"
-            size={18}
-            color={post.mis_reacciones?.includes('LIKE') ? colors.primary : colors.textMuted}
-          />
-          <Text style={styles.postActionText}>{post.total_reacciones ?? 0}</Text>
+        <TouchableOpacity style={styles.postAction} onPress={onReact}>
+          <Feather name="heart" size={18} color={liked ? '#FF6B6B' : colors.textMuted} />
+          <Text style={[styles.postActionText, liked && { color: '#FF6B6B' }]}>
+            {post.total_reacciones ?? 0}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction}>
+        <TouchableOpacity style={styles.postAction} onPress={onPress}>
           <Feather name="message-circle" size={18} color={colors.textMuted} />
           <Text style={styles.postActionText}>{post.total_comentarios ?? 0}</Text>
         </TouchableOpacity>
@@ -105,6 +105,23 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
   useFocusEffect(
     useCallback(() => { fetchData(); }, [fetchData])
   );
+
+  const handleReact = async (postId: string) => {
+    try {
+      const result = await reactToPost(community.id, postId, 'LIKE');
+      setPosts(prev => prev.map(p => {
+        if (p.id !== postId) return p;
+        const liked = result.accion === 'added';
+        return {
+          ...p,
+          total_reacciones: result.total ?? (liked ? p.total_reacciones + 1 : Math.max(0, p.total_reacciones - 1)),
+          mis_reacciones: liked
+            ? [...(p.mis_reacciones || []), 'LIKE']
+            : (p.mis_reacciones || []).filter((r: string) => r !== 'LIKE'),
+        };
+      }));
+    } catch {}
+  };
 
   const handleDelete = (postId: string) => {
     Alert.alert('Eliminar post', '¿Estás seguro?', [
@@ -209,6 +226,7 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
                 name: post.autor.nombre,
               })}
               onDelete={() => handleDelete(post.id)}
+              onReact={() => handleReact(post.id)}
             />
           ))
         )}
