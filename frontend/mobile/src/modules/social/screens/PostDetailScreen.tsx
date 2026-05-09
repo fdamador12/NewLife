@@ -7,6 +7,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { apiError } from '../../../utils/apiError';
 import {
   getComments,
   createComment,
@@ -18,6 +19,8 @@ import {
   replyToComment,
   likeCommentReply,
 } from '../../../services/communityService';
+import { communityCache, CK, TTL } from '../../../services/communityCache';
+import ModerationActionsModal from '../components/ModerationActionsModal';
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '';
@@ -56,6 +59,7 @@ function ReplyItem({
   communityId,
   postId,
   commentId,
+  esModerador,
   onRefresh,
   onDelete,
 }: {
@@ -63,6 +67,7 @@ function ReplyItem({
   communityId: string;
   postId: string;
   commentId: string;
+  esModerador: boolean;
   onRefresh: () => void;
   onDelete: () => void;
 }) {
@@ -75,7 +80,7 @@ function ReplyItem({
       await likeCommentReply(communityId, postId, commentId, reply.id);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo dar like.');
+      Alert.alert('Error', apiError(err, 'No se pudo dar like.'));
     } finally {
       setLiking(false);
     }
@@ -96,7 +101,7 @@ function ReplyItem({
         </View>
         <Text style={styles.replyAuthor}>{reply.autor.nombre}</Text>
         <Text style={styles.replyTime}>{timeAgo(reply.created_at)}</Text>
-        {reply.es_mio && (
+        {(reply.es_mio || esModerador) && (
           <TouchableOpacity onPress={showMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Feather name="more-horizontal" size={14} color={colors.textMuted} />
           </TouchableOpacity>
@@ -124,15 +129,19 @@ function CommentCard({
   communityId,
   postId,
   canComment,
+  esModerador,
   onRefresh,
   onDelete,
+  onModerationNeeded,
 }: {
   comment: CommentData;
   communityId: string;
   postId: string;
   canComment: boolean;
+  esModerador: boolean;
   onRefresh: () => void;
   onDelete: () => void;
+  onModerationNeeded: (user: { id: string; nombre: string }) => void;
 }) {
   const [showReplies, setShowReplies] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
@@ -147,7 +156,7 @@ function CommentCard({
       await likeComment(communityId, postId, comment.id);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo dar like.');
+      Alert.alert('Error', apiError(err, 'No se pudo dar like.'));
     } finally {
       setLiking(false);
     }
@@ -163,23 +172,26 @@ function CommentCard({
       setShowReplies(true);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo enviar la respuesta.');
+      Alert.alert('Error', apiError(err, 'No se pudo enviar la respuesta.'));
     } finally {
       setSending(false);
     }
   };
 
-  const handleDeleteReply = (replyId: string) => {
+  const handleDeleteReply = (reply: ReplyData) => {
     Alert.alert('Eliminar respuesta', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
           try {
-            await deleteReply(communityId, postId, comment.id, replyId);
+            await deleteReply(communityId, postId, comment.id, reply.id);
             onRefresh();
+            if (!reply.es_mio && esModerador) {
+              onModerationNeeded(reply.autor);
+            }
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar.');
+            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
           }
         },
       },
@@ -204,7 +216,7 @@ function CommentCard({
           <Text style={styles.commentAuthor}>{comment.autor.nombre}</Text>
         </View>
         <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
-        {comment.es_mio && (
+        {(comment.es_mio || esModerador) && (
           <TouchableOpacity onPress={showCommentMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Feather name="more-horizontal" size={16} color={colors.textMuted} />
           </TouchableOpacity>
@@ -292,8 +304,9 @@ function CommentCard({
               communityId={communityId}
               postId={postId}
               commentId={comment.id}
+              esModerador={esModerador}
               onRefresh={onRefresh}
-              onDelete={() => handleDeleteReply(reply.id)}
+              onDelete={() => handleDeleteReply(reply)}
             />
           ))}
         </View>
@@ -306,9 +319,13 @@ export default function PostDetailScreen({ navigation, route }: any) {
   const { post, community, communityId: paramCommunityId } = route.params;
   const communityId: string = post.comunidad_id ?? paramCommunityId ?? community?.id;
   const canComment = community?.tipo_acceso !== 'SOLO_VER';
+  const esModerador = community?.es_moderador === true;
 
-  const [comments, setComments] = useState<CommentData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const commentsKey = CK.comments(communityId, post.id);
+  const [comments, setComments] = useState<CommentData[]>(
+    () => communityCache.peek<CommentData[]>(commentsKey) ?? [],
+  );
+  const [loading, setLoading] = useState(!communityCache.peek(commentsKey));
   const [refreshing, setRefreshing] = useState(false);
   const [postLiked, setPostLiked] = useState<boolean>(
     post.mis_reacciones?.includes('LIKE') ?? false,
@@ -316,18 +333,40 @@ export default function PostDetailScreen({ navigation, route }: any) {
   const [totalReacciones, setTotalReacciones] = useState<number>(post.total_reacciones ?? 0);
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
+  const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
+  const [modModalVisible, setModModalVisible] = useState(false);
 
-  const fetchComments = useCallback(async () => {
+  const promptModeration = (user: { id: string; nombre: string }) => {
+    Alert.alert(
+      '¿Tomar acciones?',
+      `¿Deseas tomar acciones sobre ${user.nombre}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Sí', onPress: () => { setModTarget(user); setModModalVisible(true); } },
+      ],
+    );
+  };
+
+  const fetchComments = useCallback(async (force = false) => {
+    if (!force) {
+      const fresh = communityCache.get<CommentData[]>(commentsKey, TTL.comments);
+      if (fresh) {
+        setComments(fresh);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+    }
     try {
-      const data = await getComments(communityId, post.id);
+      const data = await getComments(communityId, post.id, force);
       setComments(data);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Error al cargar comentarios.');
+      Alert.alert('Error', apiError(err, 'Error al cargar comentarios.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [communityId, post.id]);
+  }, [communityId, post.id, commentsKey]);
 
   useFocusEffect(useCallback(() => { fetchComments(); }, [fetchComments]));
 
@@ -341,7 +380,7 @@ export default function PostDetailScreen({ navigation, route }: any) {
         setTotalReacciones(prev => result.accion === 'added' ? prev + 1 : Math.max(0, prev - 1));
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo reaccionar.');
+      Alert.alert('Error', apiError(err, 'No se pudo reaccionar.'));
     }
   };
 
@@ -351,9 +390,9 @@ export default function PostDetailScreen({ navigation, route }: any) {
     try {
       await createComment(communityId, post.id, commentText.trim());
       setCommentText('');
-      await fetchComments();
+      await fetchComments(true);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo comentar.');
+      Alert.alert('Error', apiError(err, 'No se pudo comentar.'));
     } finally {
       setSending(false);
     }
@@ -367,9 +406,20 @@ export default function PostDetailScreen({ navigation, route }: any) {
         onPress: async () => {
           try {
             await deletePost(communityId, post.id);
-            navigation.goBack();
+            if (!post.es_mio && esModerador) {
+              Alert.alert(
+                '¿Tomar acciones?',
+                `¿Deseas tomar acciones sobre ${post.autor?.nombre}?`,
+                [
+                  { text: 'No', style: 'cancel', onPress: () => navigation.goBack() },
+                  { text: 'Sí', onPress: () => { setModTarget(post.autor); setModModalVisible(true); } },
+                ],
+              );
+            } else {
+              navigation.goBack();
+            }
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar.');
+            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
           }
         },
       },
@@ -383,17 +433,20 @@ export default function PostDetailScreen({ navigation, route }: any) {
     ]);
   };
 
-  const handleDeleteComment = (commentId: string) => {
+  const handleDeleteComment = (comment: CommentData) => {
     Alert.alert('Eliminar comentario', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
           try {
-            await deleteComment(communityId, post.id, commentId);
-            await fetchComments();
+            await deleteComment(communityId, post.id, comment.id);
+            await fetchComments(true);
+            if (!comment.es_mio && esModerador) {
+              promptModeration(comment.autor);
+            }
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar.');
+            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
           }
         },
       },
@@ -430,7 +483,7 @@ export default function PostDetailScreen({ navigation, route }: any) {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); fetchComments(); }}
+              onRefresh={() => { setRefreshing(true); fetchComments(true); }}
               colors={[colors.primary]}
             />
           }
@@ -450,7 +503,7 @@ export default function PostDetailScreen({ navigation, route }: any) {
                 )}
               </View>
               <Text style={styles.postTime}>{timeAgo(post.created_at)}</Text>
-              {post.es_mio && (
+              {(post.es_mio || esModerador) && (
                 <TouchableOpacity onPress={showPostMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Feather name="more-horizontal" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
@@ -503,8 +556,10 @@ export default function PostDetailScreen({ navigation, route }: any) {
                 communityId={communityId}
                 postId={post.id}
                 canComment={canComment}
+                esModerador={esModerador}
                 onRefresh={fetchComments}
-                onDelete={() => handleDeleteComment(comment.id)}
+                onDelete={() => handleDeleteComment(comment)}
+                onModerationNeeded={promptModeration}
               />
             ))
           )}
@@ -538,6 +593,13 @@ export default function PostDetailScreen({ navigation, route }: any) {
           </View>
         )}
       </View>
+
+      <ModerationActionsModal
+        visible={modModalVisible}
+        communityId={communityId}
+        targetUser={modTarget}
+        onClose={() => { setModModalVisible(false); setModTarget(null); navigation.goBack(); }}
+      />
     </KeyboardAvoidingView>
   );
 }

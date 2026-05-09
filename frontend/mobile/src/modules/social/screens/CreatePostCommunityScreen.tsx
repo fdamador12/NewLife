@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { apiError } from '../../../utils/apiError';
 import { createPost } from '../../../services/communityService';
 
 export default function CreatePostCommunityScreen({ navigation, route }: any) {
@@ -24,7 +25,7 @@ export default function CreatePostCommunityScreen({ navigation, route }: any) {
       await createPost(community.id, body.trim(), title.trim());
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo publicar.');
+      Alert.alert('Error', apiError(err, 'No se pudo publicar.'));
     } finally {
       setLoading(false);
     }

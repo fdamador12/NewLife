@@ -6,12 +6,14 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { apiError } from '../../../utils/apiError';
 import {
   getDailyForumDetail,
   replyDailyForum,
   likeForumReply,
   commentForumReply,
 } from '../../../services/communityService';
+import { communityCache, CK, TTL } from '../../../services/communityCache';
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '';
@@ -68,7 +70,7 @@ function ReplyCard({
       await likeForumReply(communityId, foroId, reply.id);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo dar like.');
+      Alert.alert('Error', apiError(err, 'No se pudo dar like.'));
     } finally {
       setLiking(false);
     }
@@ -82,7 +84,7 @@ function ReplyCard({
       setNewComment('');
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo comentar.');
+      Alert.alert('Error', apiError(err, 'No se pudo comentar.'));
     } finally {
       setSending(false);
     }
@@ -180,23 +182,33 @@ function ReplyCard({
 export default function DailyForumDetailScreen({ navigation, route }: any) {
   const { foro, community } = route.params;
 
-  const [detail, setDetail]       = useState<any>(null);
-  const [loading, setLoading]     = useState(true);
+  const forumKey = CK.forumDetail(community.id, foro.id);
+  const [detail, setDetail]         = useState<any>(() => communityCache.peek<any>(forumKey));
+  const [loading, setLoading]       = useState(!communityCache.peek(forumKey));
   const [refreshing, setRefreshing] = useState(false);
   const [reflection, setReflection] = useState('');
   const [sending, setSending]     = useState(false);
 
-  const fetchDetail = useCallback(async () => {
+  const fetchDetail = useCallback(async (force = false) => {
+    if (!force) {
+      const fresh = communityCache.get<any>(forumKey, TTL.forumDetail);
+      if (fresh) {
+        setDetail(fresh);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+    }
     try {
-      const data = await getDailyForumDetail(community.id, foro.id);
+      const data = await getDailyForumDetail(community.id, foro.id, force);
       setDetail(data);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Error al cargar el foro.');
+      Alert.alert('Error', apiError(err, 'Error al cargar el foro.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [community?.id, foro.id]);
+  }, [community?.id, foro.id, forumKey]);
 
   useFocusEffect(useCallback(() => { fetchDetail(); }, [fetchDetail]));
 
@@ -206,9 +218,9 @@ export default function DailyForumDetailScreen({ navigation, route }: any) {
     try {
       await replyDailyForum(community.id, foro.id, reflection.trim());
       setReflection('');
-      await fetchDetail();
+      await fetchDetail(true);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo enviar la respuesta.');
+      Alert.alert('Error', apiError(err, 'No se pudo enviar la respuesta.'));
     } finally {
       setSending(false);
     }
@@ -245,7 +257,7 @@ export default function DailyForumDetailScreen({ navigation, route }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); fetchDetail(); }}
+            onRefresh={() => { setRefreshing(true); fetchDetail(true); }}
             colors={[colors.primary]}
           />
         }
@@ -320,7 +332,7 @@ export default function DailyForumDetailScreen({ navigation, route }: any) {
               foroId={foro.id}
               communityId={community.id}
               canInteract={esHoy && community?.tipo_acceso !== 'SOLO_VER'}
-              onRefresh={fetchDetail}
+              onRefresh={() => fetchDetail(true)}
             />
           ))
         )}

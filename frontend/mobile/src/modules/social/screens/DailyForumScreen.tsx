@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getAllForums } from '../../../services/communityService';
+import { communityCache, CK, TTL } from '../../../services/communityCache';
 
 type Forum = {
   id: string;
@@ -20,18 +21,29 @@ type Forum = {
 export default function DailyForumScreen({ navigation, route }: any) {
   const { communities = [] } = route.params || {};
 
-  const [forums, setForums]       = useState<Forum[]>([]);
-  const [allCommunities, setAllCommunities] = useState<any[]>(communities);
-  const [loading, setLoading]     = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const cachedForums = communityCache.peek<any>(CK.allForums);
+  const [forums, setForums]             = useState<Forum[]>(cachedForums?.foros ?? []);
+  const [allCommunities, setAllCommunities] = useState<any[]>(
+    cachedForums?.comunidades?.length > 0 ? cachedForums.comunidades : communities,
+  );
+  const [loading, setLoading]           = useState(!cachedForums);
+  const [refreshing, setRefreshing]     = useState(false);
 
-  const fetchForums = useCallback(async () => {
-    try {
-      const data = await getAllForums();
-      setForums(data.foros || []);
-      if (data.comunidades?.length > 0) {
-        setAllCommunities(data.comunidades);
+  const fetchForums = useCallback(async (force = false) => {
+    if (!force) {
+      const fresh = communityCache.get<any>(CK.allForums, TTL.allForums);
+      if (fresh) {
+        setForums(fresh.foros || []);
+        if (fresh.comunidades?.length > 0) setAllCommunities(fresh.comunidades);
+        setLoading(false);
+        setRefreshing(false);
+        return;
       }
+    }
+    try {
+      const data = await getAllForums(force);
+      setForums(data.foros || []);
+      if (data.comunidades?.length > 0) setAllCommunities(data.comunidades);
     } catch (err) {
       console.log('Error cargando foros:', err);
     } finally {
@@ -87,7 +99,7 @@ export default function DailyForumScreen({ navigation, route }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); fetchForums(); }}
+            onRefresh={() => { setRefreshing(true); fetchForums(true); }}
             colors={[colors.primary]}
           />
         }

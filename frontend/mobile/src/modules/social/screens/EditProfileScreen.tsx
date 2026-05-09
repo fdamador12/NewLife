@@ -6,6 +6,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { apiError } from '../../../utils/apiError';
 import { getProfile } from '../../../services/authService';
 import api from '../../../services/api';
 
@@ -46,7 +47,7 @@ export default function EditProfileScreen({ navigation }: any) {
       });
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo guardar.');
+      Alert.alert('Error', apiError(err, 'No se pudo guardar.'));
     } finally {
       setSaving(false);
     }

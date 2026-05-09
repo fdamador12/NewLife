@@ -1,12 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { getMyCommunities, getPosts, getDailyForum, reactToPost } from '../../../services/communityService';
+import { getMyCommunities, getPosts, getDailyForum, reactToPost, deletePost } from '../../../services/communityService';
+import { communityCache, CK, TTL } from '../../../services/communityCache';
+import { apiError } from '../../../utils/apiError';
+import ModerationActionsModal from '../components/ModerationActionsModal';
 
 type Post = {
   id: string;
@@ -34,11 +37,20 @@ function timeAgo(dateStr: string): string {
 }
 
 function PostCard({
-  post, onPress, onPressAuthor, onReact,
+  post, onPress, onPressAuthor, onReact, isModerador, onDelete,
 }: {
-  post: Post; onPress: () => void; onPressAuthor: () => void; onReact: () => void;
+  post: Post; onPress: () => void; onPressAuthor: () => void;
+  onReact: () => void; isModerador: boolean; onDelete: () => void;
 }) {
   const liked = post.mis_reacciones?.includes('LIKE') ?? false;
+
+  const showMenu = () => {
+    Alert.alert('Opciones', undefined, [
+      { text: 'Eliminar', style: 'destructive', onPress: onDelete },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.9}>
       <TouchableOpacity style={styles.postHeader} onPress={onPressAuthor} activeOpacity={0.7}>
@@ -52,6 +64,11 @@ function PostCard({
           )}
         </View>
         <Text style={styles.postTime}>{timeAgo(post.created_at)}</Text>
+        {(post.es_mio || isModerador) && (
+          <TouchableOpacity onPress={showMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="more-horizontal" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
       {post.titulo ? <Text style={styles.postTitle}>{post.titulo}</Text> : null}
       <Text style={styles.postBody}>{post.contenido}</Text>
@@ -74,35 +91,58 @@ function PostCard({
   );
 }
 
-export default function SocialScreen({ navigation }: any) {
-  const [communities, setCommunities] = useState<any[]>([]);
-  const [allPosts, setAllPosts] = useState<Post[]>([]);
-  const [dailyForum, setDailyForum] = useState<any>(null);
-  const [forumCommunities, setForumCommunities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+type SocialFeedCache = {
+  communities: any[];
+  allPosts: Post[];
+  dailyForum: any;
+  forumCommunities: any[];
+};
 
-  const fetchData = useCallback(async () => {
+export default function SocialScreen({ navigation }: any) {
+  const cachedFeed = communityCache.peek<SocialFeedCache>(CK.socialFeed);
+  const [communities, setCommunities] = useState<any[]>(cachedFeed?.communities ?? []);
+  const [allPosts, setAllPosts] = useState<Post[]>(cachedFeed?.allPosts ?? []);
+  const [dailyForum, setDailyForum] = useState<any>(cachedFeed?.dailyForum ?? null);
+  const [forumCommunities, setForumCommunities] = useState<any[]>(cachedFeed?.forumCommunities ?? []);
+  const [loading, setLoading] = useState(!cachedFeed);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
+  const [modCommunityId, setModCommunityId] = useState('');
+  const [modModalVisible, setModModalVisible] = useState(false);
+
+  const fetchData = useCallback(async (force = false) => {
+    if (!force) {
+      const fresh = communityCache.get<SocialFeedCache>(CK.socialFeed, TTL.socialFeed);
+      if (fresh) {
+        setCommunities(fresh.communities);
+        setAllPosts(fresh.allPosts);
+        setDailyForum(fresh.dailyForum);
+        setForumCommunities(fresh.forumCommunities);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+    }
+
     try {
-      const comms = await getMyCommunities();
+      const comms = await getMyCommunities(force);
       setCommunities(comms);
 
       if (comms.length === 0) {
         setAllPosts([]);
-        setLoading(false);
-        setRefreshing(false);
+        communityCache.set(CK.socialFeed, { communities: comms, allPosts: [], dailyForum: null, forumCommunities: [] });
         return;
       }
 
       const [postsResults, dailyForumData] = await Promise.all([
         Promise.all(
           comms.map((c: any) =>
-            getPosts(c.id)
+            getPosts(c.id, force)
               .then((posts: Post[]) => posts.map(p => ({ ...p, comunidad_nombre: c.nombre, comunidad_id: p.comunidad_id ?? c.id })))
               .catch(() => [])
           )
         ),
-        getDailyForum().catch(() => ({ foro: null, comunidades: [] })),
+        getDailyForum(force).catch(() => ({ foro: null, comunidades: [] })),
       ]);
 
       const flatPosts = postsResults
@@ -113,6 +153,12 @@ export default function SocialScreen({ navigation }: any) {
       setDailyForum(dailyForumData.foro || null);
       setForumCommunities(dailyForumData.comunidades || []);
 
+      communityCache.set(CK.socialFeed, {
+        communities: comms,
+        allPosts: flatPosts,
+        dailyForum: dailyForumData.foro || null,
+        forumCommunities: dailyForumData.comunidades || [],
+      });
     } catch (err) {
       console.log('Error cargando feed social:', err);
     } finally {
@@ -122,6 +168,42 @@ export default function SocialScreen({ navigation }: any) {
   }, []);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+
+  const handleDeletePost = async (postId: string, comunidadId: string) => {
+    const post = allPosts.find(p => p.id === postId);
+    const isModerador = communities.find((c: any) => c.id === comunidadId)?.es_moderador === true;
+    Alert.alert('Eliminar post', '¿Estás seguro?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePost(comunidadId, postId);
+            setAllPosts(prev => prev.filter(p => p.id !== postId));
+            if (post && !post.es_mio && isModerador) {
+              Alert.alert(
+                '¿Tomar acciones?',
+                `¿Deseas tomar acciones sobre ${post.autor.nombre}?`,
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Sí',
+                    onPress: () => {
+                      setModTarget(post.autor);
+                      setModCommunityId(comunidadId);
+                      setModModalVisible(true);
+                    },
+                  },
+                ],
+              );
+            }
+          } catch (err: any) {
+            Alert.alert('Error', apiError(err, 'No se pudo eliminar el post.'));
+          }
+        },
+      },
+    ]);
+  };
 
   const handleReact = async (postId: string, comunidadId: string) => {
     try {
@@ -191,7 +273,7 @@ export default function SocialScreen({ navigation }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); fetchData(); }}
+            onRefresh={() => { setRefreshing(true); fetchData(true); }}
             colors={[colors.primary]}
           />
         }
@@ -234,6 +316,7 @@ export default function SocialScreen({ navigation }: any) {
             <PostCard
               key={`${post.comunidad_id}-${post.id}`}
               post={post}
+              isModerador={communities.find((c: any) => c.id === post.comunidad_id)?.es_moderador === true}
               onPress={() => navigation.navigate('PostDetail', {
                 post,
                 communityId: post.comunidad_id,
@@ -245,11 +328,19 @@ export default function SocialScreen({ navigation }: any) {
                 name: post.autor.nombre,
               })}
               onReact={() => handleReact(post.id, post.comunidad_id)}
+              onDelete={() => handleDeletePost(post.id, post.comunidad_id)}
             />
           ))
         )}
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      <ModerationActionsModal
+        visible={modModalVisible}
+        communityId={modCommunityId}
+        targetUser={modTarget}
+        onClose={() => { setModModalVisible(false); setModTarget(null); setModCommunityId(''); }}
+      />
     </View>
   );
 }

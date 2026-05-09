@@ -301,7 +301,7 @@ export class CommunitiesController {
     @Request() req: any,
   ) {
     // El body debe incluir el usuario_id del reportado
-    return this.modRequestBanUseCase.execute(id, (dto as any).usuario_id, req.user.uid, dto.motivo);
+    return this.modRequestBanUseCase.execute(id, dto.usuario_id, req.user.uid, dto.motivo);
   }
 
   @Post(':id/members')

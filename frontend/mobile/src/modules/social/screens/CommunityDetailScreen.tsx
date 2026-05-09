@@ -7,6 +7,9 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getPosts, getDailyForum, deletePost, reactToPost } from '../../../services/communityService';
+import { communityCache, CK, TTL } from '../../../services/communityCache';
+import { apiError } from '../../../utils/apiError';
+import ModerationActionsModal from '../components/ModerationActionsModal';
 
 type Post = {
   id: string;
@@ -81,21 +84,38 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
   const { community } = route.params;
   const communityName = community.nombre || community.name || '';
 
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [dailyForum, setDailyForum] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<Post[]>(
+    () => communityCache.peek<Post[]>(CK.posts(community.id)) ?? [],
+  );
+  const [dailyForum, setDailyForum] = useState<any>(
+    () => communityCache.peek<any>(CK.dailyForum)?.foro ?? null,
+  );
+  const [loading, setLoading] = useState(!communityCache.peek(CK.posts(community.id)));
   const [refreshing, setRefreshing] = useState(false);
+  const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
+  const [modModalVisible, setModModalVisible] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
+    if (!force) {
+      const freshPosts = communityCache.get<Post[]>(CK.posts(community.id), TTL.posts);
+      const freshForum = communityCache.get<any>(CK.dailyForum, TTL.dailyForum);
+      if (freshPosts && freshForum) {
+        setPosts(freshPosts);
+        setDailyForum(freshForum.foro || null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+    }
     try {
       const [postsData, forumsData] = await Promise.all([
-        getPosts(community.id),
-        getDailyForum().catch(() => null),
+        getPosts(community.id, force),
+        getDailyForum(force).catch(() => null),
       ]);
       setPosts(postsData);
       setDailyForum(forumsData?.foro || null);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Error al cargar la comunidad.');
+      Alert.alert('Error', apiError(err, 'Error al cargar la comunidad.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -124,6 +144,8 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
   };
 
   const handleDelete = (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    const isModerador = community.es_moderador === true;
     Alert.alert('Eliminar post', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -131,9 +153,19 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
         onPress: async () => {
           try {
             await deletePost(community.id, postId);
-            await fetchData();
+            await fetchData(true);
+            if (post && !post.es_mio && isModerador) {
+              Alert.alert(
+                '¿Tomar acciones?',
+                `¿Deseas tomar acciones sobre ${post.autor.nombre}?`,
+                [
+                  { text: 'No', style: 'cancel' },
+                  { text: 'Sí', onPress: () => { setModTarget(post.autor); setModModalVisible(true); } },
+                ],
+              );
+            }
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar.');
+            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
           }
         },
       },
@@ -156,6 +188,14 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{communityName}</Text>
         <View style={styles.headerActions}>
+          {community.es_moderador === true && (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('CommunityModeration', { community })}
+            >
+              <Feather name="settings" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => navigation.navigate('CommunityChat', { community })}
@@ -179,7 +219,7 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); fetchData(); }}
+            onRefresh={() => { setRefreshing(true); fetchData(true); }}
             colors={[colors.primary]}
           />
         }
@@ -233,6 +273,13 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
+
+      <ModerationActionsModal
+        visible={modModalVisible}
+        communityId={community.id}
+        targetUser={modTarget}
+        onClose={() => { setModModalVisible(false); setModTarget(null); }}
+      />
     </View>
   );
 }
