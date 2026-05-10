@@ -240,3 +240,10 @@ export const removeMember = async (communityId: string, uid: string) => {
   communityCache.invalidate(CK.members(communityId));
   return res.data;
 };
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+
+export const getChatHistory = async (communityId: string, limit = 50) => {
+  const res = await api.get(`/chat/${communityId}/messages`, { params: { limit } });
+  return res.data;
+};
