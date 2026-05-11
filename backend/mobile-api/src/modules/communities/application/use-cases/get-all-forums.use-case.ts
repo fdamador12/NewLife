@@ -29,6 +29,7 @@ export class GetAllForumsUseCase {
     const today = new Date().toISOString().split('T')[0];
 
     const foros = allForos
+      .filter((f: any) => f.fecha <= today)
       .map((f: any) => ({
         id:          f._id,
         pregunta:    f.pregunta,

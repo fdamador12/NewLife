@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, RefreshControl, Alert,
+  TextInput, ActivityIndicator, RefreshControl, Modal, Pressable,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -22,6 +22,19 @@ import {
 import { communityCache, CK, TTL } from '../../../services/communityCache';
 import ModerationActionsModal from '../components/ModerationActionsModal';
 
+const COLORS = {
+  background: '#F7F7F7',
+  text: '#404040',
+  accent: '#D38A58',
+  white: '#FFFFFF',
+  muted: '#A0A0A0',
+  lightMuted: '#E8E8E8',
+  cream: '#FDF8F5',
+  red: '#E25C5C',
+  redLight: '#FDF0F0',
+  overlay: 'rgba(64, 64, 64, 0.5)',
+};
+
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -31,6 +44,38 @@ function timeAgo(dateStr: string): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
+}
+
+function CustomModal({
+  visible, title, message, buttons, onClose,
+}: {
+  visible: boolean; title: string; message?: string;
+  buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[];
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          {message && <Text style={styles.modalMessage}>{message}</Text>}
+          <View style={styles.modalButtons}>
+            {buttons.map((btn, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.modalBtn, btn.style === 'destructive' && styles.modalBtnDestructive, btn.style === 'cancel' && styles.modalBtnCancel]}
+                onPress={() => { onClose(); btn.onPress?.(); }}
+              >
+                <Text style={[styles.modalBtnText, btn.style === 'destructive' && styles.modalBtnTextDestructive, btn.style === 'cancel' && styles.modalBtnTextCancel]}>
+                  {btn.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
 }
 
 type ReplyData = {
@@ -55,23 +100,13 @@ type CommentData = {
 };
 
 function ReplyItem({
-  reply,
-  communityId,
-  postId,
-  commentId,
-  esModerador,
-  onRefresh,
-  onDelete,
+  reply, communityId, postId, commentId, esModerador, onRefresh, onDelete,
 }: {
-  reply: ReplyData;
-  communityId: string;
-  postId: string;
-  commentId: string;
-  esModerador: boolean;
-  onRefresh: () => void;
-  onDelete: () => void;
+  reply: ReplyData; communityId: string; postId: string; commentId: string;
+  esModerador: boolean; onRefresh: () => void; onDelete: () => void;
 }) {
   const [liking, setLiking] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const handleLike = async () => {
     if (liking) return;
@@ -79,68 +114,54 @@ function ReplyItem({
     try {
       await likeCommentReply(communityId, postId, commentId, reply.id);
       onRefresh();
-    } catch (err: any) {
-      Alert.alert('Error', apiError(err, 'No se pudo dar like.'));
-    } finally {
+    } catch {} finally {
       setLiking(false);
     }
   };
 
-  const showMenu = () => {
-    Alert.alert('Opciones', undefined, [
-      { text: 'Eliminar', style: 'destructive', onPress: onDelete },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
-
   return (
-    <View style={styles.replyItem}>
-      <View style={styles.replyHeader}>
-        <View style={styles.replyAvatar}>
-          <Feather name="user" size={10} color={colors.textMuted} />
+    <>
+      <View style={styles.replyItem}>
+        <View style={styles.replyHeader}>
+          <View style={styles.replyAvatar}>
+            <Text style={styles.replyAvatarText}>{reply.autor.nombre.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.replyAuthorInfo}>
+            <Text style={styles.replyAuthor}>{reply.autor.nombre}</Text>
+            <Text style={styles.replyTime}>{timeAgo(reply.created_at)}</Text>
+          </View>
+          {(reply.es_mio || esModerador) && (
+            <TouchableOpacity onPress={() => setMenuVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="more-horizontal" size={16} color={COLORS.muted} />
+            </TouchableOpacity>
+          )}
         </View>
-        <Text style={styles.replyAuthor}>{reply.autor.nombre}</Text>
-        <Text style={styles.replyTime}>{timeAgo(reply.created_at)}</Text>
-        {(reply.es_mio || esModerador) && (
-          <TouchableOpacity onPress={showMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="more-horizontal" size={14} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
+        <Text style={styles.replyContent}>{reply.contenido}</Text>
+        <TouchableOpacity style={[styles.replyLikeBtn, reply.yo_di_like && styles.replyLikeBtnLiked]} onPress={handleLike} disabled={liking}>
+          <Feather name="heart" size={14} color={reply.yo_di_like ? COLORS.red : COLORS.muted} />
+          {reply.total_likes > 0 && (
+            <Text style={[styles.replyLikeCount, reply.yo_di_like && styles.replyLikeCountLiked]}>{reply.total_likes}</Text>
+          )}
+        </TouchableOpacity>
       </View>
-      <Text style={styles.replyContent}>{reply.contenido}</Text>
-      <TouchableOpacity style={styles.replyLike} onPress={handleLike} disabled={liking}>
-        <Feather
-          name="heart"
-          size={14}
-          color={reply.yo_di_like ? '#FF6B6B' : colors.textMuted}
-        />
-        {reply.total_likes > 0 && (
-          <Text style={[styles.replyLikeCount, reply.yo_di_like && styles.likedText]}>
-            {reply.total_likes}
-          </Text>
-        )}
-      </TouchableOpacity>
-    </View>
+      <CustomModal
+        visible={menuVisible}
+        title="Opciones"
+        buttons={[
+          { text: 'Eliminar', style: 'destructive', onPress: onDelete },
+          { text: 'Cancelar', style: 'cancel' },
+        ]}
+        onClose={() => setMenuVisible(false)}
+      />
+    </>
   );
 }
 
 function CommentCard({
-  comment,
-  communityId,
-  postId,
-  canComment,
-  esModerador,
-  onRefresh,
-  onDelete,
-  onModerationNeeded,
+  comment, communityId, postId, canComment, esModerador, onRefresh, onDelete, onModerationNeeded,
 }: {
-  comment: CommentData;
-  communityId: string;
-  postId: string;
-  canComment: boolean;
-  esModerador: boolean;
-  onRefresh: () => void;
-  onDelete: () => void;
+  comment: CommentData; communityId: string; postId: string; canComment: boolean;
+  esModerador: boolean; onRefresh: () => void; onDelete: () => void;
   onModerationNeeded: (user: { id: string; nombre: string }) => void;
 }) {
   const [showReplies, setShowReplies] = useState(false);
@@ -148,6 +169,8 @@ function CommentCard({
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [liking, setLiking] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [deleteReplyModal, setDeleteReplyModal] = useState<{ visible: boolean; reply: ReplyData | null }>({ visible: false, reply: null });
 
   const handleLike = async () => {
     if (liking) return;
@@ -155,9 +178,7 @@ function CommentCard({
     try {
       await likeComment(communityId, postId, comment.id);
       onRefresh();
-    } catch (err: any) {
-      Alert.alert('Error', apiError(err, 'No se pudo dar like.'));
-    } finally {
+    } catch {} finally {
       setLiking(false);
     }
   };
@@ -171,147 +192,127 @@ function CommentCard({
       setShowReplyInput(false);
       setShowReplies(true);
       onRefresh();
-    } catch (err: any) {
-      Alert.alert('Error', apiError(err, 'No se pudo enviar la respuesta.'));
-    } finally {
+    } catch {} finally {
       setSending(false);
     }
   };
 
-  const handleDeleteReply = (reply: ReplyData) => {
-    Alert.alert('Eliminar respuesta', '¿Estás seguro?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteReply(communityId, postId, comment.id, reply.id);
-            onRefresh();
-            if (!reply.es_mio && esModerador) {
-              onModerationNeeded(reply.autor);
-            }
-          } catch (err: any) {
-            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
-          }
-        },
-      },
-    ]);
-  };
-
-  const showCommentMenu = () => {
-    Alert.alert('Opciones', undefined, [
-      { text: 'Eliminar', style: 'destructive', onPress: onDelete },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+  const confirmDeleteReply = async () => {
+    const reply = deleteReplyModal.reply;
+    if (!reply) return;
+    try {
+      await deleteReply(communityId, postId, comment.id, reply.id);
+      onRefresh();
+      if (!reply.es_mio && esModerador) {
+        onModerationNeeded(reply.autor);
+      }
+    } catch {}
   };
 
   return (
-    <View style={styles.commentCard}>
-      {/* Header */}
-      <View style={styles.commentHeader}>
-        <View style={styles.commentAvatar}>
-          <Feather name="user" size={14} color={colors.textMuted} />
-        </View>
-        <View style={styles.commentAuthorInfo}>
-          <Text style={styles.commentAuthor}>{comment.autor.nombre}</Text>
-        </View>
-        <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
-        {(comment.es_mio || esModerador) && (
-          <TouchableOpacity onPress={showCommentMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="more-horizontal" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Contenido */}
-      <Text style={styles.commentContent}>{comment.contenido}</Text>
-
-      {/* Acciones */}
-      <View style={styles.commentActions}>
-        <TouchableOpacity style={styles.commentAction} onPress={handleLike} disabled={liking}>
-          <Feather
-            name="heart"
-            size={15}
-            color={comment.yo_di_like ? '#FF6B6B' : colors.textMuted}
-          />
-          {comment.total_likes > 0 && (
-            <Text style={[styles.commentActionText, comment.yo_di_like && styles.likedText]}>
-              {comment.total_likes}
-            </Text>
+    <>
+      <View style={styles.commentCard}>
+        <View style={styles.commentHeader}>
+          <View style={styles.commentAvatar}>
+            <Text style={styles.commentAvatarText}>{comment.autor.nombre.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.commentAuthorInfo}>
+            <Text style={styles.commentAuthor}>{comment.autor.nombre}</Text>
+            <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+          </View>
+          {(comment.es_mio || esModerador) && (
+            <TouchableOpacity onPress={() => setMenuVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="more-horizontal" size={18} color={COLORS.muted} />
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+        </View>
 
-        {canComment && (
-          <TouchableOpacity
-            style={styles.commentAction}
-            onPress={() => setShowReplyInput(!showReplyInput)}
-          >
-            <Feather name="corner-down-right" size={15} color={colors.textMuted} />
-            <Text style={styles.commentActionText}>Responder</Text>
+        <Text style={styles.commentContent}>{comment.contenido}</Text>
+
+        <View style={styles.commentActions}>
+          <TouchableOpacity style={[styles.actionBtn, comment.yo_di_like && styles.actionBtnLiked]} onPress={handleLike} disabled={liking}>
+            <Feather name="heart" size={16} color={comment.yo_di_like ? COLORS.red : COLORS.muted} />
+            {comment.total_likes > 0 && (
+              <Text style={[styles.actionCount, comment.yo_di_like && styles.actionCountLiked]}>{comment.total_likes}</Text>
+            )}
           </TouchableOpacity>
+
+          {canComment && (
+            <TouchableOpacity style={styles.actionBtn} onPress={() => setShowReplyInput(!showReplyInput)}>
+              <Feather name="corner-down-right" size={16} color={COLORS.muted} />
+              <Text style={styles.actionCount}>Responder</Text>
+            </TouchableOpacity>
+          )}
+
+          {comment.respuestas.length > 0 && (
+            <TouchableOpacity style={styles.actionBtn} onPress={() => setShowReplies(!showReplies)}>
+              <Feather name={showReplies ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.muted} />
+              <Text style={styles.actionCount}>
+                {showReplies ? 'Ocultar' : `${comment.respuestas.length} respuesta${comment.respuestas.length !== 1 ? 's' : ''}`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {showReplyInput && (
+          <View style={styles.replyInputRow}>
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Escribe una respuesta..."
+              placeholderTextColor={COLORS.muted}
+              value={replyText}
+              onChangeText={setReplyText}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[styles.replySendBtn, (!replyText.trim() || sending) && styles.sendBtnDisabled]}
+              onPress={handleReply}
+              disabled={!replyText.trim() || sending}
+            >
+              {sending ? <ActivityIndicator size="small" color={COLORS.white} /> : <Feather name="send" size={14} color={COLORS.white} />}
+            </TouchableOpacity>
+          </View>
         )}
 
-        {comment.respuestas.length > 0 && (
-          <TouchableOpacity
-            style={styles.commentAction}
-            onPress={() => setShowReplies(!showReplies)}
-          >
-            <Feather
-              name={showReplies ? 'chevron-up' : 'chevron-down'}
-              size={15}
-              color={colors.textMuted}
-            />
-            <Text style={styles.commentActionText}>
-              {showReplies
-                ? 'Ocultar'
-                : `${comment.respuestas.length} respuesta${comment.respuestas.length !== 1 ? 's' : ''}`}
-            </Text>
-          </TouchableOpacity>
+        {showReplies && comment.respuestas.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {comment.respuestas.map((reply) => (
+              <ReplyItem
+                key={reply.id}
+                reply={reply}
+                communityId={communityId}
+                postId={postId}
+                commentId={comment.id}
+                esModerador={esModerador}
+                onRefresh={onRefresh}
+                onDelete={() => setDeleteReplyModal({ visible: true, reply })}
+              />
+            ))}
+          </View>
         )}
       </View>
 
-      {/* Input de respuesta inline */}
-      {showReplyInput && (
-        <View style={styles.replyInputRow}>
-          <TextInput
-            style={styles.replyInput}
-            placeholder="Escribe una respuesta..."
-            placeholderTextColor={colors.textMuted}
-            value={replyText}
-            onChangeText={setReplyText}
-            autoFocus
-          />
-          <TouchableOpacity
-            style={[styles.replySendBtn, (!replyText.trim() || sending) && styles.sendDisabled]}
-            onPress={handleReply}
-            disabled={!replyText.trim() || sending}
-          >
-            {sending
-              ? <ActivityIndicator size="small" color={colors.white} />
-              : <Feather name="send" size={13} color={colors.white} />
-            }
-          </TouchableOpacity>
-        </View>
-      )}
+      <CustomModal
+        visible={menuVisible}
+        title="Opciones"
+        buttons={[
+          { text: 'Eliminar', style: 'destructive', onPress: onDelete },
+          { text: 'Cancelar', style: 'cancel' },
+        ]}
+        onClose={() => setMenuVisible(false)}
+      />
 
-      {/* Respuestas */}
-      {showReplies && comment.respuestas.length > 0 && (
-        <View style={styles.repliesContainer}>
-          {comment.respuestas.map((reply) => (
-            <ReplyItem
-              key={reply.id}
-              reply={reply}
-              communityId={communityId}
-              postId={postId}
-              commentId={comment.id}
-              esModerador={esModerador}
-              onRefresh={onRefresh}
-              onDelete={() => handleDeleteReply(reply)}
-            />
-          ))}
-        </View>
-      )}
-    </View>
+      <CustomModal
+        visible={deleteReplyModal.visible}
+        title="Eliminar respuesta"
+        message="¿Estas seguro de que deseas eliminar esta respuesta?"
+        buttons={[
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Eliminar', style: 'destructive', onPress: confirmDeleteReply },
+        ]}
+        onClose={() => setDeleteReplyModal({ visible: false, reply: null })}
+      />
+    </>
   );
 }
 
@@ -322,30 +323,20 @@ export default function PostDetailScreen({ navigation, route }: any) {
   const esModerador = community?.es_moderador === true;
 
   const commentsKey = CK.comments(communityId, post.id);
-  const [comments, setComments] = useState<CommentData[]>(
-    () => communityCache.peek<CommentData[]>(commentsKey) ?? [],
-  );
+  const [comments, setComments] = useState<CommentData[]>(() => communityCache.peek<CommentData[]>(commentsKey) ?? []);
   const [loading, setLoading] = useState(!communityCache.peek(commentsKey));
   const [refreshing, setRefreshing] = useState(false);
-  const [postLiked, setPostLiked] = useState<boolean>(
-    post.mis_reacciones?.includes('LIKE') ?? false,
-  );
+  const [postLiked, setPostLiked] = useState<boolean>(post.mis_reacciones?.includes('LIKE') ?? false);
   const [totalReacciones, setTotalReacciones] = useState<number>(post.total_reacciones ?? 0);
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
   const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
   const [modModalVisible, setModModalVisible] = useState(false);
-
-  const promptModeration = (user: { id: string; nombre: string }) => {
-    Alert.alert(
-      '¿Tomar acciones?',
-      `¿Deseas tomar acciones sobre ${user.nombre}?`,
-      [
-        { text: 'No', style: 'cancel' },
-        { text: 'Sí', onPress: () => { setModTarget(user); setModModalVisible(true); } },
-      ],
-    );
-  };
+  const [postMenuVisible, setPostMenuVisible] = useState(false);
+  const [deletePostModal, setDeletePostModal] = useState(false);
+  const [deleteCommentModal, setDeleteCommentModal] = useState<{ visible: boolean; comment: CommentData | null }>({ visible: false, comment: null });
+  const [actionModal, setActionModal] = useState<{ visible: boolean; user: any }>({ visible: false, user: null });
+  const [errorModal, setErrorModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
 
   const fetchComments = useCallback(async (force = false) => {
     if (!force) {
@@ -361,7 +352,7 @@ export default function PostDetailScreen({ navigation, route }: any) {
       const data = await getComments(communityId, post.id, force);
       setComments(data);
     } catch (err: any) {
-      Alert.alert('Error', apiError(err, 'Error al cargar comentarios.'));
+      setErrorModal({ visible: true, message: apiError(err, 'Error al cargar comentarios.') });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -380,7 +371,7 @@ export default function PostDetailScreen({ navigation, route }: any) {
         setTotalReacciones(prev => result.accion === 'added' ? prev + 1 : Math.max(0, prev - 1));
       }
     } catch (err: any) {
-      Alert.alert('Error', apiError(err, 'No se pudo reaccionar.'));
+      setErrorModal({ visible: true, message: apiError(err, 'No se pudo reaccionar.') });
     }
   };
 
@@ -392,160 +383,137 @@ export default function PostDetailScreen({ navigation, route }: any) {
       setCommentText('');
       await fetchComments(true);
     } catch (err: any) {
-      Alert.alert('Error', apiError(err, 'No se pudo comentar.'));
+      setErrorModal({ visible: true, message: apiError(err, 'No se pudo comentar.') });
     } finally {
       setSending(false);
     }
   };
 
-  const handleDeletePost = () => {
-    Alert.alert('Eliminar post', '¿Estás seguro?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          try {
-            await deletePost(communityId, post.id);
-            if (!post.es_mio && esModerador) {
-              Alert.alert(
-                '¿Tomar acciones?',
-                `¿Deseas tomar acciones sobre ${post.autor?.nombre}?`,
-                [
-                  { text: 'No', style: 'cancel', onPress: () => navigation.goBack() },
-                  { text: 'Sí', onPress: () => { setModTarget(post.autor); setModModalVisible(true); } },
-                ],
-              );
-            } else {
-              navigation.goBack();
-            }
-          } catch (err: any) {
-            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
-          }
-        },
-      },
-    ]);
+  const confirmDeletePost = async () => {
+    try {
+      await deletePost(communityId, post.id);
+      if (!post.es_mio && esModerador) {
+        setActionModal({ visible: true, user: post.autor });
+      } else {
+        navigation.goBack();
+      }
+    } catch (err: any) {
+      setErrorModal({ visible: true, message: apiError(err, 'No se pudo eliminar.') });
+    }
   };
 
-  const showPostMenu = () => {
-    Alert.alert('Opciones', undefined, [
-      { text: 'Eliminar', style: 'destructive', onPress: handleDeletePost },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+  const confirmDeleteComment = async () => {
+    const comment = deleteCommentModal.comment;
+    if (!comment) return;
+    try {
+      await deleteComment(communityId, post.id, comment.id);
+      await fetchComments(true);
+      if (!comment.es_mio && esModerador) {
+        setActionModal({ visible: true, user: comment.autor });
+      }
+    } catch (err: any) {
+      setErrorModal({ visible: true, message: apiError(err, 'No se pudo eliminar.') });
+    }
   };
 
-  const handleDeleteComment = (comment: CommentData) => {
-    Alert.alert('Eliminar comentario', '¿Estás seguro?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteComment(communityId, post.id, comment.id);
-            await fetchComments(true);
-            if (!comment.es_mio && esModerador) {
-              promptModeration(comment.autor);
-            }
-          } catch (err: any) {
-            Alert.alert('Error', apiError(err, 'No se pudo eliminar.'));
-          }
-        },
-      },
-    ]);
+  const promptModeration = (user: { id: string; nombre: string }) => {
+    setActionModal({ visible: true, user });
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Feather name="chevron-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Post</Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <Feather name="chevron-left" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Publicacion</Text>
+            <View style={{ width: 44 }} />
+          </View>
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => { setRefreshing(true); fetchComments(true); }}
-              colors={[colors.primary]}
+              colors={[COLORS.accent]}
+              tintColor={COLORS.accent}
             />
           }
         >
-          {/* Card del post */}
           <View style={styles.postCard}>
             <View style={styles.postHeader}>
-              <View style={styles.postAvatar}>
-                <Feather name="user" size={18} color={colors.textMuted} />
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{post.autor?.nombre?.charAt(0).toUpperCase() || 'U'}</Text>
               </View>
-              <View style={styles.postAuthorInfo}>
-                <Text style={styles.postAuthor}>{post.autor?.nombre || 'Usuario'}</Text>
-                {(community?.nombre || post.comunidad_nombre) && (
-                  <Text style={styles.postCommunity}>
-                    {community?.nombre || post.comunidad_nombre}
-                  </Text>
-                )}
+              <View style={styles.authorInfo}>
+                <Text style={styles.authorName}>{post.autor?.nombre || 'Usuario'}</Text>
+                <View style={styles.metaRow}>
+                  {(community?.nombre || post.comunidad_nombre) && (
+                    <>
+                      <Text style={styles.communityName}>{community?.nombre || post.comunidad_nombre}</Text>
+                      <View style={styles.dot} />
+                    </>
+                  )}
+                  <Text style={styles.timeText}>{timeAgo(post.created_at)}</Text>
+                </View>
               </View>
-              <Text style={styles.postTime}>{timeAgo(post.created_at)}</Text>
               {(post.es_mio || esModerador) && (
-                <TouchableOpacity onPress={showPostMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Feather name="more-horizontal" size={18} color={colors.textMuted} />
+                <TouchableOpacity style={styles.menuBtn} onPress={() => setPostMenuVisible(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Feather name="more-horizontal" size={20} color={COLORS.muted} />
                 </TouchableOpacity>
               )}
             </View>
 
-            {post.titulo ? <Text style={styles.postTitle}>{post.titulo}</Text> : null}
-            <Text style={styles.postBody}>{post.contenido}</Text>
+            {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
+            <Text style={styles.postContent}>{post.contenido}</Text>
 
-            <View style={styles.postActions}>
-              <TouchableOpacity style={styles.postAction} onPress={handleReact}>
-                <Feather
-                  name="heart"
-                  size={18}
-                  color={postLiked ? '#FF6B6B' : colors.textMuted}
-                />
-                <Text style={[styles.postActionText, postLiked && styles.likedText]}>
-                  {totalReacciones}
-                </Text>
+            <View style={styles.actions}>
+              <TouchableOpacity style={[styles.actionBtn, postLiked && styles.actionBtnLiked]} onPress={handleReact}>
+                <Feather name="heart" size={18} color={postLiked ? COLORS.red : COLORS.muted} />
+                <Text style={[styles.actionCount, postLiked && styles.actionCountLiked]}>{totalReacciones}</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity style={styles.postAction}>
-                <Feather name="message-circle" size={18} color={colors.textMuted} />
-                <Text style={styles.postActionText}>{comments.length}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.postAction, { marginLeft: 'auto' }]}>
-                <Feather name="share" size={18} color={colors.textMuted} />
+              <View style={styles.actionBtn}>
+                <Feather name="message-circle" size={18} color={COLORS.muted} />
+                <Text style={styles.actionCount}>{comments.length}</Text>
+              </View>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.actionBtnShare}>
+                <Feather name="share" size={18} color={COLORS.muted} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Sección de comentarios */}
-          <Text style={styles.sectionTitle}>
-            {comments.length} comentario{comments.length !== 1 ? 's' : ''}
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Comentarios</Text>
+            {comments.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{comments.length}</Text>
+              </View>
+            )}
+          </View>
 
           {comments.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Feather name="message-circle" size={36} color={colors.border} />
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIcon}>
+                <Feather name="message-circle" size={32} color={COLORS.accent} />
+              </View>
+              <Text style={styles.emptyTitle}>Sin comentarios</Text>
               <Text style={styles.emptyText}>
-                {canComment ? 'Sé el primero en comentar' : 'Sin comentarios aún'}
+                {canComment ? 'Se el primero en comentar' : 'Aun no hay comentarios en este post'}
               </Text>
             </View>
           ) : (
@@ -558,22 +526,21 @@ export default function PostDetailScreen({ navigation, route }: any) {
                 canComment={canComment}
                 esModerador={esModerador}
                 onRefresh={fetchComments}
-                onDelete={() => handleDeleteComment(comment)}
+                onDelete={() => setDeleteCommentModal({ visible: true, comment })}
                 onModerationNeeded={promptModeration}
               />
             ))
           )}
 
-          <View style={{ height: spacing.xl }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Input de comentario fijo en el fondo */}
         {canComment && (
           <View style={styles.commentInputBar}>
             <TextInput
               style={styles.commentInput}
               placeholder="Escribe un comentario..."
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={COLORS.muted}
               value={commentText}
               onChangeText={setCommentText}
               multiline={false}
@@ -581,18 +548,66 @@ export default function PostDetailScreen({ navigation, route }: any) {
               onSubmitEditing={handleComment}
             />
             <TouchableOpacity
-              style={[styles.commentSendBtn, (!commentText.trim() || sending) && styles.sendDisabled]}
+              style={[styles.commentSendBtn, (!commentText.trim() || sending) && styles.sendBtnDisabled]}
               onPress={handleComment}
               disabled={!commentText.trim() || sending}
             >
-              {sending
-                ? <ActivityIndicator size="small" color={colors.white} />
-                : <Feather name="send" size={16} color={colors.white} />
-              }
+              {sending ? <ActivityIndicator size="small" color={COLORS.white} /> : <Feather name="send" size={18} color={COLORS.white} />}
             </TouchableOpacity>
           </View>
         )}
       </View>
+
+      <CustomModal
+        visible={postMenuVisible}
+        title="Opciones"
+        buttons={[
+          { text: 'Eliminar', style: 'destructive', onPress: () => setDeletePostModal(true) },
+          { text: 'Cancelar', style: 'cancel' },
+        ]}
+        onClose={() => setPostMenuVisible(false)}
+      />
+
+      <CustomModal
+        visible={deletePostModal}
+        title="Eliminar post"
+        message="¿Estas seguro de que deseas eliminar este post?"
+        buttons={[
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Eliminar', style: 'destructive', onPress: confirmDeletePost },
+        ]}
+        onClose={() => setDeletePostModal(false)}
+      />
+
+      <CustomModal
+        visible={deleteCommentModal.visible}
+        title="Eliminar comentario"
+        message="¿Estas seguro de que deseas eliminar este comentario?"
+        buttons={[
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Eliminar', style: 'destructive', onPress: confirmDeleteComment },
+        ]}
+        onClose={() => setDeleteCommentModal({ visible: false, comment: null })}
+      />
+
+      <CustomModal
+        visible={actionModal.visible}
+        title="Tomar acciones"
+        message={`¿Deseas tomar acciones sobre ${actionModal.user?.nombre}?`}
+        buttons={[
+          { text: 'No', style: 'cancel', onPress: () => !deletePostModal && navigation.goBack() },
+          { text: 'Si', onPress: () => { setModTarget(actionModal.user); setModModalVisible(true); } },
+        ]}
+        onClose={() => setActionModal({ visible: false, user: null })}
+      />
+
+      <CustomModal
+        visible={errorModal.visible}
+        title="Error"
+        message={errorModal.message}
+        buttons={[{ text: 'Aceptar', style: 'default' }]}
+        onClose={() => setErrorModal({ visible: false, message: '' })}
+      />
 
       <ModerationActionsModal
         visible={modModalVisible}
@@ -605,113 +620,78 @@ export default function PostDetailScreen({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 60, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg,
-  },
-  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
-
-  scroll: { paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.xl },
-
-  // Post card
-  postCard: {
-    backgroundColor: colors.white, borderRadius: borderRadius.md, padding: spacing.lg,
-    gap: spacing.sm, elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
-  },
-  postHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  postAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center',
-  },
-  postAuthorInfo: { flex: 1 },
-  postAuthor: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
-  postCommunity: { fontSize: fontSizes.xs, color: colors.textMuted },
-  postTime: { fontSize: fontSizes.xs, color: colors.textMuted },
-  postTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text, lineHeight: 22 },
-  postBody: { fontSize: fontSizes.sm, color: colors.textLight, lineHeight: 20 },
-  postActions: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.xs,
-  },
-  postAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  postActionText: { fontSize: fontSizes.sm, color: colors.textMuted },
-
-  sectionTitle: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
-
-  emptyState: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md },
-  emptyText: { fontSize: fontSizes.md, color: colors.textMuted },
-
-  // Comment card
-  commentCard: {
-    backgroundColor: colors.white, borderRadius: borderRadius.md, padding: spacing.lg,
-    gap: spacing.sm, elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
-  },
-  commentHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  commentAvatar: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center',
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  centered: { justifyContent: 'center', alignItems: 'center' },
+  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: COLORS.white },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: COLORS.background },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
+  postCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 24 },
+  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatarText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
+  authorInfo: { flex: 1 },
+  authorName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center' },
+  communityName: { fontSize: 13, color: COLORS.accent, fontWeight: '500' },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.muted, marginHorizontal: 6 },
+  timeText: { fontSize: 13, color: COLORS.muted },
+  menuBtn: { padding: 4 },
+  postTitle: { fontSize: 17, fontWeight: '600', color: COLORS.text, marginBottom: 8, lineHeight: 24 },
+  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 16 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 6 },
+  actionBtnLiked: { backgroundColor: COLORS.redLight },
+  actionCount: { fontSize: 14, color: COLORS.muted, fontWeight: '500' },
+  actionCountLiked: { color: COLORS.red },
+  actionBtnShare: { padding: 8 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  badge: { backgroundColor: COLORS.lightMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  badgeText: { fontSize: 13, fontWeight: '600', color: COLORS.muted },
+  emptyContainer: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 32 },
+  emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.cream, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
+  emptyText: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22 },
+  commentCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 16, marginBottom: 12 },
+  commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  commentAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  commentAvatarText: { fontSize: 16, fontWeight: '600', color: COLORS.white },
   commentAuthorInfo: { flex: 1 },
-  commentAuthor: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
-  commentTime: { fontSize: fontSizes.xs, color: colors.textMuted },
-  commentContent: { fontSize: fontSizes.sm, color: colors.textLight, lineHeight: 20 },
-  commentActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  commentAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  commentActionText: { fontSize: fontSizes.xs, color: colors.textMuted },
-
-  // Reply input
-  replyInputRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs,
-  },
-  replyInput: {
-    flex: 1, backgroundColor: colors.background, borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    fontSize: fontSizes.sm, color: colors.text,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  replySendBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  sendDisabled: { opacity: 0.4 },
-
-  // Replies list
-  repliesContainer: { gap: spacing.sm, marginTop: spacing.xs },
-  replyItem: {
-    backgroundColor: colors.background, borderRadius: borderRadius.sm, padding: spacing.md,
-    gap: 4, borderLeftWidth: 2, borderLeftColor: colors.border,
-  },
-  replyHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  replyAvatar: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#E0E0E0', alignItems: 'center', justifyContent: 'center',
-  },
-  replyAuthor: { fontSize: fontSizes.xs, fontWeight: '700', color: colors.text, flex: 1 },
-  replyTime: { fontSize: 10, color: colors.textMuted },
-  replyContent: { fontSize: fontSizes.xs, color: colors.textLight, lineHeight: 16 },
-  replyLike: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  replyLikeCount: { fontSize: 11, color: colors.textMuted },
-
-  likedText: { color: '#FF6B6B' },
-
-  // Comment input bar (bottom fixed)
-  commentInputBar: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-    backgroundColor: colors.white,
-    borderTopWidth: 1, borderTopColor: colors.border,
-  },
-  commentInput: {
-    flex: 1, backgroundColor: colors.background, borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    fontSize: fontSizes.sm, color: colors.text,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  commentSendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  commentAuthor: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  commentTime: { fontSize: 12, color: COLORS.muted, marginTop: 1 },
+  commentContent: { fontSize: 14, color: COLORS.text, lineHeight: 20, marginBottom: 12 },
+  commentActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  replyInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
+  replyInput: { flex: 1, backgroundColor: COLORS.background, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: COLORS.text },
+  replySendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { opacity: 0.5 },
+  repliesContainer: { marginTop: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: COLORS.lightMuted },
+  replyItem: { paddingVertical: 10 },
+  replyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  replyAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.lightMuted, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  replyAvatarText: { fontSize: 12, fontWeight: '600', color: COLORS.muted },
+  replyAuthorInfo: { flex: 1 },
+  replyAuthor: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  replyTime: { fontSize: 11, color: COLORS.muted },
+  replyContent: { fontSize: 13, color: COLORS.text, lineHeight: 18, marginBottom: 6 },
+  replyLikeBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: COLORS.background, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  replyLikeBtnLiked: { backgroundColor: COLORS.redLight },
+  replyLikeCount: { fontSize: 12, color: COLORS.muted, fontWeight: '500' },
+  replyLikeCountLiked: { color: COLORS.red },
+  commentInputBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, paddingBottom: 32, backgroundColor: COLORS.white, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.lightMuted },
+  commentInput: { flex: 1, backgroundColor: COLORS.background, borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12, fontSize: 15, color: COLORS.text },
+  commentSendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  modalContent: { backgroundColor: COLORS.white, borderRadius: 24, padding: 24, width: '100%', maxWidth: 320 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center', marginBottom: 8 },
+  modalMessage: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  modalButtons: { gap: 10 },
+  modalBtn: { backgroundColor: COLORS.accent, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  modalBtnDestructive: { backgroundColor: COLORS.red },
+  modalBtnCancel: { backgroundColor: COLORS.background },
+  modalBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
+  modalBtnTextDestructive: { color: COLORS.white },
+  modalBtnTextCancel: { color: COLORS.text },
 });

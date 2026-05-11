@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Modal, Pressable,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,20 @@ import { getMyCommunities, getPosts, getDailyForum, reactToPost, deletePost } fr
 import { communityCache, CK, TTL } from '../../../services/communityCache';
 import { apiError } from '../../../utils/apiError';
 import ModerationActionsModal from '../components/ModerationActionsModal';
+
+const COLORS = {
+  background: '#F7F7F7',
+  text: '#404040',
+  accent: '#D38A58',
+  white: '#FFFFFF',
+  muted: '#A0A0A0',
+  lightMuted: '#E8E8E8',
+  cream: '#FDF8F5',
+  red: '#E25C5C',
+  redLight: '#FDF0F0',
+  accentLight: '#FCF3ED',
+  overlay: 'rgba(64, 64, 64, 0.5)',
+};
 
 type Post = {
   id: string;
@@ -25,6 +39,57 @@ type Post = {
   es_mio: boolean;
 };
 
+function CustomModal({
+  visible,
+  title,
+  message,
+  buttons,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  message?: string;
+  buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[];
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          {message && <Text style={styles.modalMessage}>{message}</Text>}
+          <View style={styles.modalButtons}>
+            {buttons.map((btn, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.modalBtn,
+                  btn.style === 'destructive' && styles.modalBtnDestructive,
+                  btn.style === 'cancel' && styles.modalBtnCancel,
+                ]}
+                onPress={() => {
+                  onClose();
+                  btn.onPress?.();
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modalBtnText,
+                    btn.style === 'destructive' && styles.modalBtnTextDestructive,
+                    btn.style === 'cancel' && styles.modalBtnTextCancel,
+                  ]}
+                >
+                  {btn.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -37,54 +102,66 @@ function timeAgo(dateStr: string): string {
 }
 
 function PostCard({
-  post, onPress, onPressAuthor, onReact, isModerador, onDelete,
+  post, onPress, onPressAuthor, onReact, isModerador, onShowMenu,
 }: {
   post: Post; onPress: () => void; onPressAuthor: () => void;
-  onReact: () => void; isModerador: boolean; onDelete: () => void;
+  onReact: () => void; isModerador: boolean; onShowMenu: () => void;
 }) {
   const liked = post.mis_reacciones?.includes('LIKE') ?? false;
 
-  const showMenu = () => {
-    Alert.alert('Opciones', undefined, [
-      { text: 'Eliminar', style: 'destructive', onPress: onDelete },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
-
   return (
-    <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.9}>
-      <TouchableOpacity style={styles.postHeader} onPress={onPressAuthor} activeOpacity={0.7}>
-        <View style={styles.postAvatar}>
-          <Feather name="user" size={18} color={colors.textMuted} />
+    <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.postHeader}>
+        <TouchableOpacity onPress={onPressAuthor} activeOpacity={0.7}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{post.autor.nombre.charAt(0).toUpperCase()}</Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.authorInfo}>
+          <TouchableOpacity onPress={onPressAuthor} activeOpacity={0.7}>
+            <Text style={styles.authorName}>{post.autor.nombre}</Text>
+          </TouchableOpacity>
+          <View style={styles.metaRow}>
+            {post.comunidad_nombre && (
+              <>
+                <Text style={styles.communityName}>{post.comunidad_nombre}</Text>
+                <View style={styles.dot} />
+              </>
+            )}
+            <Text style={styles.timeText}>{timeAgo(post.created_at)}</Text>
+          </View>
         </View>
-        <View style={styles.postAuthorInfo}>
-          <Text style={styles.postAuthor}>{post.autor.nombre}</Text>
-          {post.comunidad_nombre && (
-            <Text style={styles.postCommunity}>Comunidad: {post.comunidad_nombre}</Text>
-          )}
-        </View>
-        <Text style={styles.postTime}>{timeAgo(post.created_at)}</Text>
         {(post.es_mio || isModerador) && (
-          <TouchableOpacity onPress={showMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="more-horizontal" size={16} color={colors.textMuted} />
+          <TouchableOpacity 
+            style={styles.menuBtn}
+            onPress={onShowMenu} 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="more-horizontal" size={20} color={COLORS.muted} />
           </TouchableOpacity>
         )}
-      </TouchableOpacity>
-      {post.titulo ? <Text style={styles.postTitle}>{post.titulo}</Text> : null}
-      <Text style={styles.postBody}>{post.contenido}</Text>
-      <View style={styles.postActions}>
-        <TouchableOpacity style={styles.postAction} onPress={onReact}>
-          <Feather name="heart" size={18} color={liked ? '#FF6B6B' : colors.textMuted} />
-          <Text style={[styles.postActionText, liked && { color: '#FF6B6B' }]}>
+      </View>
+      
+      {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
+      <Text style={styles.postContent}>{post.contenido}</Text>
+      
+      <View style={styles.actions}>
+        <TouchableOpacity 
+          style={[styles.actionBtn, liked && styles.actionBtnLiked]} 
+          onPress={onReact}
+        >
+          <Feather name="heart" size={18} color={liked ? COLORS.red : COLORS.muted} />
+          <Text style={[styles.actionCount, liked && styles.actionCountLiked]}>
             {post.total_reacciones ?? 0}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} onPress={onPress}>
-          <Feather name="message-circle" size={18} color={colors.textMuted} />
-          <Text style={styles.postActionText}>{post.total_comentarios ?? 0}</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={onPress}>
+          <Feather name="message-circle" size={18} color={COLORS.muted} />
+          <Text style={styles.actionCount}>{post.total_comentarios ?? 0}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.postAction, { marginLeft: 'auto' }]}>
-          <Feather name="share" size={18} color={colors.textMuted} />
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity style={styles.actionBtnShare}>
+          <Feather name="share" size={18} color={COLORS.muted} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -109,6 +186,10 @@ export default function SocialScreen({ navigation }: any) {
   const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
   const [modCommunityId, setModCommunityId] = useState('');
   const [modModalVisible, setModModalVisible] = useState(false);
+  const [menuModal, setMenuModal] = useState<{ visible: boolean; postId: string; comunidadId: string }>({ visible: false, postId: '', comunidadId: '' });
+  const [deleteModal, setDeleteModal] = useState<{ visible: boolean; postId: string; comunidadId: string }>({ visible: false, postId: '', comunidadId: '' });
+  const [actionModal, setActionModal] = useState<{ visible: boolean; autor: any; comunidadId: string }>({ visible: false, autor: null, comunidadId: '' });
+  const [errorModal, setErrorModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
 
   const fetchData = useCallback(async (force = false) => {
     if (!force) {
@@ -169,40 +250,20 @@ export default function SocialScreen({ navigation }: any) {
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
-  const handleDeletePost = async (postId: string, comunidadId: string) => {
+  const confirmDeletePost = async () => {
+    const { postId, comunidadId } = deleteModal;
     const post = allPosts.find(p => p.id === postId);
     const isModerador = communities.find((c: any) => c.id === comunidadId)?.es_moderador === true;
-    Alert.alert('Eliminar post', '¿Estás seguro?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          try {
-            await deletePost(comunidadId, postId);
-            setAllPosts(prev => prev.filter(p => p.id !== postId));
-            if (post && !post.es_mio && isModerador) {
-              Alert.alert(
-                '¿Tomar acciones?',
-                `¿Deseas tomar acciones sobre ${post.autor.nombre}?`,
-                [
-                  { text: 'No', style: 'cancel' },
-                  {
-                    text: 'Sí',
-                    onPress: () => {
-                      setModTarget(post.autor);
-                      setModCommunityId(comunidadId);
-                      setModModalVisible(true);
-                    },
-                  },
-                ],
-              );
-            }
-          } catch (err: any) {
-            Alert.alert('Error', apiError(err, 'No se pudo eliminar el post.'));
-          }
-        },
-      },
-    ]);
+
+    try {
+      await deletePost(comunidadId, postId);
+      setAllPosts(prev => prev.filter(p => p.id !== postId));
+      if (post && !post.es_mio && isModerador) {
+        setActionModal({ visible: true, autor: post.autor, comunidadId });
+      }
+    } catch (err: any) {
+      setErrorModal({ visible: true, message: apiError(err, 'No se pudo eliminar el post.') });
+    }
   };
 
   const handleReact = async (postId: string, comunidadId: string) => {
@@ -226,8 +287,8 @@ export default function SocialScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
@@ -235,81 +296,111 @@ export default function SocialScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Social</Text>
+        <Text style={styles.headerTitle}>Social</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.headerButton, !hasCommunities && styles.headerButtonDisabled]}
+            style={[styles.iconBtn, !hasCommunities && styles.iconBtnDisabled]}
             onPress={() => hasCommunities && navigation.navigate('CreatePost', { communities })}
             disabled={!hasCommunities}
           >
-            <Feather name="plus" size={22} color={hasCommunities ? colors.text : colors.border} />
+            <Feather name="plus" size={22} color={hasCommunities ? COLORS.text : COLORS.lightMuted} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.headerButton}
+            style={styles.iconBtn}
             onPress={() => navigation.navigate('MyCommunities', { communities })}
           >
-            <Feather name="users" size={22} color={colors.text} />
+            <Feather name="users" size={20} color={COLORS.text} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.profileButton}
+            style={styles.profileBtn}
             onPress={() => navigation.navigate('SocialProfile', { isOwn: true })}
           >
-            <View style={styles.profileAvatar}>
-              <Feather name="user" size={18} color={colors.white} />
-            </View>
+            <Feather name="user" size={18} color={COLORS.white} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.headerButton}
+            style={styles.iconBtn}
             onPress={() => navigation.navigate('EditProfile')}
           >
-            <Feather name="more-horizontal" size={22} color={colors.text} />
+            <Feather name="settings" size={20} color={COLORS.text} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); fetchData(true); }}
-            colors={[colors.primary]}
+            colors={[COLORS.accent]}
+            tintColor={COLORS.accent}
           />
         }
       >
-        {/* Foro del día — siempre lleva a la lista de foros */}
         <TouchableOpacity
           style={styles.forumCard}
           onPress={() => navigation.navigate('DailyForum', { communities: forumCommunities })}
-          activeOpacity={0.9}
+          activeOpacity={0.8}
         >
-          <Text style={styles.forumEmoji}>✏️</Text>
-          <View style={styles.forumContent}>
-            <Text style={styles.forumTitle}>Foro del día</Text>
-            <Text style={styles.forumQuestion} numberOfLines={2}>
+          <View style={styles.forumIcon}>
+            <Feather name="message-square" size={20} color={COLORS.white} />
+          </View>
+          <View style={styles.forumTextContent}>
+            <View style={styles.forumLabelRow}>
+              <Text style={styles.forumLabel}>Foro del dia</Text>
+              <View style={styles.forumBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.forumBadgeText}>Activo</Text>
+              </View>
+            </View>
+            <Text style={styles.forumQuestion} numberOfLines={1}>
               {dailyForum?.pregunta || 'No hay foro activo hoy'}
             </Text>
           </View>
-          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+          <Feather name="chevron-right" size={20} color={COLORS.accent} />
         </TouchableOpacity>
 
-        {/* Posts */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Publicaciones</Text>
+          {allPosts.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{allPosts.length}</Text>
+            </View>
+          )}
+        </View>
+
         {!hasCommunities ? (
-          <View style={styles.emptyState}>
-            <Feather name="users" size={48} color={colors.border} />
-            <Text style={styles.emptyTitle}>Sin publicaciones</Text>
-            <Text style={styles.emptySubtitle}>
-              No perteneces a ninguna comunidad todavía.
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIcon}>
+              <Feather name="users" size={32} color={COLORS.accent} />
+            </View>
+            <Text style={styles.emptyTitle}>Sin comunidades</Text>
+            <Text style={styles.emptyText}>
+              Unete a una comunidad para ver publicaciones de otros miembros.
             </Text>
+            <TouchableOpacity 
+              style={styles.emptyBtn}
+              onPress={() => navigation.navigate('MyCommunities', { communities })}
+            >
+              <Text style={styles.emptyBtnText}>Explorar comunidades</Text>
+            </TouchableOpacity>
           </View>
         ) : allPosts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="edit-3" size={48} color={colors.border} />
-            <Text style={styles.emptyTitle}>Sin posts aún</Text>
-            <Text style={styles.emptySubtitle}>
-              Sé el primero en publicar algo en tu comunidad.
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIcon}>
+              <Feather name="edit-3" size={32} color={COLORS.accent} />
+            </View>
+            <Text style={styles.emptyTitle}>Sin publicaciones</Text>
+            <Text style={styles.emptyText}>
+              Se el primero en compartir algo con tu comunidad.
             </Text>
+            <TouchableOpacity 
+              style={styles.emptyBtn}
+              onPress={() => navigation.navigate('CreatePost', { communities })}
+            >
+              <Text style={styles.emptyBtnText}>Crear publicacion</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           allPosts.map((post) => (
@@ -328,12 +419,59 @@ export default function SocialScreen({ navigation }: any) {
                 name: post.autor.nombre,
               })}
               onReact={() => handleReact(post.id, post.comunidad_id)}
-              onDelete={() => handleDeletePost(post.id, post.comunidad_id)}
+              onShowMenu={() => setMenuModal({ visible: true, postId: post.id, comunidadId: post.comunidad_id })}
             />
           ))
         )}
-        <View style={{ height: spacing.xl }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      <CustomModal
+        visible={menuModal.visible}
+        title="Opciones"
+        buttons={[
+          { text: 'Eliminar', style: 'destructive', onPress: () => setDeleteModal({ visible: true, postId: menuModal.postId, comunidadId: menuModal.comunidadId }) },
+          { text: 'Cancelar', style: 'cancel' },
+        ]}
+        onClose={() => setMenuModal({ visible: false, postId: '', comunidadId: '' })}
+      />
+
+      <CustomModal
+        visible={deleteModal.visible}
+        title="Eliminar post"
+        message="¿Estas seguro de que deseas eliminar este post?"
+        buttons={[
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Eliminar', style: 'destructive', onPress: confirmDeletePost },
+        ]}
+        onClose={() => setDeleteModal({ visible: false, postId: '', comunidadId: '' })}
+      />
+
+      <CustomModal
+        visible={actionModal.visible}
+        title="Tomar acciones"
+        message={`¿Deseas tomar acciones sobre ${actionModal.autor?.nombre}?`}
+        buttons={[
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Si',
+            onPress: () => {
+              setModTarget(actionModal.autor);
+              setModCommunityId(actionModal.comunidadId);
+              setModModalVisible(true);
+            },
+          },
+        ]}
+        onClose={() => setActionModal({ visible: false, autor: null, comunidadId: '' })}
+      />
+
+      <CustomModal
+        visible={errorModal.visible}
+        title="Error"
+        message={errorModal.message}
+        buttons={[{ text: 'Aceptar', style: 'default' }]}
+        onClose={() => setErrorModal({ visible: false, message: '' })}
+      />
 
       <ModerationActionsModal
         visible={modModalVisible}
@@ -346,55 +484,68 @@ export default function SocialScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  centered: { justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 60, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg,
+    paddingTop: 60, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: COLORS.white,
   },
-  title: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.text },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerButtonDisabled: { opacity: 0.4 },
-  profileButton: { marginLeft: spacing.xs },
-  profileAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
-  },
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl, gap: spacing.md },
+  headerTitle: { fontSize: 28, fontWeight: '700', color: COLORS.text },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: COLORS.background },
+  iconBtnDisabled: { opacity: 0.5 },
+  profileBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   forumCard: {
-    backgroundColor: colors.white, borderRadius: borderRadius.md, padding: spacing.lg,
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md, elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
+    backgroundColor: COLORS.text, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24,
   },
-  forumEmoji: { fontSize: 32 },
-  forumContent: { flex: 1 },
-  forumTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  forumQuestion: { fontSize: fontSizes.sm, color: colors.textMuted, lineHeight: 18 },
-  postCard: {
-    backgroundColor: colors.white, borderRadius: borderRadius.md, padding: spacing.lg,
-    gap: spacing.sm, elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
-  },
-  postHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  postAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center',
-  },
-  postAuthorInfo: { flex: 1 },
-  postAuthor: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
-  postCommunity: { fontSize: fontSizes.xs, color: colors.textMuted },
-  postTime: { fontSize: fontSizes.xs, color: colors.textMuted },
-  postTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text, lineHeight: 22 },
-  postBody: { fontSize: fontSizes.sm, color: colors.textLight, lineHeight: 20 },
-  postActions: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.xs,
-  },
-  postAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  postActionText: { fontSize: fontSizes.sm, color: colors.textMuted },
-  emptyState: {
-    alignItems: 'center', paddingTop: spacing.xl * 2,
-    gap: spacing.md, paddingHorizontal: spacing.xl,
-  },
-  emptyTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
-  emptySubtitle: { fontSize: fontSizes.md, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  forumIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  forumTextContent: { flex: 1, gap: 4 },
+  forumLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  forumLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
+  forumBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4CAF50' },
+  forumBadgeText: { fontSize: 11, fontWeight: '600', color: COLORS.white },
+  forumQuestion: { fontSize: 15, color: COLORS.white, fontWeight: '500' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  badge: { backgroundColor: COLORS.lightMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  badgeText: { fontSize: 13, fontWeight: '600', color: COLORS.muted },
+  postCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 14 },
+  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatarText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
+  authorInfo: { flex: 1 },
+  authorName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center' },
+  communityName: { fontSize: 13, color: COLORS.muted },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.muted, marginHorizontal: 6 },
+  timeText: { fontSize: 13, color: COLORS.muted },
+  menuBtn: { padding: 4 },
+  postTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8, lineHeight: 22 },
+  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 16 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 6 },
+  actionBtnLiked: { backgroundColor: COLORS.redLight },
+  actionCount: { fontSize: 14, color: COLORS.muted, fontWeight: '500' },
+  actionCountLiked: { color: COLORS.red },
+  actionBtnShare: { padding: 8 },
+  emptyContainer: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },
+  emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.cream, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
+  emptyText: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  emptyBtn: { backgroundColor: COLORS.accent, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 25 },
+  emptyBtnText: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  modalContent: { backgroundColor: COLORS.white, borderRadius: 24, padding: 24, width: '100%', maxWidth: 320 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center', marginBottom: 8 },
+  modalMessage: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  modalButtons: { gap: 10 },
+  modalBtn: { backgroundColor: COLORS.accent, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  modalBtnDestructive: { backgroundColor: COLORS.red },
+  modalBtnCancel: { backgroundColor: COLORS.background },
+  modalBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
+  modalBtnTextDestructive: { color: COLORS.white },
+  modalBtnTextCancel: { color: COLORS.text },
 });
