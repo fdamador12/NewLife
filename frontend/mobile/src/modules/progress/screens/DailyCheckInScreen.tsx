@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
@@ -7,6 +7,7 @@ import { FormData } from './checkin/types';
 import CheckInStep1 from './checkin/components/CheckInStep1';
 import CheckInStep2 from './checkin/components/CheckInStep2';
 import CheckInStep3 from './checkin/components/CheckInStep3';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function DailyCheckInScreen({ navigation }: any) {
   const [step, setStep] = useState(1);
@@ -20,6 +21,11 @@ export default function DailyCheckInScreen({ navigation }: any) {
   });
 
   const { showToast } = useToast();
+
+  // 📊 Analytics: trackear inicio del flujo del checkin (al montar la pantalla)
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.DAILY_CHECKIN_STARTED);
+  }, []);
 
   const handleBack = () => {
     if (step === 1) {
@@ -37,6 +43,10 @@ export default function DailyCheckInScreen({ navigation }: any) {
     new_form: string | null;
     xp: number;
   }) => {
+    // 📊 Analytics: trackear que completó los 3 pasos exitosamente.
+    // NO guardamos el contenido del checkin (mood, reflexión, etc.) por privacidad.
+    analytics.track(EVENT_TYPES.DAILY_CHECKIN_COMPLETED);
+
     navigation.navigate('CheckInSuccess', {
       xp_gained: params.xp_gained,
       evolved: params.evolved,

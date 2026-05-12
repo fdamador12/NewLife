@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useMotivation } from '../hooks/useMotivation';
 import { PhraseCard } from '../components/PhraseCard';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function DailyPhraseScreen({ navigation }: any) {
   const {
@@ -30,6 +31,18 @@ export default function DailyPhraseScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, fetchFraseDia, fetchFrasesGuardadas]);
 
+  // Analytics: trackear daily_phrase_viewed cada vez que se carga la frase.
+  // Sin dedup: si el usuario vuelve a esta pantalla, se trackea de nuevo.
+  // Eso refleja el engagement real con esta frase especifica.
+  useEffect(() => {
+    if (fraseDia?.frase_id) {
+      analytics.track(EVENT_TYPES.DAILY_PHRASE_VIEWED, {
+        phrase_id: fraseDia.frase_id,
+        source: 'daily_phrase_screen',
+      });
+    }
+  }, [fraseDia?.frase_id]);
+
   const handleFavoriteChange = () => {
     // ✅ Refetch inmediato cuando cambia favorita
     fetchFraseDia();
@@ -50,7 +63,6 @@ export default function DailyPhraseScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Frase del Día */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accent} />

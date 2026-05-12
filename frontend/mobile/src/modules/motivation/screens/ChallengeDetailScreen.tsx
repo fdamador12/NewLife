@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
@@ -10,6 +10,7 @@ import { reclamarXp } from '../../../services/motivationService';
 import { ProgressDots } from './challenge-detail/ProgressDots';
 import { MedalCard } from './challenge-detail/MedalCard';
 import { XpClaimButton } from './challenge-detail/XpClaimButton';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   SUAVE: '#4CAF50',
@@ -20,6 +21,11 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 export default function ChallengeDetailScreen({ navigation, route }: any) {
   const { fetchMisChallenges, misChallenges, handleJoinChallenge } = useMotivation();
   const { showToast } = useToast();
+
+  // Analytics: refs para evitar trackear varias veces el mismo evento dentro
+  // de la misma instancia de pantalla.
+  const viewedTrackedRef = useRef(false);
+  const completedTrackedRef = useRef(false);
 
   useEffect(() => {
     fetchMisChallenges();
@@ -35,6 +41,31 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const challengeFresco =
     [...(misChallenges.activos || []), ...(misChallenges.terminados || [])]
       .find(c => c.reto_id === challengeParam.reto_id);
+
+  // Analytics: trackear vista del reto (1 vez por instancia de esta pantalla).
+  useEffect(() => {
+    if (!viewedTrackedRef.current && challengeParam?.reto_id) {
+      viewedTrackedRef.current = true;
+      analytics.track(EVENT_TYPES.CHALLENGE_VIEWED, {
+        challenge_id: challengeParam.reto_id,
+        difficulty: challengeParam.dificultad,
+      });
+    }
+  }, [challengeParam]);
+
+  // Analytics: detectar cuando el usuario VE que su reto se completo.
+  // El backend marca el reto como COMPLETED automaticamente cuando llega al
+  // target, asi que el "momento de completar" desde la perspectiva del usuario
+  // es cuando abre la pantalla y descubre que ya esta hecho.
+  useEffect(() => {
+    if (!completedTrackedRef.current && challengeFresco?.estado === 'COMPLETED') {
+      completedTrackedRef.current = true;
+      analytics.track(EVENT_TYPES.CHALLENGE_COMPLETED, {
+        challenge_id: challengeFresco.reto_id,
+        difficulty: challengeFresco.dificultad,
+      });
+    }
+  }, [challengeFresco]);
 
   if (!challengeFresco) {
     return (

@@ -11,10 +11,12 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 import { useMotivationalPhrases } from '../../../care/hooks/useMotivationalPhrases';
 import MotivationalCard from '../../../care/screens/motivational/components/MotivationalCard';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 export default function MotivationalPhrasesScreen({ navigation }: any) {
   const { frases, loading, toggleFavorito, fetchFrasesPorFecha } = useMotivationalPhrases();
   const hasFetched = useRef(false);
+  const lastTrackedPhraseRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hasFetched.current) {
@@ -31,6 +33,38 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
     });
     return unsubscribe;
   }, [navigation, fetchFrasesPorFecha]);
+
+  // Analytics: trackear la frase de HOY (la primera = index 0) cada vez que
+  // se carga. Sin dedup global pero sin trackear duplicados consecutivos del
+  // mismo render: lastTrackedPhraseRef evita que un rerender con la misma
+  // frase ya cargada (sin cambios) dispare el evento de nuevo.
+  // Si el usuario sale y vuelve a la pantalla, sí se trackea de nuevo (es lo
+  // que queremos: refleja engagement real con esa frase).
+  useEffect(() => {
+    if (frases.length > 0) {
+      const fraseHoy = frases[0];
+      if (fraseHoy?.frase_id && fraseHoy.frase_id !== lastTrackedPhraseRef.current) {
+        lastTrackedPhraseRef.current = fraseHoy.frase_id;
+        analytics.track(EVENT_TYPES.DAILY_PHRASE_VIEWED, {
+          phrase_id: fraseHoy.frase_id,
+          source: 'motivational_phrases_screen',
+        });
+      }
+    }
+  }, [frases]);
+
+  const handleToggleFavorito = (fraseId: string) => {
+    const frase = frases.find((f) => f.frase_id === fraseId);
+    const wasFavorite = frase?.isFavorite ?? false;
+
+    toggleFavorito(fraseId);
+
+    if (!wasFavorite) {
+      analytics.track(EVENT_TYPES.DAILY_PHRASE_FAVORITED, {
+        phrase_id: fraseId,
+      });
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + 'T00:00:00');
@@ -130,7 +164,7 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
                   text={item.frase}
                   image={require('../../../../assets/images/phrase.jpg')}
                   isFavorite={item.isFavorite || false}
-                  onToggleFavorite={toggleFavorito}
+                  onToggleFavorite={handleToggleFavorito}
                 />
               </View>
             </View>
@@ -164,71 +198,18 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: spacing.md,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+  badge: {
+    backgroundColor: colors.white, borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+    borderWidth: 1, borderColor: colors.border,
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: fontSizes.md,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    gap: spacing.sm,
-  },
-  heroIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#FEF3C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  title: {
-    fontSize: fontSizes.xxl,
-    fontWeight: '800',
-    color: colors.text,
-    paddingHorizontal: spacing.xl,
-  },
-  subtitle: {
-    fontSize: fontSizes.md,
-    color: colors.textMuted,
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-  },
-  cardContainer: {
-    flexDirection: 'row',
-    marginBottom: spacing.lg,
-  },
-  timelineIndicator: {
-    width: 24,
-    alignItems: 'center',
-    paddingTop: 6,
-  },
+  badgeText: { fontSize: fontSizes.sm, color: colors.text, fontWeight: '600' },
+  title: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.text, paddingHorizontal: spacing.xl },
+  subtitle: { fontSize: fontSizes.md, color: colors.textMuted, paddingHorizontal: spacing.xl, marginBottom: spacing.lg },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  cardContainer: { flexDirection: 'row', marginBottom: spacing.lg },
+  timelineIndicator: { width: 24, alignItems: 'center', paddingTop: 6 },
   timelineDot: {
     width: 12,
     height: 12,
@@ -305,39 +286,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTitle: {
-    fontSize: fontSizes.lg,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  emptyText: {
-    fontSize: fontSizes.md,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  linkButton: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  link: {
-    fontSize: fontSizes.sm,
-    color: colors.accent,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  badge: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  badgeText: {
-    fontSize: fontSizes.sm,
-    color: colors.text,
-    fontWeight: '600',
-  },
+  emptyTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
+  emptyText: { fontSize: fontSizes.md, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  linkButton: { alignItems: 'center', paddingVertical: spacing.md, marginBottom: spacing.xl },
+  link: { fontSize: fontSizes.sm, color: colors.accent, fontWeight: '600', textDecorationLine: 'underline' },
 });

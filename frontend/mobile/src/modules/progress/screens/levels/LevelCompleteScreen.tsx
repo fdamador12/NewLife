@@ -17,7 +17,7 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LevelComplete'>;
 
-export default function LevelCompleteScreen({ navigation, route }: Props) {
+export default function LevelCompleteScreen({ navigation, route }: any) {
   const { message } = route.params;
 
   return (

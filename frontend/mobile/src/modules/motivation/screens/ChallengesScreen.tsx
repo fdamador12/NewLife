@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useMotivation } from '../hooks/useMotivation';
 import { useToast } from '../../../feedback/ToastContext';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 type ChallengeTab = 'activos' | 'disponibles' | 'terminados';
 
@@ -87,15 +88,39 @@ export default function ChallengesScreen({ navigation }: any) {
   const [tab, setTab] = useState<ChallengeTab>('disponibles');
   const [joiningId, setJoiningId] = useState<string | null>(null);
 
+  // Analytics: trackear que tabs ya hemos visto para no spamear el mismo tab.
+  // Si el usuario va: Disponibles -> Activos -> Disponibles, queremos 3 eventos.
+  // Si solo abre la pantalla y se queda en Disponibles, queremos 1 evento.
+  // Por eso NO usamos un Set: trackeamos cada cambio efectivo de tab.
+  const isFirstRenderRef = useRef(true);
+
   useEffect(() => {
     fetchMisChallenges();
   }, [fetchMisChallenges]);
 
-  const handleJoin = async (retoId: string) => {
+  // Analytics: trackear vista de la lista de retos.
+  // Se dispara al montar y CADA vez que cambia el tab seleccionado.
+  // El property `tab` permite saber que seccion estan viendo:
+  // disponibles (intencion de unirse), activos (revisar progreso) o
+  // terminados (revisar logros).
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.CHALLENGE_LIST_VIEWED, {
+      tab,
+    });
+    isFirstRenderRef.current = false;
+  }, [tab]);
+
+  const handleJoin = async (retoId: string, dificultad: string) => {
     setJoiningId(retoId);
     try {
       await handleJoinChallenge(retoId);
       await fetchMisChallenges();
+
+      analytics.track(EVENT_TYPES.CHALLENGE_JOINED, {
+        challenge_id: retoId,
+        difficulty: dificultad,
+      });
+
       showToast('¡Te uniste al reto exitosamente!', 'success');
       setTab('activos');
     } catch (err: any) {
@@ -170,7 +195,7 @@ export default function ChallengesScreen({ navigation }: any) {
                 onPress={() =>
                   navigation.navigate('ChallengeDetail', { challenge })
                 }
-                onJoin={() => handleJoin(challenge.reto_id)}
+                onJoin={() => handleJoin(challenge.reto_id, challenge.dificultad)}
               />
             ))
           ) : (

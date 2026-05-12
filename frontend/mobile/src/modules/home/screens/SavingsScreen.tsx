@@ -6,6 +6,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getAhorro } from '../../../services/progressService';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 interface AhorroData {
   dias_limpios: number;
@@ -17,6 +18,11 @@ interface AhorroData {
 export default function SavingsScreen({ navigation }: any) {
   const [ahorro, setAhorro] = useState<AhorroData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 📊 Analytics: trackear que el usuario abrió la pantalla de ahorros
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.SAVINGS_VIEWED);
+  }, []);
 
   useEffect(() => {
     const fetchAhorro = async () => {

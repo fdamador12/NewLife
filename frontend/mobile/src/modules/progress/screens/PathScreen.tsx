@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
@@ -8,6 +8,7 @@ import { useLevelProgress } from '../../../hooks/useLevelProgress';
 import { performAnimatedScroll } from '../utils/pathScreenAnimation';
 import { setLevelHeight } from '../utils/levelHeights';
 import { useToast } from '../../../feedback/ToastContext';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 const { width } = Dimensions.get('window');
 
@@ -195,6 +196,17 @@ export default function PathScreen({ navigation }: any) {
     };
 
     console.log('📊 PathScreen - Progress:', userProgress);
+
+    // Analytics: trackear vista del camino de 12 pasos al montar.
+    // Incluimos el progreso actual del usuario para poder analizar
+    // si los usuarios que visitan el camino estan al inicio, mitad o avanzados.
+    useEffect(() => {
+        analytics.track(EVENT_TYPES.LEVEL_PATH_VIEWED, {
+            current_level: progress.nivel,
+            current_sublevel: progress.subnivel,
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleGoBack = () => {
         navigation.reset({

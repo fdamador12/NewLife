@@ -26,3 +26,5 @@ backend/admin-api/tsconfig.tsbuildinfo
 media-data/
 
 .idea/
+
+android/

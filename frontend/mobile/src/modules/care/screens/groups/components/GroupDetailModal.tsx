@@ -12,6 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../../constants/theme';
 import { Grupo } from '../../../services/gruposService';
+import { analytics, EVENT_TYPES, CONTACT_METHODS } from '../../../../../services/analytics';
 
 interface GroupDetailModalProps {
   visible: boolean;
@@ -26,8 +27,14 @@ export default function GroupDetailModal({
 }: GroupDetailModalProps) {
   if (!grupo) return null;
 
+  // 📊 Analytics: trackear contacto antes de Share (con await por seguridad).
+  // Share.share es async pero a veces saca al usuario de la app brevemente.
   const handleCopyEmail = async (email: string) => {
     try {
+      await analytics.track(EVENT_TYPES.SUPPORT_GROUP_CONTACTED, {
+        group_id: grupo.grupo_id,
+        contact_method: CONTACT_METHODS.EMAIL,
+      });
       await Share.share({
         message: email,
         title: 'Email del grupo',
@@ -37,10 +44,15 @@ export default function GroupDetailModal({
     }
   };
 
-  const handleOpenLink = (url: string) => {
-    if (url) {
-      Linking.openURL(url);
-    }
+  // 📊 Analytics: trackear apertura de cada tipo de enlace con su contact_method.
+  // Para cada link recibimos qué tipo es (sitio_web, instagram, facebook, comunidad).
+  const handleOpenLink = async (url: string, contactMethod: string) => {
+    if (!url) return;
+    await analytics.track(EVENT_TYPES.SUPPORT_GROUP_CONTACTED, {
+      group_id: grupo.grupo_id,
+      contact_method: contactMethod,
+    });
+    Linking.openURL(url);
   };
 
   // ✅ PARSEO MANUAL (sin URL)
@@ -84,7 +96,7 @@ export default function GroupDetailModal({
       label: 'Sitio web',
       icon: 'globe',
       value: grupo.sitio_web,
-      action: () => handleOpenLink(grupo.sitio_web!),
+      action: () => handleOpenLink(grupo.sitio_web!, CONTACT_METHODS.WEBSITE),
       show: !!grupo.sitio_web,
     },
     {
@@ -92,7 +104,7 @@ export default function GroupDetailModal({
       label: 'Instagram',
       icon: 'instagram',
       value: grupo.instagram,
-      action: () => handleOpenLink(grupo.instagram!),
+      action: () => handleOpenLink(grupo.instagram!, CONTACT_METHODS.INSTAGRAM),
       show: !!grupo.instagram,
     },
     {
@@ -100,7 +112,7 @@ export default function GroupDetailModal({
       label: 'Facebook',
       icon: 'facebook',
       value: grupo.facebook,
-      action: () => handleOpenLink(grupo.facebook!),
+      action: () => handleOpenLink(grupo.facebook!, CONTACT_METHODS.FACEBOOK),
       show: !!grupo.facebook,
     },
     {
@@ -108,7 +120,7 @@ export default function GroupDetailModal({
       label: 'Comunidad',
       icon: 'share-2',
       value: grupo.comunidad_url,
-      action: () => handleOpenLink(grupo.comunidad_url!),
+      action: () => handleOpenLink(grupo.comunidad_url!, CONTACT_METHODS.COMMUNITY),
       show: !!grupo.comunidad_url,
     },
   ];

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,17 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 import ContentCard from './components/ContentCard';
 import { useContent } from '../../hooks/useContent';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 export default function FavoritesScreen({ navigation }: any) {
   const { favoritos, loading, error, toggleFavorito } = useContent();
   const [search, setSearch] = useState('');
+
+  // Analytics: trackear vista de la lista de favoritos.
+  // Esta pantalla solo se accede desde ContentScreen (icono de corazon en el header).
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.FAVORITES_LIST_VIEWED);
+  }, []);
 
   const filtered = search.trim()
     ? favoritos.filter(

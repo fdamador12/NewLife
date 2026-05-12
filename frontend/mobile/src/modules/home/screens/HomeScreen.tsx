@@ -19,6 +19,7 @@ import GuestBanner from './components/GuestBanner';
 import PetWidget from '../../pet/components/PetWidget';
 import { usePet } from '../../pet/hooks/usePet';
 import { getAhorro } from '../../../services/progressService';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function HomeScreen({ navigation }: any) {
   const [apodo, setApodo] = useState('');
@@ -115,12 +116,25 @@ export default function HomeScreen({ navigation }: any) {
 
   const handleLogout = async () => {
     try {
+      // 📊 Analytics: AWAITEAMOS el track antes de borrar el token.
+      // Si no lo awaitamos, multiRemove borraría el token mientras el track
+      // está leyéndolo y el evento se perdería silenciosamente.
+      // El track NUNCA rechaza la Promise (todos los errores son atrapados internamente),
+      // así que es seguro awaitarlo sin riesgo.
+      if (!isGuest) {
+        await analytics.track(EVENT_TYPES.USER_LOGGED_OUT);
+      }
+
       resetPet();
       if (isGuest) {
         await clearGuestData();
       } else {
         await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
       }
+
+      // 📊 Analytics: limpiar la sesión para que el próximo usuario tenga session_id nuevo
+      analytics.reset();
+
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (e) {
       console.log('Error cerrando sesion:', e);
@@ -132,6 +146,12 @@ export default function HomeScreen({ navigation }: any) {
     if (hour < 12) return 'Buenos dias,';
     if (hour < 19) return 'Buenas tardes,';
     return 'Buenas noches,';
+  };
+
+  // 📊 Analytics: trackear el SOS y luego navegar
+  const handleSosPress = () => {
+    analytics.track(EVENT_TYPES.SOS_TRIGGERED, { source: 'home_button' });
+    navigation.navigate('SOS');
   };
 
   return (
@@ -205,7 +225,7 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.sosWrapper}>
         <TouchableOpacity
           style={styles.sosButton}
-          onPress={() => navigation.navigate('SOS')}
+          onPress={handleSosPress}
           activeOpacity={0.85}
         >
           <View style={styles.sosInner}>

@@ -6,6 +6,7 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../constants/the
 import PetAvatar from '../components/PetAvatar';
 import { PetForm } from '../types/pet.types';
 import { PET_NAMES } from '../utils/petHelpers';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 type Props = {
   navigation: any;
@@ -21,6 +22,16 @@ export default function PetEvolutionScreen({ navigation, route }: Props) {
 
   const scale = useRef(new Animated.Value(0.5)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+
+  // 📊 Analytics: trackear evolución de mascota.
+  // Esta pantalla solo se muestra cuando la mascota efectivamente evolucionó,
+  // así que el track es 1:1 con el evento real.
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.PET_EVOLVED, {
+      new_form: newForm,
+      xp_total: xp,
+    });
+  }, [newForm, xp]);
 
   useEffect(() => {
     Animated.parallel([

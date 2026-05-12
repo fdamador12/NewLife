@@ -4,8 +4,27 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { analytics, EVENT_TYPES, SOS_OPTIONS } from '../../../services/analytics';
 
 export default function SOSScreen({ navigation }: any) {
+
+  // Analytics: trackear cual de las 2 opciones del menu SOS eligio.
+  // El navigate va sin extras: EmergencyContactsScreen hardcodea su propio
+  // source='sos' internamente porque sabe que solo se accede desde aqui.
+  const handleEmergencyContactsPress = () => {
+    analytics.track(EVENT_TYPES.SOS_OPTION_SELECTED, {
+      option: SOS_OPTIONS.EMERGENCY_CONTACTS,
+    });
+    navigation.navigate('EmergencyContacts');
+  };
+
+  const handleCrisisModePress = () => {
+    analytics.track(EVENT_TYPES.SOS_OPTION_SELECTED, {
+      option: SOS_OPTIONS.CRISIS_MODE,
+    });
+    navigation.navigate('CrisisMode');
+  };
+
   return (
     <View style={styles.container}>
 
@@ -25,7 +44,7 @@ export default function SOSScreen({ navigation }: any) {
           <Text style={styles.optionSubtitle}>Habla con alguien que te apoya.</Text>
           <TouchableOpacity
             style={[styles.optionButton, { backgroundColor: '#FF6B6B' }]}
-            onPress={() => navigation.navigate('EmergencyContacts')}
+            onPress={handleEmergencyContactsPress}
           >
             <Text style={styles.optionButtonText}>Ver contactos</Text>
           </TouchableOpacity>
@@ -42,7 +61,7 @@ export default function SOSScreen({ navigation }: any) {
           <Text style={styles.optionSubtitle}>Calma rápida cuando la necesites.</Text>
           <TouchableOpacity
             style={[styles.optionButton, { backgroundColor: '#5C6BC0' }]}
-            onPress={() => navigation.navigate('CrisisMode')}
+            onPress={handleCrisisModePress}
           >
             <Text style={styles.optionButtonText}>Entrar al modo</Text>
           </TouchableOpacity>

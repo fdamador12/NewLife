@@ -12,6 +12,7 @@ import { MotivationModule } from './modules/motivation/motivation.module';
 import { SosModule } from './modules/sos/sos.module';
 import { GuidedMeditationModule } from './modules/guided-meditation/guided-meditation.module';
 import { PetModule } from './modules/pet/pet.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PetModule } from './modules/pet/pet.module';
     SosModule,
     GuidedMeditationModule,
     PetModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

@@ -11,6 +11,7 @@ import { useAgenda } from '../../hooks/useAgenda';
 import { useToast } from '../../../../feedback/ToastContext';
 import { AgendaEventFrontend } from '../../services/agendaService';
 import EventForm from './components/EventForm';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 const COLORS = {
   primary: '#D38A58',
@@ -99,6 +100,13 @@ export default function AddEventScreen({ navigation, route }: any) {
         await updateAgenda(existing.id, eventData);
       } else {
         await createAgenda(eventData);
+
+        // 📊 Analytics: trackear creación de evento (solo cuando es NUEVO, no edición).
+        // No guardamos el título ni hora — solo el hecho de que se creó y la categoría.
+        analytics.track(EVENT_TYPES.AGENDA_EVENT_CREATED, {
+          category: category,
+          has_reminder: reminder,
+        });
       }
 
       if (refetch) await refetch();

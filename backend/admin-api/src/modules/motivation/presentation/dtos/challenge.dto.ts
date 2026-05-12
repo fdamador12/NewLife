@@ -3,7 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ChallengeDifficulty, ChallengeType } from '../../../motivation/domain/entities/challenge.entity';
 
 export class CreateChallengeDto {
-  @ApiProperty({ example: 'Primera semana sin alcohol' })
+  @ApiProperty({ example: 'Primera semana sin consumo' })
   @IsString()
   titulo!: string;
 

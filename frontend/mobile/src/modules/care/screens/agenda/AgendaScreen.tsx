@@ -14,6 +14,7 @@ import { useToast } from '../../../../feedback/ToastContext';
 import { useConfirm } from '../../../../feedback/ConfirmContext';
 import AgendaCalendar from './components/AgendaCalendar';
 import EventCard from './components/EventCard';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 const COLORS = {
   primary: '#D38A58',
@@ -25,18 +26,6 @@ const COLORS = {
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const WEEK_DAYS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
-
-type AgendaEvent = {
-  id: string;
-  title: string;
-  date: Date;
-  timeFrom: string;
-  timeTo: string;
-  category: string;
-  reminder: boolean;
-  reminderMinutes: number;
-  repeat: string;
-};
 
 function timeToMinutes(timeStr: string): number {
   const [timePart, period] = timeStr.split(' ');
@@ -55,6 +44,11 @@ export default function AgendaScreen({ navigation }: any) {
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
+
+  // Analytics: trackear vista de agenda al montar la pantalla
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.AGENDA_VIEWED);
+  }, []);
 
   const isSameDay = (a: Date, b: Date) =>
     a.getDate() === b.getDate() &&

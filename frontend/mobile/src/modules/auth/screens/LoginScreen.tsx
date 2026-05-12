@@ -10,6 +10,7 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../constants/the
 import { loginUser, getOnboardingStatus } from '../../../services/authService';
 import FieldError from '../../../feedback/FieldError';
 import { useToast } from '../../../feedback/ToastContext';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 const INPUT_HEIGHT = 52;
 
@@ -103,6 +104,9 @@ export default function LoginScreen({ navigation }: any) {
       }
 
       await loginUser(email.trim().toLowerCase(), password);
+
+      // 📊 Analytics: trackear login exitoso
+      analytics.track(EVENT_TYPES.USER_LOGGED_IN);
 
       const status = await getOnboardingStatus();
       navigation.navigate(status.completed ? 'Home' : 'Story');

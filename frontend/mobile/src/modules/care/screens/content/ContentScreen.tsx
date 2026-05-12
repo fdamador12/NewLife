@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,25 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 import { useContent } from '../../hooks/useContent';
 import ContentCard from './components/ContentCard';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
-// ✅ Normalización robusta (acentos + símbolos)
+// Normalizacion robusta (acentos + simbolos)
 const normalizeText = (text: string) => {
   return text
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // quita acentos
-    .replace(/[^a-zA-Z0-9 ]/g, '')   // quita símbolos
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
     .toLowerCase();
 };
+
+// Analytics: tiempo de "reposo" antes de considerar que el usuario termino de
+// escribir. Aumentado a 2500ms (de 1200ms) porque en emuladores lentos el
+// teclado se demora y crea pausas inconscientes que falsamente disparan tracks.
+const SEARCH_IDLE_MS = 2500;
+
+// Analytics: minimo de caracteres antes de trackear. Evita registrar
+// busquedas exploratorias muy cortas como "a", "an" que no son intencion real.
+const SEARCH_MIN_CHARS = 3;
 
 export default function ContentScreen({ navigation }: any) {
   const {
@@ -35,7 +45,15 @@ export default function ContentScreen({ navigation }: any) {
 
   const [search, setSearch] = useState('');
 
-  // ✅ Normalizar búsqueda una sola vez
+  // Analytics: refs para tracking de busquedas.
+  const lastTrackedQueryRef = useRef<string>('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Analytics: trackear que el usuario entro a la lista de contenido
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.CONTENT_LIST_VIEWED);
+  }, []);
+
   const normalizedSearch = normalizeText(search);
 
   const filtered = search.trim()
@@ -49,6 +67,41 @@ export default function ContentScreen({ navigation }: any) {
         );
       })
     : null;
+
+  // Analytics: trackear busquedas con debounce robusto.
+  //
+  // Estrategia mejorada (v2):
+  // 1. Cancelar timer pendiente cada vez que cambia el input
+  // 2. Programar nuevo timer de 2500ms (mas tolerante a emuladores lentos)
+  // 3. NO trackear si la query es menor a 3 caracteres (evita ruido)
+  // 4. NO trackear si la query es identica a la ultima trackeada
+  // 5. Si el usuario borra el input, no trackear
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    const trimmed = search.trim();
+
+    // No trackear queries vacias ni muy cortas
+    if (trimmed.length < SEARCH_MIN_CHARS) return;
+
+    // No trackear si es la misma query que ya trackeamos
+    if (trimmed === lastTrackedQueryRef.current) return;
+
+    debounceTimerRef.current = setTimeout(() => {
+      analytics.track(EVENT_TYPES.CONTENT_SEARCHED, {
+        query: trimmed,
+        results_count: filtered?.length ?? 0,
+      });
+      lastTrackedQueryRef.current = trimmed;
+    }, SEARCH_IDLE_MS);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   if (loading) {
     return (

@@ -5,6 +5,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getGratitudeHistory } from '../../../services/progressService';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 interface GratitudeEntry {
   dia: string;
@@ -16,6 +17,11 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
   const [entries, setEntries] = useState<GratitudeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Analytics: trackear visita al historial de gratitud (al montar).
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.GRATITUDE_HISTORY_VIEWED);
+  }, []);
 
   useEffect(() => {
     fetchGratitudeHistory();
@@ -199,11 +205,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
+    marginTop: spacing.lg, backgroundColor: colors.accent,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.md,
   },
   retryButtonText: {
     color: colors.white,

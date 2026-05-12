@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import SubLevelScreen from './SubLevelScreen';
 import MascotBubble from './components/MascotBubble';
 import MultipleChoice from './components/MultipleChoice';
@@ -10,6 +10,7 @@ import { useToast } from '../../../../feedback/ToastContext';
 import { usePet } from '../../../pet/hooks/usePet';
 import { MODULES_CONTENT } from './data/index';
 import { StepType } from './data/types';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 const MASCOT = require('../../../../assets/images/mascotalibro.png');
 
@@ -29,6 +30,56 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
     const { addXp } = usePet();
 
     const content = MODULES_CONTENT[level]?.[sublevel];
+
+    // Analytics: refs para tracking de finalizacion/abandono.
+    // - completedRef: se setea en true cuando el modulo se completa exitosamente.
+    //   Previene que el cleanup del useEffect dispare level_abandoned.
+    // - abandonedTrackedRef: previene que se dispare level_abandoned MAS DE UNA VEZ.
+    //   Necesario porque ahora trackeamos abandono en 2 lugares:
+    //   (1) handleBack con AWAIT (cuando el usuario presiona el boton back)
+    //   (2) cleanup del useEffect (cuando el componente se desmonta por otra razon)
+    //   Si ambos disparan, el ref garantiza que solo el primero pasa.
+    const completedRef = useRef(false);
+    const abandonedTrackedRef = useRef(false);
+
+    // Analytics: trackear inicio del modulo al montar
+    useEffect(() => {
+        if (content) {
+            analytics.track(EVENT_TYPES.LEVEL_STARTED, {
+                level,
+                sublevel,
+            });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Analytics: cleanup que captura abandono.
+    //
+    // IMPORTANTE: este cleanup es la RED DE SEGURIDAD para casos donde el
+    // usuario sale del modulo SIN pasar por handleBack (ej: navega a otra
+    // pantalla, la app se cierra, deep link, etc.).
+    //
+    // PROBLEMA conocido: el track aqui NO puede usar await (los cleanup de
+    // useEffect no son async). Si la app se cierra antes de que la request
+    // HTTP llegue al servidor, el evento se pierde.
+    //
+    // SOLUCION en profundidad: trackeamos en handleBack con AWAIT como ruta
+    // principal, y aqui como fallback. abandonedTrackedRef evita duplicados.
+    useEffect(() => {
+        return () => {
+            if (!completedRef.current && !abandonedTrackedRef.current) {
+                abandonedTrackedRef.current = true;
+                // NOTA: este track NO se awaitea (no se puede en cleanup).
+                // Es fire-and-forget; si falla, se pierde el evento.
+                analytics.track(EVENT_TYPES.LEVEL_ABANDONED, {
+                    level,
+                    sublevel,
+                    via: 'cleanup',
+                });
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     if (!content) return null;
 
@@ -61,6 +112,14 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
 
                 await advance(level, sublevel);
                 console.log('✅ Módulo completado.');
+
+                // Analytics: marcar como completado ANTES de navegar.
+                // Esto previene que el cleanup del useEffect trackee abandono.
+                completedRef.current = true;
+                analytics.track(EVENT_TYPES.LEVEL_COMPLETED, {
+                    level,
+                    sublevel,
+                });
 
                 if (isCurrentModule) {
                     const xpResponse = await addXp('module_complete', level, sublevel);
@@ -103,10 +162,33 @@ export default function NivelModulo({ navigation, level, sublevel }: Props) {
         }
     };
 
-    const handleBack = () => {
+    // Analytics: handleBack mejorado con tracking de abandono.
+    //
+    // Trackeamos level_abandoned AQUI con AWAIT antes del navigate, lo que
+    // garantiza que el evento llega al servidor (a diferencia del cleanup
+    // del useEffect que es fire-and-forget).
+    //
+    // El abandonedTrackedRef previene que se duplique cuando el cleanup
+    // tambien intente trackear despues del navigate.
+    //
+    // Lo trackeamos SIEMPRE que el usuario pulse back, sin importar si esta
+    // en el primer step o avanzado. Salir del modulo es abandonar.
+    const handleBack = async () => {
         if (stepIndex === 0) {
+            // En el primer step, salimos directo a Path.
+            // Trackeamos abandono con await para garantizar entrega.
+            if (!completedRef.current && !abandonedTrackedRef.current) {
+                abandonedTrackedRef.current = true;
+                await analytics.track(EVENT_TYPES.LEVEL_ABANDONED, {
+                    level,
+                    sublevel,
+                    via: 'back_button',
+                    step_index: stepIndex,
+                });
+            }
             navigation.navigate('Path');
         } else {
+            // En steps internos, solo retrocedemos sin abandonar el modulo.
             setStepIndex(stepIndex - 1);
         }
     };

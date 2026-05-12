@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 import { useToast } from '../../../../feedback/ToastContext';
+import { useContent } from '../../hooks/useContent';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 interface ContentItem {
   id: string;
@@ -30,16 +32,61 @@ interface ContentItem {
 }
 
 export default function ArticleScreen({ navigation, route }: any) {
-  const item: ContentItem = route.params?.item;
+  const itemFromParams: ContentItem = route.params?.item;
   const { showToast } = useToast();
 
-  if (!item) {
+  // Obtener el estado de favorito desde el hook useContent, NO del param,
+  // porque el param se queda fijo con el valor inicial (liked=false) cuando
+  // navegan desde la lista. El hook tiene el estado actualizado.
+  const { contenido, toggleFavorito } = useContent();
+
+  // Estado local sincronizado con el del hook
+  const [isLiked, setIsLiked] = useState(itemFromParams?.liked ?? false);
+
+  // Sincronizar el estado local con el del hook cuando cambie el contenido
+  useEffect(() => {
+    if (!itemFromParams?.id) return;
+    const current = contenido.find((c) => c.id === itemFromParams.id);
+    if (current) {
+      setIsLiked(current.liked);
+    }
+  }, [contenido, itemFromParams?.id]);
+
+  // Analytics: trackear vista del contenido especifico
+  useEffect(() => {
+    if (itemFromParams?.id) {
+      analytics.track(EVENT_TYPES.CONTENT_VIEWED, {
+        content_id: itemFromParams.id,
+        content_type: itemFromParams.type,
+        category: itemFromParams.category,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemFromParams?.id]);
+
+  if (!itemFromParams) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>Contenido no disponible</Text>
       </View>
     );
   }
+
+  const item = itemFromParams;
+
+  // Toggle favorito desde dentro del articulo.
+  // El analytics.track de CONTENT_FAVORITED ya se dispara automaticamente
+  // en useContent.toggleFavorito cuando se AGREGA a favoritos (no cuando se quita).
+  const handleToggleFavorito = async () => {
+    try {
+      await toggleFavorito(item.id);
+      // El estado local se actualiza solo via el useEffect que escucha "contenido"
+      // pero para feedback inmediato lo cambiamos tambien aqui
+      setIsLiked((prev) => !prev);
+    } catch (e) {
+      showToast('No se pudo actualizar el favorito', 'error');
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -75,6 +122,16 @@ export default function ArticleScreen({ navigation, route }: any) {
           </Text>
           <Text style={styles.headerSubtitle}>{item.duration}</Text>
         </View>
+        {/* Boton de favorito agregado: cambia visual segun estado isLiked */}
+        <TouchableOpacity onPress={handleToggleFavorito} style={styles.headerAction}>
+          <Feather
+            name="heart"
+            size={20}
+            color={isLiked ? '#FF6B6B' : colors.text}
+            // El fill solo se aplica si el icono lo soporta - feather no lo hace
+            // pero usamos el color rojo cuando esta liked para diferenciacion visual
+          />
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleShare} style={styles.headerAction}>
           <Feather name="share" size={20} color={colors.text} />
         </TouchableOpacity>
@@ -99,8 +156,12 @@ export default function ArticleScreen({ navigation, route }: any) {
             <Text style={styles.tagText}>{item.category}</Text>
           </View>
           <View style={styles.metaStats}>
-            <Feather name="heart" size={14} color={colors.textMuted} />
-            <Text style={styles.metaStat}>—</Text>
+            <Feather
+              name="heart"
+              size={14}
+              color={isLiked ? '#FF6B6B' : colors.textMuted}
+            />
+            <Text style={styles.metaStat}>{isLiked ? '1' : '—'}</Text>
             <Feather name="share" size={14} color={colors.textMuted} />
             <Text style={styles.metaStat}>—</Text>
           </View>
@@ -171,91 +232,51 @@ const styles = StyleSheet.create({
   },
   scroll: { paddingBottom: spacing.xl },
   heroImage: { width: '100%', height: 220 },
-  videoContainer: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
+  videoContainer: { paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
   openVideoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.md, backgroundColor: colors.accent,
+    borderRadius: borderRadius.md, paddingVertical: spacing.md,
   },
-  openVideoText: {
-    fontSize: fontSizes.md,
-    fontWeight: '600',
-    color: colors.white,
-  },
+  openVideoText: { fontSize: fontSizes.md, fontWeight: '600', color: colors.white },
   title: {
-    fontSize: fontSizes.xl,
-    fontWeight: '800',
-    color: colors.text,
-    lineHeight: 28,
-    marginHorizontal: spacing.xl,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    fontSize: fontSizes.xl, fontWeight: '800', color: colors.text,
+    lineHeight: 28, marginHorizontal: spacing.xl,
+    marginTop: spacing.lg, marginBottom: spacing.md,
   },
   metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: spacing.xl, marginBottom: spacing.md,
   },
   tag: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+    backgroundColor: '#F0F0F0', borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md, paddingVertical: 4,
   },
   tagText: { fontSize: fontSizes.xs, color: colors.text, fontWeight: '600' },
-  metaStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
+  metaStats: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaStat: { fontSize: fontSizes.sm, color: colors.textMuted },
   authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    marginHorizontal: spacing.xl, marginBottom: spacing.lg,
   },
   authorAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E0E0E0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#E0E0E0',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   authorImage: { width: 44, height: 44 },
   authorName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text },
   authorRole: { fontSize: fontSizes.sm, color: colors.textMuted },
   body: {
-    fontSize: fontSizes.md,
-    color: colors.textLight,
-    lineHeight: 26,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
+    fontSize: fontSizes.md, color: colors.textLight, lineHeight: 26,
+    marginHorizontal: spacing.xl, marginBottom: spacing.lg,
   },
   tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginHorizontal: spacing.xl,
-    marginTop: spacing.sm,
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm,
+    marginHorizontal: spacing.xl, marginTop: spacing.sm,
   },
   tagChip: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+    backgroundColor: '#F0F0F0', borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md, paddingVertical: 4,
   },
   tagChipText: { fontSize: fontSizes.xs, color: colors.textMuted },
   errorText: { fontSize: fontSizes.md, color: colors.textMuted },

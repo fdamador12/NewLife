@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ImageBackground,
 } from 'react-native';
@@ -7,14 +7,29 @@ import { colors, fontSizes, spacing } from '../../../constants/theme';
 import { usePet } from '../hooks/usePet';
 import XpBar from '../components/XpBar';
 import { PET_BACKGROUND_IMAGES, PET_NAMES } from '../utils/petHelpers';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function PetScreen({ navigation }: any) {
   const { pet, message, loading } = usePet();
 
+  // 📊 Analytics: trackear visita a la pantalla de mascota.
+  // Incluimos el nivel actual como propiedad para análisis (¿los usuarios
+  // de nivel alto la visitan más que los de nivel bajo?).
+  // Solo trackeamos cuando pet ya está cargada (no en loading inicial).
+  useEffect(() => {
+    if (!loading && pet) {
+      analytics.track(EVENT_TYPES.PET_VIEWED, {
+        pet_level: pet.level,
+        pet_form: pet.selected_form,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   if (loading) return null;
 
   const backgroundImage = PET_BACKGROUND_IMAGES[pet.selected_form];
-  
+
   // Usar colores claros para seed y sprout (fondos oscuros)
   const useLightColors = pet.selected_form === 'seed' || pet.selected_form === 'sprout';
   const textColor = useLightColors ? '#FFFFFF' : '#333';

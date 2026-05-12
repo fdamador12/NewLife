@@ -9,6 +9,7 @@ import { useCare } from '../../hooks/useCare';
 import FieldError from '../../../../feedback/FieldError';
 import { useToast } from '../../../../feedback/ToastContext';
 import { useConfirm } from '../../../../feedback/ConfirmContext';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 export default function ContactsScreen({ navigation }: any) {
   const { contactos, loading, addContacto, deleteContacto, updateContacto, fetchContactos } = useCare();
@@ -22,6 +23,18 @@ export default function ContactsScreen({ navigation }: any) {
 
   const { showToast } = useToast();
   const { showConfirm } = useConfirm();
+
+  // Analytics: trackear vista de la pantalla.
+  // Esta pantalla SOLO se navega desde el acceso rapido del tab Cuidado,
+  // asi que el source es siempre 'quick_action' (hardcoded). Eso evita
+  // tener que cambiar CareScreen.tsx para pasar el source via route.params.
+  // El evento es el MISMO que el de EmergencyContactsScreen para que en el
+  // dashboard se consoliden y solo se diferencien por la property `source`.
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.EMERGENCY_CONTACTS_VIEWED, {
+      source: 'quick_action',
+    });
+  }, []);
 
   useEffect(() => {
     fetchContactos();

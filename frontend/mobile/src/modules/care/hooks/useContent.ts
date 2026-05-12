@@ -4,6 +4,7 @@ import {
   ContenidoFrontend,
   CategoriaBackend,
 } from '../services/contentService';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export const useContent = () => {
   const [contenido, setContenido] = useState<ContenidoFrontend[]>([]);
@@ -82,6 +83,12 @@ export const useContent = () => {
           }
 
           await contentService.addFavorito(contenidoId);
+
+          // 📊 Analytics: trackear solo cuando AGREGAN a favoritos (no cuando quitan).
+          // Si quitar también es interesante, podemos agregar un evento aparte después.
+          analytics.track(EVENT_TYPES.CONTENT_FAVORITED, {
+            content_id: contenidoId,
+          });
         }
       } catch (err: any) {
         setError(err.message || 'Error al actualizar favorito');

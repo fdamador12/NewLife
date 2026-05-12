@@ -16,6 +16,7 @@ import {
 import FieldError from '../../../feedback/FieldError';
 import { useToast } from '../../../feedback/ToastContext';
 import { useConfirm } from '../../../feedback/ConfirmContext';
+import { analytics, EVENT_TYPES, CONTACT_METHODS } from '../../../services/analytics';
 
 type Contact = {
   contacto_id?: string;
@@ -36,6 +37,18 @@ export default function EmergencyContactsScreen({ navigation }: any) {
 
   const { showToast } = useToast();
   const { showConfirm } = useConfirm();
+
+  // Analytics: trackear vista de la pantalla.
+  // Esta pantalla SOLO se navega desde SOSScreen ("Ver contactos") segun el
+  // grep del codebase, asi que el source es siempre 'sos' (hardcoded). Eso
+  // evita tener que pasar route.params desde SOSScreen.
+  // El evento es el MISMO que el de ContactsScreen para que en el dashboard
+  // se consoliden y solo se diferencien por la property `source`.
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.EMERGENCY_CONTACTS_VIEWED, {
+      source: 'sos',
+    });
+  }, []);
 
   useEffect(() => {
     fetchContacts();
@@ -156,11 +169,19 @@ export default function EmergencyContactsScreen({ navigation }: any) {
     });
   };
 
-  const callContact = (phone: string) => {
+  // Analytics: AWAITEAMOS el track antes de Linking.openURL para evitar
+  // race condition (Linking puede sacar al usuario antes de que el track termine).
+  const callContact = async (phone: string) => {
+    await analytics.track(EVENT_TYPES.EMERGENCY_CONTACT_USED, {
+      contact_method: CONTACT_METHODS.PHONE,
+    });
     Linking.openURL(`tel:${phone}`);
   };
 
-  const smsContact = (phone: string) => {
+  const smsContact = async (phone: string) => {
+    await analytics.track(EVENT_TYPES.EMERGENCY_CONTACT_USED, {
+      contact_method: CONTACT_METHODS.SMS,
+    });
     Linking.openURL(`sms:${phone}`);
   };
 

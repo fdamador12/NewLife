@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,22 @@ import { shortenVinculoLabel, shortenZonaLabel } from './analysis/utils/labelMap
 import { useEmotionStats } from './analysis/hooks/useEmotionStats';
 import { useConsumptionByDay } from './analysis/hooks/useConsumptionByDay';
 import CalendarScreen from './analysis/calendar/CalendarScreen';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function AnalysisScreen({ navigation }: any) {
   const { summary, riskCharts, loading, error } = useAnalysisData();
   const { emotionStats, loading: emotionLoading } = useEmotionStats();
   const { consumptionByDay, loading: consumptionLoading } = useConsumptionByDay();
+
+  // Analytics: trackear vista de analiticas personales con view_type "chart".
+  // Esta pantalla muestra los charts/graficos del usuario.
+  // El calendario tambien esta embebido pero se contabiliza como "chart"
+  // porque es la misma pantalla.
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.PERSONAL_ANALYTICS_VIEWED, {
+      view_type: 'chart',
+    });
+  }, []);
 
   if (loading || emotionLoading || consumptionLoading) {
     return (

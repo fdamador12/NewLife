@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,13 +15,14 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/
 import { useGrupos } from '../../hooks/useGrupos';
 import { Grupo } from '../../services/gruposService';
 import GroupDetailModal from './components/GroupDetailModal';
+import { analytics, EVENT_TYPES, CONTACT_METHODS } from '../../../../services/analytics';
 
-// ✅ Normaliza texto: quita acentos, símbolos y pasa a minúsculas
+// Normaliza texto: quita acentos, simbolos y pasa a minusculas
 const normalizeText = (text: string) => {
   return text
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // quita acentos
-    .replace(/[^a-zA-Z0-9 ]/g, '')   // quita símbolos (opcional)
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
     .toLowerCase();
 };
 
@@ -31,7 +32,11 @@ export default function GroupsScreen({ navigation }: any) {
   const [showModal, setShowModal] = useState(false);
   const { grupos, loading, error } = useGrupos();
 
-  // ✅ búsqueda normalizada
+  // Analytics: trackear vista de la lista de grupos al montar
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.SUPPORT_GROUP_LIST_VIEWED);
+  }, []);
+
   const normalizedSearch = normalizeText(search);
 
   const filtered = grupos.filter((g) => {
@@ -46,21 +51,32 @@ export default function GroupsScreen({ navigation }: any) {
     );
   });
 
-  const handleCallPhone = (telefonos?: string[]) => {
-    if (telefonos && telefonos.length > 0) {
-      const phoneNumber = telefonos[0];
-      Linking.openURL(`tel:${phoneNumber}`);
+  // Analytics: trackear llamada a grupo (AWAITED antes de Linking).
+  const handleCallPhone = async (grupo: Grupo) => {
+    if (grupo.telefonos && grupo.telefonos.length > 0) {
+      await analytics.track(EVENT_TYPES.SUPPORT_GROUP_CONTACTED, {
+        group_id: grupo.grupo_id,
+        contact_method: CONTACT_METHODS.PHONE,
+      });
+      Linking.openURL(`tel:${grupo.telefonos[0]}`);
     }
   };
 
-  const handleWhatsApp = (whatsapp?: string[]) => {
-    if (whatsapp && whatsapp.length > 0) {
-      const phoneNumber = whatsapp[0];
-      Linking.openURL(`https://wa.me/${phoneNumber}`);
+  const handleWhatsApp = async (grupo: Grupo) => {
+    if (grupo.whatsapp && grupo.whatsapp.length > 0) {
+      await analytics.track(EVENT_TYPES.SUPPORT_GROUP_CONTACTED, {
+        group_id: grupo.grupo_id,
+        contact_method: CONTACT_METHODS.WHATSAPP,
+      });
+      Linking.openURL(`https://wa.me/${grupo.whatsapp[0]}`);
     }
   };
 
+  // Analytics: trackear apertura del modal de detalle del grupo
   const handleOpenLinks = (grupo: Grupo) => {
+    analytics.track(EVENT_TYPES.SUPPORT_GROUP_VIEWED, {
+      group_id: grupo.grupo_id,
+    });
     setSelectedGrupo(grupo);
     setShowModal(true);
   };
@@ -77,7 +93,6 @@ export default function GroupsScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Búsqueda */}
       <View style={styles.searchWrapper}>
         <Feather name="search" size={16} color={colors.textMuted} />
         <TextInput
@@ -89,7 +104,6 @@ export default function GroupsScreen({ navigation }: any) {
         />
       </View>
 
-      {/* CONTENIDO */}
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -110,28 +124,32 @@ export default function GroupsScreen({ navigation }: any) {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {filtered.map((grupo) => (
             <View key={grupo.grupo_id} style={styles.groupCard}>
-              {/* Logo */}
+              {/* Logo arriba (column layout, no row) */}
               {grupo.logo_url ? (
-                <Image source={{ uri: grupo.logo_url }} style={styles.groupLogo} />
+                <Image
+                  source={{ uri: grupo.logo_url }}
+                  style={styles.groupLogo}
+                  resizeMode="cover"
+                />
               ) : (
                 <View style={styles.groupLogoPlaceholder}>
                   <Feather name="home" size={32} color={colors.textMuted} />
                 </View>
               )}
 
-              {/* Info Principal */}
+              {/* Info debajo del logo */}
               <View style={styles.groupInfo}>
                 <Text style={styles.groupName} numberOfLines={2}>
                   {grupo.nombre}
                 </Text>
                 {grupo.descripcion && (
-                  <Text style={styles.groupDescription} numberOfLines={2}>
+                  <Text style={styles.groupDescription} numberOfLines={3}>
                     {grupo.descripcion}
                   </Text>
                 )}
               </View>
 
-              {/* Ubicación */}
+              {/* Ubicacion */}
               {(grupo.lugar || grupo.direccion) && (
                 <View style={styles.locationSection}>
                   {grupo.lugar && (
@@ -155,7 +173,7 @@ export default function GroupsScreen({ navigation }: any) {
                     styles.actionButton,
                     !grupo.telefonos?.length && styles.actionButtonDisabled,
                   ]}
-                  onPress={() => handleCallPhone(grupo.telefonos)}
+                  onPress={() => handleCallPhone(grupo)}
                   disabled={!grupo.telefonos?.length}
                 >
                   <Feather
@@ -178,7 +196,7 @@ export default function GroupsScreen({ navigation }: any) {
                     styles.actionButton,
                     !grupo.whatsapp?.length && styles.actionButtonDisabled,
                   ]}
-                  onPress={() => handleWhatsApp(grupo.whatsapp)}
+                  onPress={() => handleWhatsApp(grupo)}
                   disabled={!grupo.whatsapp?.length}
                 >
                   <Feather
@@ -220,157 +238,65 @@ export default function GroupsScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingTop: 60,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingTop: 60, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg,
   },
-  headerTitle: {
-    fontSize: fontSizes.lg,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  headerSubtitle: {
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
-  },
+  headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
+  headerSubtitle: { fontSize: fontSizes.sm, color: colors.textMuted },
   searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
+    borderRadius: borderRadius.full, paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm, marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg, gap: spacing.sm,
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 3,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: fontSizes.md,
-    color: colors.text,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
+  searchInput: { flex: 1, fontSize: fontSizes.md, color: colors.text },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md },
   errorText: {
-    fontSize: fontSizes.md,
-    color: colors.textMuted,
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
+    fontSize: fontSizes.md, color: colors.textMuted,
+    textAlign: 'center', paddingHorizontal: spacing.xl,
   },
-  emptyText: {
-    fontSize: fontSizes.md,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  scroll: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
+  emptyText: { fontSize: fontSizes.md, color: colors.textMuted, textAlign: 'center' },
+  scroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  // FIX: el card es column-layout (logo arriba, info abajo, acciones al final)
+  // En el codigo previo, cardHeader era 'row' lo cual no funcionaba con
+  // groupLogo width: '100%'. Eliminamos cardHeader y dejamos todo column.
   groupCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    gap: spacing.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    backgroundColor: colors.white, borderRadius: borderRadius.md,
+    padding: spacing.lg, gap: spacing.md,
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4,
   },
   groupLogo: {
-    width: '100%',
-    height: 160,
-    borderRadius: borderRadius.md,
-    backgroundColor: '#F0F0F0',
+    width: '100%', height: 160,
+    borderRadius: borderRadius.md, backgroundColor: '#F0F0F0',
   },
   groupLogoPlaceholder: {
-    width: '100%',
-    height: 160,
-    borderRadius: borderRadius.md,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%', height: 160,
+    borderRadius: borderRadius.md, backgroundColor: '#F0F0F0',
+    alignItems: 'center', justifyContent: 'center',
   },
-  groupInfo: {
-    gap: spacing.xs,
-  },
-  groupName: {
-    fontSize: fontSizes.md,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  groupDescription: {
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
+  groupInfo: { gap: spacing.xs },
+  groupName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text },
+  groupDescription: { fontSize: fontSizes.sm, color: colors.textMuted, lineHeight: 18 },
   locationSection: {
-    gap: spacing.xs,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: spacing.sm,
+    gap: spacing.xs, paddingTop: spacing.sm,
+    borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: spacing.sm,
   },
-  locationPlace: {
-    fontSize: fontSizes.sm,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  locationAddress: {
-    flex: 1,
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  groupActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
+  locationPlace: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.text },
+  locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  locationAddress: { flex: 1, fontSize: fontSizes.sm, color: colors.textMuted, lineHeight: 18 },
+  groupActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   actionButton: {
-    flex: 1,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: '#F8F9FA',
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.xs,
+    flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing.md, paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md, backgroundColor: '#F8F9FA',
+    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
   },
-  actionButtonDisabled: {
-    opacity: 0.4,
-  },
-  actionButtonText: {
-    fontSize: fontSizes.xs,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  actionButtonTextDisabled: {
-    color: colors.textMuted,
-  },
+  actionButtonDisabled: { opacity: 0.4 },
+  actionButtonText: { fontSize: fontSizes.xs, fontWeight: '600', color: colors.text },
+  actionButtonTextDisabled: { color: colors.textMuted },
 });
