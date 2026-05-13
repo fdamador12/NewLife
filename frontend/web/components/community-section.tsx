@@ -267,7 +267,7 @@ export function CommunitySection() {
                 , encuentras personas que te comprenden desde la experiencia:
                 gente que tambi&eacute;n est&aacute; fortaleciendo sus decisiones,
                 aprendiendo a vivir con m&aacute;s claridad y celebrando contigo cada
-                d&iacute;a sin alcohol.{" "}
+                d&iacute;a de recuperaci&oacute;n.{" "}
                 <strong className="not-italic font-bold text-[#1a1a1a]">
                   Aqu&iacute; no caminas a solas: caminas acompa&ntilde;ado.
                 </strong>

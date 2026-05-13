@@ -84,9 +84,9 @@ export function FeaturesSection() {
       <div className="relative z-10 mx-auto max-w-5xl px-6 lg:px-12 flex flex-col gap-24 md:gap-32">
         <FeatureBlock
           title="Celebra cada paso que das"
-          description="Reconoce tus logros y descubre cómo cada día sin alcohol te acerca más a tu mejor versión."
+          description="Reconoce tus logros y descubre cómo cada día de sobriedad te acerca más a tu mejor versión."
           screenSrc="/images/phone1.png"
-          screenAlt="Pantalla de logros mostrando la primera semana sin alcohol"
+          screenAlt="Pantalla de logros mostrando la primera semana de sobriedad"
         />
 
         <FeatureBlock

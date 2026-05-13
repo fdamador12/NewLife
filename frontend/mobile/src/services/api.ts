@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://10.0.2.2:5181';
+// Servidor de producción OPENLAB - Uninorte
+const BASE_URL = 'https://newlife-mobile-api.openlab.uninorte.edu.co';
 
 // Event emitter para notificar sesión expirada
 type Listener = () => void;
