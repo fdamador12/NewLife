@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
-import { getProfile, requestPasswordChange } from '../../../services/authService';
+import { getProfile, logoutUser, requestPasswordChange } from '../../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePet } from '../../pet/hooks/usePet';
 import { useToast } from '../../../feedback/ToastContext';
@@ -50,7 +50,7 @@ export default function SettingsScreen({ navigation }: any) {
       if (guest) {
         await clearGuestData();
       } else {
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
+        await logoutUser(); // ← reemplaza el AsyncStorage.multiRemove
       }
       analytics.reset();
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
