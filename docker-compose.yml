@@ -26,9 +26,7 @@ services:
       ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN}
       CORS_ORIGIN: ${CORS_ORIGIN}
       # ── MinIO ─────────────────────────────────────────────────────
-      # Endpoint interno: el backend habla con MinIO por la red de Docker
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
-      # Endpoint público: URL que se devuelve al frontend para mostrar imágenes
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
       MINIO_REGION: ${MINIO_REGION}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -67,17 +65,14 @@ services:
     build:
       context: ./frontend/web
       dockerfile: Dockerfile
+      args:
+        # Variable horneada en build time — no depende de .env.local
+        NEXT_PUBLIC_API_URL: https://newlife-admin-api.openlab.uninorte.edu.co
     container_name: newlife-frontend-web
     ports:
       - "5182:3000"
     environment:
-      NODE_ENV: development
-      # Apunta al admin-api en producción (OPENLAB)
-      NEXT_PUBLIC_API_URL: https://newlife-admin-api.openlab.uninorte.edu.co
-    volumes:
-      - ./frontend/web:/app
-      - /app/node_modules
-      - /app/.next
+      NODE_ENV: production
     depends_on:
       - admin-api
     restart: unless-stopped
@@ -94,7 +89,6 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_newlife}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-NewLifeMedia2026!}
     volumes:
-      # Mapea el almacenamiento al disco físico
       - ./media-data:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
