@@ -143,6 +143,12 @@ export const deleteAllData = async (): Promise<void> => {
   await logoutUser();
 };
 
+export const requestPasswordChange = async (): Promise<void> => {
+  const email = await AsyncStorage.getItem('userEmail');
+  if (!email) throw new Error('No se encontró el correo');
+  await api.post('/auth/forgot-password', { email });
+};
+
 // ─── Contactos ────────────────────────────────────────────────────────────────
 
 /**

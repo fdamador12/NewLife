@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
-import { getProfile } from '../../../services/authService';
+import { getProfile, requestPasswordChange } from '../../../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePet } from '../../pet/hooks/usePet';
 import { useToast } from '../../../feedback/ToastContext';
@@ -100,6 +100,20 @@ export default function SettingsScreen({ navigation }: any) {
           icon="shield"
           label="Políticas de privacidad"
           onPress={() => navigation.navigate('PrivacyPolicy')}
+        />
+        <View style={styles.gap} />
+
+        <SettingsRow
+          icon="lock"
+          label="Cambiar contraseña"
+          onPress={async () => {
+            try {
+              await requestPasswordChange();
+              showToast('Te enviamos un enlace a tu correo para cambiar la contraseña', 'success');
+            } catch {
+              showToast('No se pudo enviar el correo. Intenta de nuevo.', 'error');
+            }
+          }}
         />
 
         <View style={styles.gap} />

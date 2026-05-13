@@ -140,7 +140,7 @@ export default function LoginScreen({ navigation }: any) {
         <Icon name="chevron-left" size={24} color={colors.text} />
       </TouchableOpacity>
 
-      <Text style={styles.title}>¡Ey! Nos alegra{'\n'}tenerte por acá :</Text>
+      <Text style={styles.title}>¡Ey! Nos alegra{'\n'}tenerte por acá :)</Text>
 
       <View style={styles.inputsContainer}>
 
