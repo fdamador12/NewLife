@@ -82,8 +82,8 @@ services:
       - "5183:9000"
       - "5184:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_newlife}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-NewLifeMedia2026!}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ./media-data:/data
     command: server /data --console-address ":9001"
