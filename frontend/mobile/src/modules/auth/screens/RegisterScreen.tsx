@@ -105,7 +105,7 @@ export default function RegisterScreen({ navigation }: any) {
       if (guestCompletedProfile) {
         navigation.replace('Home');
       } else {
-        navigation.navigate('Story');
+        navigation.navigate('VerifyEmail', { email, password });
       }
 
     } catch (err: any) {

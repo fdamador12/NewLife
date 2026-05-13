@@ -9,9 +9,9 @@ import { LEVELS } from './PathScreen';
 import { useLevelProgress } from '../../../hooks/useLevelProgress';
 
 interface GratitudeEntry {
-  dia: string;
-  gratitud: string;
-  hora: string;
+    dia: string;
+    gratitud: string;
+    hora: string;
 }
 
 export default function ProgressScreen({ navigation }: any) {
@@ -130,11 +130,31 @@ export default function ProgressScreen({ navigation }: any) {
                     <Feather name="chevron-right" size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                {/* ✅ Mostrar último registro o fallback */}
-                {!loading && latestGratitude && (
-                    <TouchableOpacity style={styles.gratitudeCard} onPress={() => navigation.navigate('GratitudeHistory')}>
-                        <Text style={styles.gratitudeDate}>{latestGratitude.dia}</Text>
-                        <Text style={styles.gratitudeText}>{latestGratitude.gratitud}</Text>
+                {/* ✅ Mostrar último registro o mensaje vacío */}
+                {!loading && (
+                    <TouchableOpacity
+                        style={styles.gratitudeCard}
+                        onPress={() => navigation.navigate('GratitudeHistory')}
+                    >
+                        {latestGratitude ? (
+                            <>
+                                <Text style={styles.gratitudeDate}>
+                                    {latestGratitude.dia}
+                                </Text>
+                                <Text style={styles.gratitudeText}>
+                                    {latestGratitude.gratitud}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.gratitudeDate}>
+                                    Aún no hay registros 🌱
+                                </Text>
+                                <Text style={styles.gratitudeText}>
+                                    Empieza tu registro de gratitud haciendo un registro diario.
+                                </Text>
+                            </>
+                        )}
                     </TouchableOpacity>
                 )}
 

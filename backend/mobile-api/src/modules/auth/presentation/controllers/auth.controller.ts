@@ -18,6 +18,8 @@ import { IAuthProviderPort } from '../../domain/ports/auth-provider.port';
 import { LoginDto } from '../dtos/login.dto';
 import { RegisterDto } from '../dtos/register.dto';
 import { MigrateGuestDto } from '../dtos/migrate-guest.dto';
+import { VerifyEmailDto } from '../dtos/verify-email.dto';
+import { VerifyEmailUseCase } from '../../application/use-cases/verify-email.use-case';
 
 @Controller('auth')
 export class AuthController {
@@ -27,9 +29,10 @@ export class AuthController {
     private registerStaffUseCase: RegisterStaffUseCase,
     private refreshTokenUseCase: RefreshTokenUseCase,
     private migrateGuestUseCase: MigrateGuestUseCase,
+    private verifyEmailUseCase: VerifyEmailUseCase,
     @Inject('IAuthProviderPort')
     private readonly authProvider: IAuthProviderPort,
-  ) {}
+  ) { }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -47,6 +50,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async webLogin(@Body() loginDto: LoginDto) {
     return await this.loginUseCase.execute(loginDto);
+  }
+
+  @Post('verify-email')
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.verifyEmailUseCase.execute(dto);
   }
 
   @Post('refresh-token')

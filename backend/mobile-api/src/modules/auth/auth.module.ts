@@ -11,6 +11,7 @@ import { RegisterStaffUseCase } from './application/use-cases/register-staff.use
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { MigrateGuestUseCase } from './application/use-cases/migrate-guest.use-case';
 import { DatabaseModule } from '../database/database.module';
+import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { DatabaseModule } from '../database/database.module';
     RegisterStaffUseCase,
     RefreshTokenUseCase,
     MigrateGuestUseCase,
+    VerifyEmailUseCase,
     {
       provide: 'IAuthProviderPort',
       useClass: RobleAuthAdapter,

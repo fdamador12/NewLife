@@ -97,7 +97,7 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
     return (
         <StepLayout
             currentStep={3}
-            question={hasDate ? 'Listo, desde ahí empiezo a crecer' : '¿Cuándo fue tu último consumo de alcohol?'}
+            question={hasDate ? 'Listo, desde ahí empiezo a crecer' : '¿Cuándo fue tu último consumo?'}
             characterImage={
                 hasDate
                     ? require('../../../../assets/images/character4.png')

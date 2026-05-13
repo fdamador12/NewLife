@@ -1,0 +1,17 @@
+export const CACHE_KEYS = {
+  PROFILE: 'nl_cache_profile',
+  PET: 'nl_cache_pet',
+  SOBRIETY_TIME: 'nl_cache_sobriety_time',
+  SAVED_MONEY: 'nl_cache_saved_money',
+  EMERGENCY_CONTACTS: 'nl_cache_emergency_contacts',
+  DAILY_PHRASES: 'nl_cache_daily_phrases',
+  CAMINO: 'nl_cache_camino',
+  ACTIVE_CHALLENGE: 'nl_cache_active_challenge',
+  LATEST_GRATITUDE: 'nl_cache_latest_gratitude',
+  SAVED_PHRASES: 'nl_cache_saved_phrases',
+  ZONES: 'nl_cache_zones',
+  AGENDA_EVENTS: 'nl_cache_agenda_events',
+  GROUPS: 'nl_cache_groups',
+  MOTIVATIONAL_PHRASES: 'nl_cache_motivational_phrases',
+  CONTENTS: 'nl_cache_contents',
+} as const;

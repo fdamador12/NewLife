@@ -1,30 +1,31 @@
- import api from './api';
+import api from './api';
+import { cacheService } from './cacheService';
+import { CACHE_KEYS } from './cacheKeys';
 
-/**
- * Obtiene la frase del día actual
- */
 /**
  * Obtiene la frase del día actual
  */
 export const getFraseDia = async () => {
   try {
-    const response = await api.get('/motivation/frase-del-dia');
-    // ✅ El backend retorna { data: {...}, isGuardada: boolean }
-    // Extraemos solo data y agregamos isFavorite
-    if (response.data?.data) {
-      return {
-        ...response.data.data,
-        isFavorite: response.data.isGuardada || false,
-      };
-    }
-    return null;
+    return await cacheService.withCache(
+      CACHE_KEYS.DAILY_PHRASES,
+      15,
+      async () => {
+        const response = await api.get('/motivation/frase-del-dia');
+        if (response.data?.data) {
+          return {
+            ...response.data.data,
+            isFavorite: response.data.isGuardada || false,
+          };
+        }
+        return null;
+      },
+    );
   } catch (error: any) {
-    // ✅ Si es 404, retornar null en lugar de tirar error
     if (error.response?.status === 404) {
       console.log('⚠️ No hay frase del día para hoy');
-      return null; // ← RETORNAR NULL, NO TIRAR ERROR
+      return null;
     }
-    // ❌ Para otros errores, sí tirar el error
     console.error('❌ Error obteniendo frase del día:', error.message);
     throw error;
   }
@@ -34,18 +35,17 @@ export const getFraseDia = async () => {
  * Obtiene todas las frases guardadas (favoritas) del usuario
  */
 export const getFrasesGuardadas = async () => {
-  try {
-    const response = await api.get('/motivation/frases-guardadas');
-    // ✅ El backend retorna { data: [...] }
-    // Extraemos solo el array
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    return [];
-  } catch (error: any) {
-    console.error('❌ Error obteniendo frases guardadas:', error.message);
-    throw error;
-  }
+  return cacheService.withCache(
+    CACHE_KEYS.SAVED_PHRASES,
+    30,
+    async () => {
+      const response = await api.get('/motivation/frases-guardadas');
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    },
+  );
 };
 
 /**
@@ -79,15 +79,20 @@ export const desguardarFrase = async (fraseId: string) => {
  */
 export const getMisChallenges = async () => {
   try {
-    const response = await api.get('/motivation/mis-retos');
-    // ✅ El backend retorna { data: { activos, disponibles, terminados } }
-    if (response.data?.data) {
-      return response.data.data;
-    }
-    return { activos: [], disponibles: [], terminados: [] };
+    return await cacheService.withCache(
+      CACHE_KEYS.ACTIVE_CHALLENGE,
+      15,
+      async () => {
+        const response = await api.get('/motivation/mis-retos');
+        if (response.data?.data) {
+          return response.data.data;
+        }
+        return { activos: [], disponibles: [], terminados: [] };
+      },
+    );
   } catch (error: any) {
     console.error('❌ Error obteniendo mis retos:', error.message);
-    throw error;
+    return { activos: [], disponibles: [], terminados: [] };
   }
 };
 

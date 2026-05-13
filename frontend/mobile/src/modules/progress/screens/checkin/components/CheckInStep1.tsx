@@ -47,7 +47,7 @@ export default function CheckInStep1({ onNo, onYes, formData, setFormData }: Pro
       </BlobCard>
 
       <BlobCard badge="Consumo">
-        <Text style={styles.cardQuestion}>¿Consumiste alcohol hoy?</Text>
+        <Text style={styles.cardQuestion}>¿Consumiste hoy?</Text>
         <View style={styles.yesNoRow}>
           <TouchableOpacity
             style={[styles.yesNoButton, formData.consumo === true && styles.yesNoSelected]}

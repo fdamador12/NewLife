@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: spacing.xl,
     right: spacing.xl,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#404040',
     borderRadius: borderRadius.md,
     flexDirection: 'row',
     alignItems: 'center',

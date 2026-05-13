@@ -1,4 +1,6 @@
 import api from '../../../services/api';
+import { cacheService } from '../../../services/cacheService';
+import { CACHE_KEYS } from '../../../services/cacheKeys';
 
 export interface ContenidoBackend {
   _id: string;
@@ -103,32 +105,29 @@ function convertToFrontend(item: ContenidoBackend, categoria?: CategoriaBackend 
 
 export const contentService = {
   async getContenido(): Promise<ContenidoFrontend[]> {
-    try {
-      const response = await api.get<ContenidoResponse>('/care/contenido');
+    return cacheService.withCache(
+      CACHE_KEYS.CONTENTS,
+      30,
+      async () => {
+        const response = await api.get<ContenidoResponse>('/care/contenido');
 
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        // Obtener categorías para mapear IDs
-        const categorias = await this.getCategorias();
-        const categoriaMap = new Map(
-          categorias.map(c => [c.categoria_id, c])
-        );
+        if (response.data?.data && Array.isArray(response.data.data)) {
+          const categorias = await contentService.getCategorias();
+          const categoriaMap = new Map(categorias.map((c) => [c.categoria_id, c]));
 
-        const converted = response.data.data.map((item) => {
-          // Buscar la categoría por ID
-          const categoria = item.categoria_id ? categoriaMap.get(item.categoria_id) : null;
-          return convertToFrontend(item, categoria);
-        });
+          const converted = response.data.data.map((item) => {
+            const categoria = item.categoria_id ? categoriaMap.get(item.categoria_id) : null;
+            return convertToFrontend(item, categoria);
+          });
 
-        return converted.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      }
+          return converted.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+        }
 
-      return [];
-    } catch (error: any) {
-      console.error('❌ Error obteniendo contenido:', error.message);
-      throw error;
-    }
+        return [];
+      },
+    );
   },
 
   async getCategorias(): Promise<CategoriaBackend[]> {

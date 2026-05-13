@@ -1,6 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api';
 import { getGuestDataForMigration, clearGuestData } from './guestService';
+import { cacheService } from './cacheService';
+import { CACHE_KEYS } from './cacheKeys';
+
+// Caché en memoria: se pre-carga desde AsyncStorage al arrancar el módulo
+// para que getProfileSync() retorne el apodo sin esperar ningún await.
+let _profileMemCache: any = null;
+(async () => {
+  const cached = await cacheService.get<any>(CACHE_KEYS.PROFILE);
+  if (cached) _profileMemCache = cached;
+})();
+
+export const getProfileSync = () => _profileMemCache;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -10,13 +22,13 @@ import { getGuestDataForMigration, clearGuestData } from './guestService';
 export const loginUser = async (email: string, password: string) => {
   const response = await api.post('/auth/login', { email, password });
   const { accessToken, refreshToken, user } = response.data;
-  
+
   await AsyncStorage.multiSet([
     ['accessToken', accessToken],
     ['refreshToken', refreshToken],
     ['userEmail', email],
   ]);
-  
+
   try {
     console.log('🆕 Inicializando registro en camino...');
     await api.post('/progress/init');
@@ -24,8 +36,16 @@ export const loginUser = async (email: string, password: string) => {
   } catch (error: any) {
     console.warn('⚠️  Error inicializando camino:', error.message);
   }
-  
+
   return response.data;
+};
+
+export const forgotPassword = async (email: string): Promise<void> => {
+  await api.post('/auth/forgot-password', { email });
+};
+
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+  await api.post('/auth/reset-password', { token, newPassword });
 };
 
 /**
@@ -35,36 +55,25 @@ export const registerUser = async (
   nombre: string,
   email: string,
   password: string,
-  fecha_ultimo_consumo?: string
 ) => {
-  // 1️⃣ Registro
   await api.post('/auth/register', { nombre, email, password });
-  
-  // 2️⃣ Login automático
-  const response = await loginUser(email, password);
-  
-  // 3️⃣ Guardar fecha de sobriedad DESPUÉS del login
-  if (fecha_ultimo_consumo) {
-    try {
-      console.log('📅 Guardando fecha de sobriedad:', fecha_ultimo_consumo);
-      await api.post('/progress/init-sobriety', { 
-        fecha_ultimo_consumo 
-      });
-      console.log('✅ Fecha de sobriedad guardada');
-    } catch (error: any) {
-      console.warn('⚠️ Error guardando fecha de sobriedad:', error.message);
-      // No es crítico si falla
-    }
-  }
-  
-  return response;
+};
+
+export const verifyEmail = async (email: string, code: string): Promise<void> => {
+  await api.post('/auth/verify-email', { email, code });
+};
+
+export const initSobriety = async (fecha_ultimo_consumo: string) => {
+  await api.post('/progress/init-sobriety', { fecha_ultimo_consumo });
 };
 
 /**
  * Logout del usuario
  */
 export const logoutUser = async () => {
+  _profileMemCache = null;
   await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
+  await cacheService.clearAll();
 };
 
 // ─── Migración de Invitado ────────────────────────────────────────────────────
@@ -116,8 +125,28 @@ export const completeProfile = async (data: object) => {
  * Obtiene el perfil completo del usuario
  */
 export const getProfile = async () => {
-  const response = await api.get('/user/profile');
-  return response.data;
+  const result = await cacheService.withCache(
+    CACHE_KEYS.PROFILE,
+    30,
+    async () => {
+      const response = await api.get('/user/profile');
+      return response.data;
+    },
+    (fresh) => { _profileMemCache = fresh; },
+  );
+  _profileMemCache = result;
+  return result;
+};
+
+export const deleteAllData = async (): Promise<void> => {
+  await api.delete('/user/all-data');
+  await logoutUser();
+};
+
+export const requestPasswordChange = async (): Promise<void> => {
+  const email = await AsyncStorage.getItem('userEmail');
+  if (!email) throw new Error('No se encontró el correo');
+  await api.post('/auth/forgot-password', { email });
 };
 
 // ─── Contactos ────────────────────────────────────────────────────────────────
@@ -134,8 +163,14 @@ export const createContact = async (nombre: string, telefono: string) => {
  * Obtiene lista de contactos de emergencia
  */
 export const getContacts = async () => {
-  const response = await api.get('/contacts');
-  return response.data;
+  return cacheService.withCache(
+    CACHE_KEYS.EMERGENCY_CONTACTS,
+    15,
+    async () => {
+      const response = await api.get('/contacts');
+      return response.data;
+    },
+  );
 };
 
 /**
@@ -168,7 +203,7 @@ export const calculateSobrietyTime = (fechaUTCString: string | null) => {
     const fechaUTC = new Date(fechaUTCString);
     const ahoraBrowserMs = Date.now();
     const diffMs = Math.max(0, ahoraBrowserMs - fechaUTC.getTime());
-    
+
     const totalMinutos = Math.floor(diffMs / (1000 * 60));
     const totalHoras = Math.floor(totalMinutos / 60);
     const dias = Math.floor(totalHoras / 24);
@@ -189,15 +224,19 @@ export const calculateSobrietyTime = (fechaUTCString: string | null) => {
  */
 export const getSobrietyTime = async () => {
   try {
-    const response = await api.get('/progress/sobriety-time');
-    const contador = response.data?.contador;
-    
-    console.log('✅ Tiempo sobrio obtenido:', contador);
-    
-    return {
-      message: response.data?.message,
-      contador: contador || { dias: 0, horas: 0, minutos: 0 },
-    };
+    return await cacheService.withCache(
+      CACHE_KEYS.SOBRIETY_TIME,
+      5,
+      async () => {
+        const response = await api.get('/progress/sobriety-time');
+        const contador = response.data?.contador;
+        console.log('✅ Tiempo sobrio obtenido:', contador);
+        return {
+          message: response.data?.message,
+          contador: contador || { dias: 0, horas: 0, minutos: 0 },
+        };
+      },
+    );
   } catch (error: any) {
     console.error('❌ Error obteniendo tiempo sobrio:', error.message);
     return {
@@ -224,4 +263,17 @@ export const getHomeSummary = async () => {
       tiempo_sobrio: { dias: 0, horas: 0, minutos: 0 },
     };
   }
+};
+
+/**
+ * Actualiza el perfil del usuario (apodo, pronombre, motivo_sobrio, gasto_semanal)
+ */
+export const updateProfile = async (data: {
+  apodo?: string;
+  pronombre?: string;
+  motivo_sobrio?: string;
+  gasto_semanal?: number;
+}) => {
+  const response = await api.patch('/user/profile', data);
+  return response.data;
 };

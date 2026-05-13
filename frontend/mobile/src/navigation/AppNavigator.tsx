@@ -8,7 +8,9 @@ import { ConfirmProvider } from '../feedback/ConfirmContext';
 import { PetProvider } from '../modules/pet/context/PetContext';
 import Toast from '../feedback/Toast';
 import ConfirmModal from '../feedback/ConfirmModal';
-
+import SettingsScreen from '../modules/config/screens/SettingsScreen';
+import DeleteAccountScreen from '../modules/config/screens/DeleteAccountScreen';
+import PrivacyPolicyScreen from '../modules/config/screens/PrivacyPolicyScreen';
 import SplashScreen1 from '../modules/onboarding/screens/SplashScreen1';
 import SplashScreen2 from '../modules/onboarding/screens/SplashScreen2';
 import LoaderScreen from './LoaderScreen';
@@ -23,10 +25,7 @@ import Step3_UltimoConsumo from '../modules/auth/screens/AdditionalData/Step3_Ul
 import Step4_Motivo from '../modules/auth/screens/AdditionalData/Step4_Motivo';
 import Step5_Dinero from '../modules/auth/screens/AdditionalData/Step5_Dinero';
 import Step6_Telefono from '../modules/auth/screens/AdditionalData/Step6_Telefono';
-import Step7_LugaresRiesgo from '../modules/auth/screens/AdditionalData/Step7_LugaresRiesgo';
-import Step9_Privacidad from '../modules/auth/screens/AdditionalData/Step9_Privacidad';
 import Step10_Horario from '../modules/auth/screens/AdditionalData/Step10_Horario';
-import Step8_PuntosDebiles from '../modules/auth/screens/AdditionalData/Step8_PuntosDebiles';
 import MainScreen from '../modules/home/screens/MainScreen';
 import SOSScreen from '../modules/home/screens/SOSScreen';
 import EmergencyContactsScreen from '../modules/home/screens/EmergencyContactsScreen';
@@ -78,6 +77,10 @@ import PetScreen from '../modules/pet/screens/PetScreen';
 import PetEvolutionScreen from '../modules/pet/screens/PetEvolutionScreen';
 import PetInfoScreen from '../modules/pet/screens/PetInfoScreen';
 import PetCollectionScreen from '../modules/pet/screens/PetCollectionScreen/index';
+import VerifyEmailScreen from '../modules/auth/screens/VerifyEmailScreen';
+import ForgotPasswordScreen from '../modules/auth/screens/ForgotPasswordScreen';
+
+
 
 const Stack = createNativeStackNavigator();
 
@@ -111,12 +114,12 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Step4" component={Step4_Motivo} />
                   <Stack.Screen name="Step5" component={Step5_Dinero} />
                   <Stack.Screen name="Step6" component={Step6_Telefono} />
-                  <Stack.Screen name="Step7" component={Step7_LugaresRiesgo} />
-                  <Stack.Screen name="Step8" component={Step8_PuntosDebiles} />
-                  <Stack.Screen name="Step9" component={Step9_Privacidad} />
                   <Stack.Screen name="Step10" component={Step10_Horario} />
                   <Stack.Screen name="Home" component={MainScreen} />
                   <Stack.Screen name="SOS" component={SOSScreen} />
+                  <Stack.Screen name="Settings" component={SettingsScreen} />
+                  <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+                  <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
                   <Stack.Screen name="PetScreen" component={PetScreen} />
                   <Stack.Screen name="PetEvolution" component={PetEvolutionScreen} />
                   <Stack.Screen name="PetInfo" component={PetInfoScreen} />
@@ -189,6 +192,8 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="LockedLevel" component={LockedLevelScreen} />
                   <Stack.Screen name="LevelsIndex" component={LevelsIndexScreen} />
                   <Stack.Screen name="Social" component={SocialScreen} />
+                  <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+                  <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
                 </Stack.Navigator>
                 <Toast />
                 <ConfirmModal />

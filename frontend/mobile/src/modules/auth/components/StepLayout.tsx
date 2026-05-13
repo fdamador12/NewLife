@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 7;
 
 type Props = {
     currentStep: number;

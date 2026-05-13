@@ -29,7 +29,7 @@ export class RobleAuthAdapter implements IAuthProviderPort {
 
   async register(data: { email: string; password: string; name: string }): Promise<UserAuthEntity> {
     try {
-      const res = await axios.post(`${this.authBaseUrl}/signup-direct`, {
+      const res = await axios.post(`${this.authBaseUrl}/signup`, {
         name: data.name,
         email: data.email,
         password: data.password
@@ -43,6 +43,13 @@ export class RobleAuthAdapter implements IAuthProviderPort {
     } catch (error: any) {
       throw error;
     }
+  }
+
+  async verifyEmail(email: string, code: string): Promise<void> {
+    await axios.post(
+      `${this.authBaseUrl}/verify-email`,
+      { email, code },
+    );
   }
 
   async verifyToken(token: string): Promise<any> {

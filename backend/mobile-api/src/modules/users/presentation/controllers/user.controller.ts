@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,7 @@ import { UpdateProfileUseCase } from '../../application/use-cases/update-profile
 import { DeleteAccountUseCase } from '../../application/use-cases/delete-account.use-case';
 import { InitialRegisterDto } from '../dtos/initial-register.dto';
 import { UpdateProfileDto } from '../dtos/update-profile.dto';
+import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-data.use-case';
 
 @ApiTags('Perfil de Usuario')
 @ApiBearerAuth()
@@ -36,7 +38,8 @@ export class UserController {
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly deleteAccountUseCase: DeleteAccountUseCase,
-  ) {}
+    private readonly deleteAllDataUseCase: DeleteAllDataUseCase,
+  ) { }
 
   @Post('complete-profile')
   @ApiOperation({ summary: 'Primer registro de datos del paciente (Onboarding)' })
@@ -73,5 +76,13 @@ export class UserController {
   @ApiOkResponse({ description: 'Cuenta eliminada.' })
   async deleteAccount(@Request() req: any) {
     return this.deleteAccountUseCase.execute(req.user.uid);
+  }
+
+  // En user.controller.ts — agregar junto a DELETE /user/account
+  @Delete('all-data')
+  @UseGuards(JwtAuthGuard)
+  async deleteAllData(@Req() req: any) {
+    await this.deleteAllDataUseCase.execute(req.user.uid);
+    return { message: 'Todos tus datos han sido eliminados.' };
   }
 }
