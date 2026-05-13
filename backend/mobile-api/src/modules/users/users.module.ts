@@ -6,11 +6,12 @@ import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
 import { DeleteAccountUseCase } from './application/use-cases/delete-account.use-case';
 import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
+import { DeleteAllDataUseCase } from './application/use-cases/delete-all-data.use-case';
 
 @Module({
-  imports: [DatabaseModule, AuthModule],  // ✅ SIN HomeModule
+  imports: [DatabaseModule, AuthModule],
   controllers: [UserController],
-  providers: [CompleteProfileUseCase, GetProfileUseCase, UpdateProfileUseCase, DeleteAccountUseCase],
-  exports: [GetProfileUseCase],  // ✅ EXPORTAR GetProfileUseCase
+  providers: [CompleteProfileUseCase, GetProfileUseCase, UpdateProfileUseCase, DeleteAccountUseCase, DeleteAllDataUseCase],
+  exports: [GetProfileUseCase], 
 })
 export class UsersModule { }

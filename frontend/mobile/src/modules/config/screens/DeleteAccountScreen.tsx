@@ -1,26 +1,27 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useToast } from '../../../feedback/ToastContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePet } from '../../pet/hooks/usePet';
+import { deleteAllData } from '../../../services/authService';
 
 export default function DeleteAccountScreen({ navigation }: any) {
   const { showToast } = useToast();
   const { resetPet } = usePet();
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleDelete = async () => {
     setLoading(true);
     try {
-      // TODO: llamar endpoint DELETE /user/account cuando esté implementado
+      await deleteAllData();
       resetPet();
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (e: any) {
+      setShowModal(false);
       showToast(e?.message || 'No se pudo eliminar la cuenta', 'error');
     } finally {
       setLoading(false);
@@ -73,18 +74,11 @@ export default function DeleteAccountScreen({ navigation }: any) {
 
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={handleDelete}
-          disabled={loading}
+          onPress={() => setShowModal(true)}
           activeOpacity={0.85}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <>
-              <Feather name="trash-2" size={18} color={colors.white} />
-              <Text style={styles.deleteButtonText}>Eliminar mi cuenta</Text>
-            </>
-          )}
+          <Feather name="trash-2" size={18} color={colors.white} />
+          <Text style={styles.deleteButtonText}>Eliminar mi cuenta</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -95,6 +89,45 @@ export default function DeleteAccountScreen({ navigation }: any) {
           <Text style={styles.cancelButtonText}>Cancelar</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modal de confirmación */}
+      <Modal visible={showModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+
+            <View style={styles.modalIconWrapper}>
+              <Feather name="trash-2" size={32} color="#FF6B6B" />
+            </View>
+
+            <Text style={styles.modalTitle}>Eliminar todos mis datos</Text>
+            <Text style={styles.modalDescription}>
+              Esta acción es irreversible. Todos tus datos, historial y progreso serán eliminados permanentemente.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalDeleteButton, loading && { opacity: 0.7 }]}
+              onPress={handleDelete}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading
+                ? <ActivityIndicator size="small" color={colors.white} />
+                : <Text style={styles.modalDeleteButtonText}>Sí, eliminar definitivamente</Text>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowModal(false)}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalCancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -133,4 +166,32 @@ const styles = StyleSheet.create({
   deleteButtonText: { color: colors.white, fontSize: fontSizes.md, fontWeight: '700' },
   cancelButton: { paddingVertical: spacing.md, width: '100%', alignItems: 'center' },
   cancelButtonText: { fontSize: fontSizes.md, fontWeight: '600', color: colors.textMuted },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modal: {
+    backgroundColor: colors.white, borderRadius: 24,
+    padding: spacing.xl, width: '100%', alignItems: 'center', gap: spacing.md,
+  },
+  modalIconWrapper: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#FFF5F5', alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  modalTitle: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  modalDescription: {
+    fontSize: fontSizes.sm, color: colors.textMuted,
+    textAlign: 'center', lineHeight: 20,
+  },
+  modalDeleteButton: {
+    backgroundColor: '#FF6B6B', borderRadius: borderRadius.md,
+    paddingVertical: spacing.md, width: '100%', alignItems: 'center', marginTop: spacing.sm,
+  },
+  modalDeleteButtonText: { color: colors.white, fontSize: fontSizes.md, fontWeight: '700' },
+  modalCancelButton: { paddingVertical: spacing.sm, width: '100%', alignItems: 'center' },
+  modalCancelButtonText: { fontSize: fontSizes.md, fontWeight: '600', color: colors.textMuted },
 });

@@ -138,6 +138,11 @@ export const getProfile = async () => {
   return result;
 };
 
+export const deleteAllData = async (): Promise<void> => {
+  await api.delete('/user/all-data');
+  await logoutUser();
+};
+
 // ─── Contactos ────────────────────────────────────────────────────────────────
 
 /**
