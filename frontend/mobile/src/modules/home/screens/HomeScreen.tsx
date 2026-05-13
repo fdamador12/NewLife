@@ -4,8 +4,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { getProfile, getSobrietyTime, getHomeSummary } from '../../../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProfile, getSobrietyTime, getHomeSummary, getProfileSync, logoutUser } from '../../../services/authService';
 import { authEventEmitter } from '../../../services/api';
 import {
   isGuestMode,
@@ -22,7 +21,7 @@ import { getAhorro } from '../../../services/progressService';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function HomeScreen({ navigation }: any) {
-  const [apodo, setApodo] = useState('');
+  const [apodo, setApodo] = useState(() => getProfileSync()?.apodo || '');
   const [sobriety, setSobriety] = useState({ dias: 0, horas: 0, minutos: 0 });
   const [ahorro, setAhorro] = useState({ ahorro_total: 0, dias_limpios: 0 });
   const [isGuest, setIsGuest] = useState(false);
@@ -129,7 +128,7 @@ export default function HomeScreen({ navigation }: any) {
       if (isGuest) {
         await clearGuestData();
       } else {
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
+        await logoutUser();
       }
 
       // 📊 Analytics: limpiar la sesión para que el próximo usuario tenga session_id nuevo

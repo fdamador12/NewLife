@@ -1,4 +1,6 @@
 import api from './api';
+import { cacheService } from './cacheService';
+import { CACHE_KEYS } from './cacheKeys';
 
 export type ZoneType = 'risk' | 'safe';
 
@@ -14,8 +16,14 @@ export interface Zone {
 }
 
 export const getZones = async (): Promise<Zone[]> => {
-  const res = await api.get('/zones');
-  return res.data;
+  return cacheService.withCache(
+    CACHE_KEYS.ZONES,
+    30,
+    async () => {
+      const res = await api.get('/zones');
+      return res.data;
+    },
+  );
 };
 
 export const createZone = async (data: {

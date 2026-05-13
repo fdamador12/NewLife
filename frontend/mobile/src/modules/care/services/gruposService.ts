@@ -1,4 +1,6 @@
 import api from '../../../services/api';
+import { cacheService } from '../../../services/cacheService';
+import { CACHE_KEYS } from '../../../services/cacheKeys';
 
 export interface Grupo {
   grupo_id: string;
@@ -22,12 +24,13 @@ export interface GruposResponse {
 
 export const gruposService = {
   async getGrupos(): Promise<Grupo[]> {
-    try {
-      const response = await api.get<GruposResponse>('/care/grupos');
-      return response.data.data || [];
-    } catch (error: any) {
-      console.log('❌ Error obteniendo grupos:', error.message);
-      throw error;
-    }
+    return cacheService.withCache(
+      CACHE_KEYS.GROUPS,
+      15,
+      async () => {
+        const response = await api.get<GruposResponse>('/care/grupos');
+        return response.data.data || [];
+      },
+    );
   },
 };

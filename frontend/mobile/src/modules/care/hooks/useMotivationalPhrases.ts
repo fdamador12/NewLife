@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   getFrasesPorFecha,
+  getMotivationalPhrasesSync,
   guardarFraseMotivacional,
   desguardarFraseMotivacional,
 } from '../services/motivationalService';
@@ -14,20 +15,23 @@ export interface Frase {
 }
 
 export const useMotivationalPhrases = () => {
-  const [frases, setFrases] = useState<Frase[]>([]);
+  const initialCache = getMotivationalPhrasesSync();
+  const [frases, setFrases] = useState<Frase[]>(initialCache ?? []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  // Solo mostrar spinner cuando no hay frases que mostrar todavía
+  const hasDataRef = useRef((initialCache?.length ?? 0) > 0);
 
-  // ✅ Cargar frases por fecha
   const fetchFrasesPorFecha = useCallback(async (fecha: string) => {
     try {
-      setLoading(true);
       setError(null);
+      if (!hasDataRef.current) setLoading(true);
       const data = await getFrasesPorFecha(fecha);
       console.log('📜 Frases obtenidas:', data);
+      hasDataRef.current = (data?.length ?? 0) > 0;
       setFrases(data || []);
       setSelectedDate(fecha);
     } catch (err: any) {

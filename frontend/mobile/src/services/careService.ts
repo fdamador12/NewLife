@@ -1,4 +1,6 @@
 import api from './api';
+import { cacheService } from './cacheService';
+import { CACHE_KEYS } from './cacheKeys';
 
 // ─── GRUPOS ────────────────────────────────────────────────────────────────
 
@@ -6,16 +8,17 @@ import api from './api';
  * Obtiene todos los grupos de apoyo activos
  */
 export const getGrupos = async () => {
-  try {
-    const response = await api.get('/care/grupos');
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    return [];
-  } catch (error: any) {
-    console.error('❌ Error obteniendo grupos:', error.message);
-    throw error;
-  }
+  return cacheService.withCache(
+    CACHE_KEYS.GROUPS,
+    15,
+    async () => {
+      const response = await api.get('/care/grupos');
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    },
+  );
 };
 
 // ─── CONTACTOS ────────────────────────────────────────────────────────────────
@@ -24,20 +27,20 @@ export const getGrupos = async () => {
  * Obtiene lista de contactos de emergencia del usuario
  */
 export const getContactos = async () => {
-  try {
-    const response = await api.get('/contacts');
-    // ✅ El backend retorna { data: [...] } o directamente array
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-    return [];
-  } catch (error: any) {
-    console.error('❌ Error obteniendo contactos:', error.message);
-    throw error;
-  }
+  return cacheService.withCache(
+    CACHE_KEYS.EMERGENCY_CONTACTS,
+    15,
+    async () => {
+      const response = await api.get('/contacts');
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return [];
+    },
+  );
 };
 
 /**
@@ -92,16 +95,17 @@ export const deleteContacto = async (contactoId: string) => {
  * Obtiene todo el contenido publicado (artículos, videos, etc)
  */
 export const getContenido = async () => {
-  try {
-    const response = await api.get('/care/contenido');
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    return [];
-  } catch (error: any) {
-    console.error('❌ Error obteniendo contenido:', error.message);
-    throw error;
-  }
+  return cacheService.withCache(
+    CACHE_KEYS.CONTENTS,
+    30,
+    async () => {
+      const response = await api.get('/care/contenido');
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    },
+  );
 };
 
 /**
@@ -168,16 +172,17 @@ export const getCategorias = async () => {
  * Obtiene los eventos de la agenda del usuario
  */
 export const getEventos = async () => {
-  try {
-    const response = await api.get('/care/agenda');
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-    return [];
-  } catch (error: any) {
-    console.error('❌ Error obteniendo eventos:', error.message);
-    throw error;
-  }
+  return cacheService.withCache(
+    CACHE_KEYS.AGENDA_EVENTS,
+    5,
+    async () => {
+      const response = await api.get('/care/agenda');
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    },
+  );
 };
 
 /**
