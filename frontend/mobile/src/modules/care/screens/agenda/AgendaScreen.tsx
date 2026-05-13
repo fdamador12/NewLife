@@ -101,90 +101,86 @@ export default function AgendaScreen({ navigation }: any) {
     else setCurrentMonth(currentMonth + 1);
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <Feather name="alert-circle" size={48} color={COLORS.gray} />
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Feather name="chevron-left" size={24} color={COLORS.darkGray} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mi Agenda</Text>
-      </View>
-
-      <AgendaCalendar
-        selectedDate={selectedDate}
-        onDateSelect={setSelectedDate}
-        currentMonth={currentMonth}
-        currentYear={currentYear}
-        onPrevMonth={prevMonth}
-        onNextMonth={nextMonth}
-        hasEvent={hasEvent}
-      />
-
-      <View style={styles.dateHeader}>
-        <Text style={styles.dateHeaderText}>{formatSelectedDate()}</Text>
-        <Text style={styles.eventCount}>{todayEvents.length} eventos</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {todayEvents.length > 0 && (
-          <View style={styles.eventsSection}>
-            {todayEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                id={event.id}
-                title={event.title}
-                category={event.category}
-                timeFrom={event.timeFrom}
-                timeTo={event.timeTo}
-                reminder={event.reminder}
-                onEdit={() => navigation.navigate('AddEventScreen', {
-                  event: { ...event, date: event.date.toISOString() },
-                  refetch,
-                })}
-                onDelete={() => handleDelete(event.id)}
-              />
-            ))}
+      {loading ? (
+        <View style={[styles.centerContainer, { flex: 1 }]}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : error ? (
+        <View style={[styles.centerContainer, { flex: 1 }]}>
+          <Feather name="alert-circle" size={48} color={COLORS.gray} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+              <Feather name="chevron-left" size={24} color={COLORS.darkGray} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Mi Agenda</Text>
           </View>
-        )}
 
-        {todayEvents.length === 0 && (
-          <View style={styles.emptyState}>
-            <Feather name="calendar" size={48} color={COLORS.gray} />
-            <Text style={styles.emptyTitle}>Sin eventos</Text>
-            <Text style={styles.emptyText}>No tienes eventos para este día</Text>
+          <AgendaCalendar
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            currentMonth={currentMonth}
+            currentYear={currentYear}
+            onPrevMonth={prevMonth}
+            onNextMonth={nextMonth}
+            hasEvent={hasEvent}
+          />
+
+          <View style={styles.dateHeader}>
+            <Text style={styles.dateHeaderText}>{formatSelectedDate()}</Text>
+            <Text style={styles.eventCount}>{todayEvents.length} eventos</Text>
           </View>
-        )}
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            {todayEvents.length > 0 && (
+              <View style={styles.eventsSection}>
+                {todayEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    id={event.id}
+                    title={event.title}
+                    category={event.category}
+                    timeFrom={event.timeFrom}
+                    timeTo={event.timeTo}
+                    reminder={event.reminder}
+                    onEdit={() => navigation.navigate('AddEventScreen', {
+                      event: { ...event, date: event.date.toISOString() },
+                      refetch,
+                    })}
+                    onDelete={() => handleDelete(event.id)}
+                  />
+                ))}
+              </View>
+            )}
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate('AddEventScreen', {
-          defaultDate: selectedDate.toISOString(),
-          refetch,
-        })}
-      >
-        <Feather name="plus" size={20} color={COLORS.white} />
-        <Text style={styles.addButtonText}>Nuevo evento</Text>
-      </TouchableOpacity>
+            {todayEvents.length === 0 && (
+              <View style={styles.emptyState}>
+                <Feather name="calendar" size={48} color={COLORS.gray} />
+                <Text style={styles.emptyTitle}>Sin eventos</Text>
+                <Text style={styles.emptyText}>No tienes eventos para este día</Text>
+              </View>
+            )}
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('AddEventScreen', {
+              defaultDate: selectedDate.toISOString(),
+              refetch,
+            })}
+          >
+            <Feather name="plus" size={20} color={COLORS.white} />
+            <Text style={styles.addButtonText}>Nuevo evento</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }

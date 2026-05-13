@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
@@ -6,8 +6,9 @@ import { Feather } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useAgenda } from '../hooks/useAgenda';
+import { getZones, Zone } from '../../../services/zonesService';
 
-const MAP_HTML = `
+const getMapHTML = (zones: Zone[]) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -22,22 +23,22 @@ const MAP_HTML = `
 <body>
   <div id="map"></div>
   <script>
-    const map = L.map('map').setView([10.9878, -74.7889], 13);
+    const map = L.map('map', { zoomControl: false }).setView([10.9878, -74.7889], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    L.marker([10.9878, -74.7889], {
-      icon: L.divIcon({
-        className: '',
-        html: '<div style="background:#4A7BF7;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div>'
-      })
-    }).addTo(map);
+    const zones = ${JSON.stringify(zones)};
 
-    L.marker([10.9920, -74.7950], {
-      icon: L.divIcon({
-        className: '',
-        html: '<div style="background:#FF6B6B;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div>'
-      })
-    }).addTo(map);
+    zones.forEach(function(zone) {
+      const color = zone.tipo === 'risk' ? '#FF6B6B' : '#4A7BF7';
+      L.marker([parseFloat(zone.latitud), parseFloat(zone.longitud)], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div style="background:' + color + ';width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        })
+      }).addTo(map).bindPopup('<b>' + zone.nombre + '</b>');
+    });
   </script>
 </body>
 </html>
@@ -62,6 +63,13 @@ function timeToMinutes(timeStr: string): number {
 
 export default function CareScreen({ navigation }: any) {
     const { eventos } = useAgenda();
+    const [zones, setZones] = useState<Zone[]>([]);
+
+    useEffect(() => {
+        getZones()
+            .then(setZones)
+            .catch(() => {});
+    }, []);
 
     const handleQuickAction = (key: string) => {
         switch (key) {
@@ -100,13 +108,11 @@ export default function CareScreen({ navigation }: any) {
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
                 <Text style={styles.title}>Cuidado</Text>
                 <Text style={styles.subtitle}>
                     Encuentra grupos de apoyo, contactos de emergencia y contenido útil.
                 </Text>
 
-                {/* Acciones rápidas */}
                 <Text style={styles.sectionTitle}>Acciones rápidas</Text>
                 <View style={styles.actionsGrid}>
                     {QUICK_ACTIONS.map((action) => (
@@ -122,11 +128,10 @@ export default function CareScreen({ navigation }: any) {
                     ))}
                 </View>
 
-                {/* Mapa */}
                 <Text style={styles.sectionTitle}>Marcadores de apoyo y riesgo</Text>
                 <View style={styles.mapCard}>
                     <WebView
-                        source={{ html: MAP_HTML }}
+                        source={{ html: getMapHTML(zones) }}
                         style={styles.map}
                         scrollEnabled={false}
                         javaScriptEnabled
@@ -141,7 +146,6 @@ export default function CareScreen({ navigation }: any) {
                     </View>
                 </View>
 
-                {/* Agenda */}
                 <TouchableOpacity
                     style={styles.sectionHeaderAgenda}
                     onPress={() => navigation.navigate('AgendaScreen')}
@@ -220,13 +224,6 @@ const styles = StyleSheet.create({
         fontSize: fontSizes.lg,
         fontWeight: '700',
         color: colors.text,
-        marginBottom: spacing.md,
-        marginTop: spacing.sm,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
         marginBottom: spacing.md,
         marginTop: spacing.sm,
     },

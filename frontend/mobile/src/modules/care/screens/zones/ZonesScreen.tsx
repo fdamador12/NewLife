@@ -1,43 +1,17 @@
-import React, { useState, useRef } from 'react';
+// src/screens/zones/ZonesScreen.tsx
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, TextInput, Alert, Dimensions,
+  Modal, TextInput, Alert, Dimensions, ActivityIndicator,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
+import { getZones, createZone, deleteZone, Zone, ZoneType } from '../../../../services/zonesService';
 
 const { height } = Dimensions.get('window');
 
-type ZoneType = 'risk' | 'safe';
-
-type Zone = {
-  id: string;
-  name: string;
-  description?: string;
-  type: ZoneType;
-  latitude: number;
-  longitude: number;
-};
-
-const MOCK_ZONES: Zone[] = [
-  { id: '1', name: 'Bar el Nevado', description: 'Lugar donde solía beber', type: 'risk', latitude: 10.9878, longitude: -74.7889 },
-  { id: '2', name: 'Fundación Shalom', description: 'Zona de apoyo y reuniones', type: 'safe', latitude: 10.9920, longitude: -74.7950 },
-  { id: '3', name: 'Parque del recuerdo', description: '', type: 'risk', latitude: 10.9850, longitude: -74.7920 },
-];
-
-export default function ZonesScreen({ navigation }: any) {
-  const [zones, setZones] = useState<Zone[]>(MOCK_ZONES);
-  const [showModal, setShowModal] = useState(false);
-  const [pendingCoord, setPendingCoord] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [newName, setNewName] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newType, setNewType] = useState<ZoneType>('risk');
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
-  const webViewRef = useRef<WebView>(null);
-
-  const getMapHTML = (zones: Zone[], isAdding: boolean) => `
+const getMapHTML = (zones: Zone[], isAdding: boolean) => `
     <!DOCTYPE html>
     <html>
     <head>
@@ -86,10 +60,10 @@ export default function ZonesScreen({ navigation }: any) {
         }
 
         zones.forEach(function(zone) {
-          const color = zone.type === 'risk' ? '#FF6B6B' : '#4A7BF7';
-          L.marker([zone.latitude, zone.longitude], { icon: makeIcon(color) })
+          const color = zone.tipo === 'risk' ? '#FF6B6B' : '#4A7BF7';
+          L.marker([parseFloat(zone.latitud), parseFloat(zone.longitud)], { icon: makeIcon(color) })
             .addTo(map)
-            .bindPopup('<b>' + zone.name + '</b><br/>' + (zone.description || '') + '<br/><small>' + (zone.type === 'risk' ? '🔴 Riesgo' : '🔵 Segura') + '</small>');
+            .bindPopup('<b>' + zone.nombre + '</b><br/>' + (zone.descripcion || '') + '<br/><small>' + (zone.tipo === 'risk' ? '🔴 Riesgo' : '🔵 Segura') + '</small>');
         });
 
         if (isAdding) {
@@ -106,6 +80,34 @@ export default function ZonesScreen({ navigation }: any) {
     </html>
   `;
 
+export default function ZonesScreen({ navigation }: any) {
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [loadingZones, setLoadingZones] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [pendingCoord, setPendingCoord] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newType, setNewType] = useState<ZoneType>('risk');
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const webViewRef = useRef<WebView>(null);
+
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        const data = await getZones();
+        setZones(data);
+      } catch (e) {
+        console.warn('Error cargando zonas:', e);
+      } finally {
+        setLoadingZones(false);
+      }
+    };
+    fetchZones();
+  }, []);
+
+
   const handleWebViewMessage = (event: any) => {
     const data = JSON.parse(event.nativeEvent.data);
     if (data.type === 'MAP_PRESS') {
@@ -117,26 +119,56 @@ export default function ZonesScreen({ navigation }: any) {
     }
   };
 
-  const handleSaveZone = () => {
+  const handleSaveZone = async () => {
     if (!newName.trim() || !pendingCoord) return;
-    const zone: Zone = {
-      id: Date.now().toString(),
-      name: newName.trim(),
-      description: newDescription.trim(),
-      type: newType,
-      latitude: pendingCoord.latitude,
-      longitude: pendingCoord.longitude,
-    };
-    setZones([...zones, zone]);
-    setShowModal(false);
-    setPendingCoord(null);
-    setIsAdding(false);
+    try {
+      setSaving(true);
+      const res = await createZone({
+        nombre: newName.trim(),
+        descripcion: newDescription.trim(),
+        tipo: newType,
+        latitud: pendingCoord.latitude.toString(),
+        longitud: pendingCoord.longitude.toString(),
+      });
+      const zone: Zone = {
+        _id: res._id,
+        usuario_id: '',
+        nombre: newName.trim(),
+        descripcion: newDescription.trim(),
+        tipo: newType,
+        latitud: pendingCoord.latitude.toString(),
+        longitud: pendingCoord.longitude.toString(),
+        created_at: new Date().toISOString(),
+      };
+      setZones(prev => [...prev, zone]);
+    } catch (e) {
+      console.warn('Error guardando zona:', e);
+      Alert.alert('Error', 'No se pudo guardar la zona. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+      setShowModal(false);
+      setPendingCoord(null);
+      setIsAdding(false);
+    }
   };
 
   const handleDeleteZone = (id: string) => {
     Alert.alert('Eliminar zona', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => setZones(zones.filter((z) => z.id !== id)) },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteZone(id);
+            setZones(prev => prev.filter((z) => z._id !== id));
+            if (selectedZone?._id === id) setSelectedZone(null);
+          } catch (e) {
+            console.warn('Error eliminando zona:', e);
+            Alert.alert('Error', 'No se pudo eliminar la zona.');
+          }
+        },
+      },
     ]);
   };
 
@@ -152,7 +184,6 @@ export default function ZonesScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Mapa */}
       <View style={styles.mapWrapper}>
         <WebView
           ref={webViewRef}
@@ -163,7 +194,6 @@ export default function ZonesScreen({ navigation }: any) {
           domStorageEnabled
         />
 
-        {/* Botón añadir */}
         <TouchableOpacity
           style={[styles.addButton, isAdding && styles.addButtonActive]}
           onPress={() => { setIsAdding(!isAdding); setPendingCoord(null); }}
@@ -171,7 +201,6 @@ export default function ZonesScreen({ navigation }: any) {
           <Feather name={isAdding ? 'x' : 'plus'} size={22} color={colors.white} />
         </TouchableOpacity>
 
-        {/* Leyenda */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#4A7BF7' }]} />
@@ -184,35 +213,44 @@ export default function ZonesScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Lista */}
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        <Text style={styles.listTitle}>Todas las zonas ({zones.length})</Text>
-        {zones.map((zone) => (
-          <TouchableOpacity
-            key={zone.id}
-            style={[styles.zoneCard, selectedZone?.id === zone.id && styles.zoneCardSelected]}
-            onPress={() => setSelectedZone(zone)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.zoneDot, { backgroundColor: zone.type === 'risk' ? '#FF6B6B' : '#4A7BF7' }]} />
-            <View style={styles.zoneInfo}>
-              <Text style={styles.zoneName}>{zone.name}</Text>
-              {zone.description ? (
-                <Text style={styles.zoneDescription} numberOfLines={1}>{zone.description}</Text>
-              ) : null}
-              <Text style={[styles.zoneType, { color: zone.type === 'risk' ? '#FF6B6B' : '#4A7BF7' }]}>
-                {zone.type === 'risk' ? 'Zona de riesgo' : 'Zona segura'}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteZone(zone.id)}>
-              <Feather name="trash-2" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
+      {loadingZones ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          <Text style={styles.listTitle}>Todas las zonas ({zones.length})</Text>
 
-      {/* Modal */}
+          {zones.length === 0 ? (
+            <Text style={styles.emptyText}>Aún no tienes zonas. Toca + en el mapa para agregar una.</Text>
+          ) : (
+            zones.map((zone) => (
+              <TouchableOpacity
+                key={zone._id}
+                style={[styles.zoneCard, selectedZone?._id === zone._id && styles.zoneCardSelected]}
+                onPress={() => setSelectedZone(zone)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.zoneDot, { backgroundColor: zone.tipo === 'risk' ? '#FF6B6B' : '#4A7BF7' }]} />
+                <View style={styles.zoneInfo}>
+                  <Text style={styles.zoneName}>{zone.nombre}</Text>
+                  {zone.descripcion ? (
+                    <Text style={styles.zoneDescription} numberOfLines={1}>{zone.descripcion}</Text>
+                  ) : null}
+                  <Text style={[styles.zoneType, { color: zone.tipo === 'risk' ? '#FF6B6B' : '#4A7BF7' }]}>
+                    {zone.tipo === 'risk' ? 'Zona de riesgo' : 'Zona segura'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteZone(zone._id)}>
+                  <Feather name="trash-2" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))
+          )}
+          <View style={{ height: spacing.xl }} />
+        </ScrollView>
+      )}
+
       <Modal visible={showModal} transparent animationType="slide" statusBarTranslucent>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowModal(false)}>
           <View style={styles.modal}>
@@ -255,11 +293,14 @@ export default function ZonesScreen({ navigation }: any) {
             </View>
 
             <TouchableOpacity
-              style={[styles.saveButton, !newName.trim() && styles.saveButtonDisabled]}
-              disabled={!newName.trim()}
+              style={[styles.saveButton, (!newName.trim() || saving) && styles.saveButtonDisabled]}
+              disabled={!newName.trim() || saving}
               onPress={handleSaveZone}
             >
-              <Text style={styles.saveButtonText}>Guardar zona</Text>
+              {saving
+                ? <ActivityIndicator color={colors.white} />
+                : <Text style={styles.saveButtonText}>Guardar zona</Text>
+              }
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -280,52 +321,32 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
   headerSubtitle: { fontSize: fontSizes.sm, color: colors.textMuted },
-  mapWrapper: {
-    height: height * 0.38,
-    position: 'relative',
-  },
+  mapWrapper: { height: height * 0.38, position: 'relative' },
   map: { flex: 1 },
   addButton: {
-    position: 'absolute',
-    bottom: spacing.md,
-    right: spacing.md,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
+    position: 'absolute', bottom: spacing.md, right: spacing.md,
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', elevation: 4,
   },
   addButtonActive: { backgroundColor: colors.primary },
   legend: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    gap: spacing.xs,
-    elevation: 3,
+    position: 'absolute', bottom: spacing.md, left: spacing.md,
+    backgroundColor: colors.white, borderRadius: borderRadius.md,
+    padding: spacing.sm, gap: spacing.xs, elevation: 3,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: fontSizes.xs, color: colors.text, fontWeight: '500' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
   listTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  emptyText: { fontSize: fontSizes.sm, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
   zoneCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    backgroundColor: colors.white, borderRadius: borderRadius.md,
+    padding: spacing.lg, flexDirection: 'row', alignItems: 'center',
+    gap: spacing.md, marginBottom: spacing.sm, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4,
   },
   zoneCardSelected: { borderWidth: 2, borderColor: colors.accent },
   zoneDot: { width: 14, height: 14, borderRadius: 7, flexShrink: 0 },
@@ -336,34 +357,21 @@ const styles = StyleSheet.create({
   deleteButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modal: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.xl,
-    gap: spacing.sm,
+    backgroundColor: colors.white, borderTopLeftRadius: 24,
+    borderTopRightRadius: 24, padding: spacing.xl, gap: spacing.sm,
   },
   modalTitle: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.text, marginBottom: spacing.sm },
   inputLabel: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text, marginTop: spacing.xs },
   input: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    fontSize: fontSizes.md,
-    color: colors.text,
+    backgroundColor: '#F0F0F0', borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    fontSize: fontSizes.md, color: colors.text,
   },
   typeRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
   typeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.white,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.xs, borderRadius: borderRadius.full, borderWidth: 1,
+    borderColor: colors.border, paddingVertical: spacing.md, backgroundColor: colors.white,
   },
   typeButtonRisk: { backgroundColor: '#FFF0F0', borderColor: '#FF6B6B' },
   typeButtonSafe: { backgroundColor: '#F0F4FF', borderColor: '#4A7BF7' },
@@ -371,11 +379,8 @@ const styles = StyleSheet.create({
   typeButtonText: { fontSize: fontSizes.md, color: colors.text, fontWeight: '500' },
   typeButtonTextSelected: { fontWeight: '700' },
   saveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.md,
+    backgroundColor: colors.primary, borderRadius: borderRadius.full,
+    paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.md,
   },
   saveButtonDisabled: { opacity: 0.4 },
   saveButtonText: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
