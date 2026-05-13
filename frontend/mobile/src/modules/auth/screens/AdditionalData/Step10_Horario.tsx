@@ -94,7 +94,7 @@ export default function Step10_Horario({ navigation }: any) {
 
     return (
         <StepLayout
-            currentStep={10}
+            currentStep={7}
             question="¿En qué momento prefieres que te motivemos?"
             characterImage={require('../../../../assets/images/character11.png')}
             onBack={() => navigation.goBack()}

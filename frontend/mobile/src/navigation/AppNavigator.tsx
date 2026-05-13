@@ -23,10 +23,7 @@ import Step3_UltimoConsumo from '../modules/auth/screens/AdditionalData/Step3_Ul
 import Step4_Motivo from '../modules/auth/screens/AdditionalData/Step4_Motivo';
 import Step5_Dinero from '../modules/auth/screens/AdditionalData/Step5_Dinero';
 import Step6_Telefono from '../modules/auth/screens/AdditionalData/Step6_Telefono';
-import Step7_LugaresRiesgo from '../modules/auth/screens/AdditionalData/Step7_LugaresRiesgo';
-import Step9_Privacidad from '../modules/auth/screens/AdditionalData/Step9_Privacidad';
 import Step10_Horario from '../modules/auth/screens/AdditionalData/Step10_Horario';
-import Step8_PuntosDebiles from '../modules/auth/screens/AdditionalData/Step8_PuntosDebiles';
 import MainScreen from '../modules/home/screens/MainScreen';
 import SOSScreen from '../modules/home/screens/SOSScreen';
 import EmergencyContactsScreen from '../modules/home/screens/EmergencyContactsScreen';
@@ -115,9 +112,6 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Step4" component={Step4_Motivo} />
                   <Stack.Screen name="Step5" component={Step5_Dinero} />
                   <Stack.Screen name="Step6" component={Step6_Telefono} />
-                  <Stack.Screen name="Step7" component={Step7_LugaresRiesgo} />
-                  <Stack.Screen name="Step8" component={Step8_PuntosDebiles} />
-                  <Stack.Screen name="Step9" component={Step9_Privacidad} />
                   <Stack.Screen name="Step10" component={Step10_Horario} />
                   <Stack.Screen name="Home" component={MainScreen} />
                   <Stack.Screen name="SOS" component={SOSScreen} />

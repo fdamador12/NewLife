@@ -37,7 +37,7 @@ export default function Step5_Dinero({ navigation }: any) {
     <>
       <StepLayout
         currentStep={5}
-        question="¿Cuánto gastabas más o menos en alcohol a la semana?"
+        question="¿Cuánto gastabas más o menos en tu adicción a la semana?"
         characterImage={require('../../../../assets/images/character6.png')}
         onBack={() => navigation.goBack()}
         onContinue={() => {
