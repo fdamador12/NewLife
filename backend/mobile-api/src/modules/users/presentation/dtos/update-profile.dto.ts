@@ -17,7 +17,7 @@ export class UpdateProfileDto {
   @IsString()
   motivo_sobrio?: string;
 
-  @ApiPropertyOptional({ example: 50000, description: 'Gasto semanal estimado en alcohol' })
+  @ApiPropertyOptional({ example: 50000, description: 'Gasto semanal estimado en sustancias' })
   @IsOptional()
   @IsNumber()
   @Min(0)

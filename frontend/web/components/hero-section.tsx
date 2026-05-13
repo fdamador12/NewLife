@@ -216,7 +216,7 @@ export function HeroSection() {
             {/* Badge */}
             <div className="inline-block mb-6">
               <span className="inline-block rounded-full border border-[#ffffff]/30 bg-[#ffffff]/10 px-5 py-2.5 text-sm text-[#ffffff] backdrop-blur-sm">
-                {'"Tu compañero hacia una vida sin alcohol"'}
+                {'"Tu compañero hacia una vida libre de sustancias"'}
               </span>
             </div>
 

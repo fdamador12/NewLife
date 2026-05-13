@@ -1,0 +1,90 @@
+# docker-compose.dev.yml
+# USO LOCAL ÚNICAMENTE — NO va al servidor
+# Comando: docker compose -f docker-compose.dev.yml up -d
+# Hot reload activado para frontend-web
+name: newlife-dev
+services:
+
+  # ── Backend Web (admin-api) ──────────────────────────────────────
+  admin-api:
+    build:
+      context: ./backend/admin-api
+      dockerfile: Dockerfile
+    container_name: newlife-admin-api
+    ports:
+      - "5180:3001"
+    environment:
+      PORT: 3001
+      ROBLE_BASE_URL: ${ROBLE_BASE_URL}
+      ROBLE_PROJECT_TOKEN: ${ROBLE_PROJECT_TOKEN}
+      ROBLE_DB_NAME: ${ROBLE_DB_NAME}
+      ROBLE_SYSTEM_EMAIL: ${ROBLE_SYSTEM_EMAIL}
+      ROBLE_SYSTEM_PASSWORD: ${ROBLE_SYSTEM_PASSWORD}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      MINIO_REGION: ${MINIO_REGION}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_PUBLIC: ${MINIO_BUCKET_PUBLIC}
+      MEDIA_MAX_FILE_SIZE_MB: ${MEDIA_MAX_FILE_SIZE_MB}
+      MEDIA_MAX_IMAGE_DIMENSION: ${MEDIA_MAX_IMAGE_DIMENSION}
+      MEDIA_MIN_IMAGE_DIMENSION: ${MEDIA_MIN_IMAGE_DIMENSION}
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+  # ── Backend Mobile (api) ─────────────────────────────────────────
+  api:
+    build:
+      context: ./backend/mobile-api
+      dockerfile: Dockerfile
+    container_name: newlife-mobile-api
+    ports:
+      - "5181:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/mobile-api:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run start:dev
+    restart: unless-stopped
+
+  # ── Frontend Web (Next.js) — MODO DESARROLLO ─────────────────────
+  frontend-web:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile.dev       # Dockerfile original con npm run dev
+    container_name: newlife-frontend-web
+    ports:
+      - "5182:3000"
+    environment:
+      NODE_ENV: development
+      # En desarrollo apunta al admin-api local
+      NEXT_PUBLIC_API_URL: http://localhost:5180
+    volumes:
+      - ./frontend/web:/app            # Hot reload — cambios en vivo
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - admin-api
+    restart: unless-stopped
+
+  # ── Almacenamiento de Media (MinIO) ──────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: newlife-minio
+    ports:
+      - "5183:9000"
+      - "5184:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_newlife}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-NewLifeMedia2026!}
+    volumes:
+      - ./media-data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
