@@ -72,7 +72,8 @@ services:
       - "5182:3000"
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:5180
+      # Apunta al admin-api en producción (OPENLAB)
+      NEXT_PUBLIC_API_URL: https://newlife-admin-api.openlab.uninorte.edu.co
     volumes:
       - ./frontend/web:/app
       - /app/node_modules
