@@ -205,16 +205,11 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* Banner de invitado o logout */}
-        {isGuest ? (
+        {isGuest && (
           <GuestBanner
             onCreateAccount={() => navigation.navigate('Register')}
             onLogout={handleLogout}
           />
-        ) : (
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Feather name="log-out" size={18} color="#443e3e" />
-            <Text style={styles.logoutText}>Cerrar sesion</Text>
-          </TouchableOpacity>
         )}
 
         <View style={{ height: 100 }} />

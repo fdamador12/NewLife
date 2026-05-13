@@ -253,3 +253,16 @@ export const getHomeSummary = async () => {
     };
   }
 };
+
+/**
+ * Actualiza el perfil del usuario (apodo, pronombre, motivo_sobrio, gasto_semanal)
+ */
+export const updateProfile = async (data: {
+  apodo?: string;
+  pronombre?: string;
+  motivo_sobrio?: string;
+  gasto_semanal?: number;
+}) => {
+  const response = await api.patch('/user/profile', data);
+  return response.data;
+};

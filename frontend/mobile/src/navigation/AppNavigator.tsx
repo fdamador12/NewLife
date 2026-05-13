@@ -8,7 +8,9 @@ import { ConfirmProvider } from '../feedback/ConfirmContext';
 import { PetProvider } from '../modules/pet/context/PetContext';
 import Toast from '../feedback/Toast';
 import ConfirmModal from '../feedback/ConfirmModal';
-
+import SettingsScreen from '../modules/config/screens/SettingsScreen';
+import DeleteAccountScreen from '../modules/config/screens/DeleteAccountScreen';
+import PrivacyPolicyScreen from '../modules/config/screens/PrivacyPolicyScreen';
 import SplashScreen1 from '../modules/onboarding/screens/SplashScreen1';
 import SplashScreen2 from '../modules/onboarding/screens/SplashScreen2';
 import LoaderScreen from './LoaderScreen';
@@ -115,6 +117,9 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Step10" component={Step10_Horario} />
                   <Stack.Screen name="Home" component={MainScreen} />
                   <Stack.Screen name="SOS" component={SOSScreen} />
+                  <Stack.Screen name="Settings" component={SettingsScreen} />
+                  <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+                  <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
                   <Stack.Screen name="PetScreen" component={PetScreen} />
                   <Stack.Screen name="PetEvolution" component={PetEvolutionScreen} />
                   <Stack.Screen name="PetInfo" component={PetInfoScreen} />
