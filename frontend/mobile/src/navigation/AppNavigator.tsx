@@ -78,6 +78,10 @@ import PetScreen from '../modules/pet/screens/PetScreen';
 import PetEvolutionScreen from '../modules/pet/screens/PetEvolutionScreen';
 import PetInfoScreen from '../modules/pet/screens/PetInfoScreen';
 import PetCollectionScreen from '../modules/pet/screens/PetCollectionScreen/index';
+import VerifyEmailScreen from '../modules/auth/screens/VerifyEmailScreen';
+import ForgotPasswordScreen from '../modules/auth/screens/ForgotPasswordScreen';
+
+
 
 const Stack = createNativeStackNavigator();
 
@@ -189,6 +193,8 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="LockedLevel" component={LockedLevelScreen} />
                   <Stack.Screen name="LevelsIndex" component={LevelsIndexScreen} />
                   <Stack.Screen name="Social" component={SocialScreen} />
+                  <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+                  <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
                 </Stack.Navigator>
                 <Toast />
                 <ConfirmModal />

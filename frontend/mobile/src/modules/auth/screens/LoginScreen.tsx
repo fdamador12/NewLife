@@ -14,7 +14,6 @@ import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 const INPUT_HEIGHT = 52;
 
-// 🔥 SOLO MEJORAMOS ESTO
 const parsearErrorServidor = (msg: string, status?: number): string => {
   const m = (msg || '').toLowerCase();
 
@@ -112,7 +111,6 @@ export default function LoginScreen({ navigation }: any) {
       navigation.navigate(status.completed ? 'Home' : 'Story');
 
     } catch (err: any) {
-      // 🔥 AQUÍ ESTÁ LA CLAVE
       if (!err.response) {
         showToast('Sin conexión o servidor no disponible', 'error');
         return;
@@ -195,9 +193,16 @@ export default function LoginScreen({ navigation }: any) {
           <Text style={{ marginLeft: 8, color: colors.text }}>Recordarme</Text>
         </View>
 
-        <TouchableOpacity style={styles.forgotContainer}>
-          <Text style={styles.forgotText}>¿Se te olvidó la contraseña?</Text>
-        </TouchableOpacity>
+        <View style={styles.forgotContainer}>
+          <Text style={styles.forgotText}>
+            ¿Se te olvidó la contraseña?{' '}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={styles.clickHere}>
+              Click aquí
+            </Text>
+          </TouchableOpacity>
+        </View>
 
       </View>
 
@@ -240,6 +245,12 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     marginBottom: spacing.xxl,
   },
+  clickHere: {
+    fontSize: 12,
+    color: '#D38A58',
+    textDecorationLine: 'underline',
+    fontWeight: 'bold',
+  },
   inputsContainer: {
     gap: spacing.sm,
     marginBottom: spacing.xl,
@@ -262,7 +273,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   forgotContainer: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   forgotText: {
     color: colors.textMuted,

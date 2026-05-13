@@ -10,13 +10,13 @@ import { getGuestDataForMigration, clearGuestData } from './guestService';
 export const loginUser = async (email: string, password: string) => {
   const response = await api.post('/auth/login', { email, password });
   const { accessToken, refreshToken, user } = response.data;
-  
+
   await AsyncStorage.multiSet([
     ['accessToken', accessToken],
     ['refreshToken', refreshToken],
     ['userEmail', email],
   ]);
-  
+
   try {
     console.log('🆕 Inicializando registro en camino...');
     await api.post('/progress/init');
@@ -24,8 +24,16 @@ export const loginUser = async (email: string, password: string) => {
   } catch (error: any) {
     console.warn('⚠️  Error inicializando camino:', error.message);
   }
-  
+
   return response.data;
+};
+
+export const forgotPassword = async (email: string): Promise<void> => {
+  await api.post('/auth/forgot-password', { email });
+};
+
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+  await api.post('/auth/reset-password', { token, newPassword });
 };
 
 /**
@@ -35,29 +43,16 @@ export const registerUser = async (
   nombre: string,
   email: string,
   password: string,
-  fecha_ultimo_consumo?: string
 ) => {
-  // 1️⃣ Registro
   await api.post('/auth/register', { nombre, email, password });
-  
-  // 2️⃣ Login automático
-  const response = await loginUser(email, password);
-  
-  // 3️⃣ Guardar fecha de sobriedad DESPUÉS del login
-  if (fecha_ultimo_consumo) {
-    try {
-      console.log('📅 Guardando fecha de sobriedad:', fecha_ultimo_consumo);
-      await api.post('/progress/init-sobriety', { 
-        fecha_ultimo_consumo 
-      });
-      console.log('✅ Fecha de sobriedad guardada');
-    } catch (error: any) {
-      console.warn('⚠️ Error guardando fecha de sobriedad:', error.message);
-      // No es crítico si falla
-    }
-  }
-  
-  return response;
+};
+
+export const verifyEmail = async (email: string, code: string): Promise<void> => {
+  await api.post('/auth/verify-email', { email, code });
+};
+
+export const initSobriety = async (fecha_ultimo_consumo: string) => {
+  await api.post('/progress/init-sobriety', { fecha_ultimo_consumo });
 };
 
 /**
@@ -168,7 +163,7 @@ export const calculateSobrietyTime = (fechaUTCString: string | null) => {
     const fechaUTC = new Date(fechaUTCString);
     const ahoraBrowserMs = Date.now();
     const diffMs = Math.max(0, ahoraBrowserMs - fechaUTC.getTime());
-    
+
     const totalMinutos = Math.floor(diffMs / (1000 * 60));
     const totalHoras = Math.floor(totalMinutos / 60);
     const dias = Math.floor(totalHoras / 24);
@@ -191,9 +186,9 @@ export const getSobrietyTime = async () => {
   try {
     const response = await api.get('/progress/sobriety-time');
     const contador = response.data?.contador;
-    
+
     console.log('✅ Tiempo sobrio obtenido:', contador);
-    
+
     return {
       message: response.data?.message,
       contador: contador || { dias: 0, horas: 0, minutos: 0 },
