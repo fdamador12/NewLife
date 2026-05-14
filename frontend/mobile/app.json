@@ -14,7 +14,7 @@
       }
     },
     "android": {
-      "package": "com.newlife.app"
+      "package": "com.uninorte.newlife"
     },
     "plugins": [
       "expo-font",
