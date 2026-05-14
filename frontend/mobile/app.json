@@ -5,21 +5,27 @@
     "slug": "newlife",
     "version": "1.0.0",
     "platforms": [
-      "ios",
       "android"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "dc84fe76-7bca-43f8-a517-ff80fe202cb5"
-      }
-    },
     "android": {
-      "package": "com.uninorte.newlife"
+      "package": "com.uninorte.newlife",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "plugins": [
       "expo-font",
       "expo-audio",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "64fdcf7a-630e-4e81-8a0b-bba713204457"
+      }
+    },
+    "owner": "newlifeteam2026"
   }
 }
