@@ -4,11 +4,17 @@
     "name": "NewLife",
     "slug": "newlife",
     "version": "1.0.0",
+    "icon": "./src/assets/images/logo.png",
     "platforms": [
       "android"
     ],
     "android": {
       "package": "com.uninorte.newlife",
+      "icon": "./src/assets/images/logo.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/logo.png",
+        "backgroundColor": "#c97b3f"
+      },
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -19,7 +25,8 @@
     "plugins": [
       "expo-font",
       "expo-audio",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
