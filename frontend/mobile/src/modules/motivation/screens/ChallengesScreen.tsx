@@ -88,26 +88,27 @@ export default function ChallengesScreen({ navigation }: any) {
   const [tab, setTab] = useState<ChallengeTab>('disponibles');
   const [joiningId, setJoiningId] = useState<string | null>(null);
 
-  // Analytics: trackear que tabs ya hemos visto para no spamear el mismo tab.
-  // Si el usuario va: Disponibles -> Activos -> Disponibles, queremos 3 eventos.
-  // Si solo abre la pantalla y se queda en Disponibles, queremos 1 evento.
-  // Por eso NO usamos un Set: trackeamos cada cambio efectivo de tab.
-  const isFirstRenderRef = useRef(true);
+  // FIX bug analytics: distinguir cambios manuales vs programaticos.
+  // Cuando handleJoin cambia el tab a 'activos' automaticamente, eso NO
+  // es una vista manual del usuario, asi que no debe disparar el track.
+  const isProgrammaticChangeRef = useRef(false);
 
   useEffect(() => {
     fetchMisChallenges();
   }, [fetchMisChallenges]);
 
   // Analytics: trackear vista de la lista de retos.
-  // Se dispara al montar y CADA vez que cambia el tab seleccionado.
-  // El property `tab` permite saber que seccion estan viendo:
-  // disponibles (intencion de unirse), activos (revisar progreso) o
-  // terminados (revisar logros).
+  // Se dispara al montar y cada vez que el usuario cambia de tab manualmente.
+  // Si el cambio fue programatico (por handleJoin), NO trackea — eso evita
+  // que el evento se infle cuando solo el sistema cambio el tab.
   useEffect(() => {
+    if (isProgrammaticChangeRef.current) {
+      isProgrammaticChangeRef.current = false;
+      return;
+    }
     analytics.track(EVENT_TYPES.CHALLENGE_LIST_VIEWED, {
       tab,
     });
-    isFirstRenderRef.current = false;
   }, [tab]);
 
   const handleJoin = async (retoId: string, dificultad: string) => {
@@ -122,12 +123,22 @@ export default function ChallengesScreen({ navigation }: any) {
       });
 
       showToast('¡Te uniste al reto exitosamente!', 'success');
+
+      // FIX: marcar como cambio programatico ANTES del setTab para que
+      // el useEffect de tracking NO dispare challenge_list_viewed.
+      isProgrammaticChangeRef.current = true;
       setTab('activos');
     } catch (err: any) {
       showToast(err?.message || 'No se pudo unir al reto', 'error');
     } finally {
       setJoiningId(null);
     }
+  };
+
+  // Handler para cambios manuales de tab desde la UI
+  const handleTabChange = (newTab: ChallengeTab) => {
+    // isProgrammaticChangeRef se queda en false, asi que el useEffect SI trackea
+    setTab(newTab);
   };
 
   const getChallenges = () => {
@@ -156,7 +167,7 @@ export default function ChallengesScreen({ navigation }: any) {
       <View style={styles.tabsRow}>
         <TouchableOpacity
           style={[styles.tabButton, tab === 'disponibles' && styles.tabButtonActive]}
-          onPress={() => setTab('disponibles')}
+          onPress={() => handleTabChange('disponibles')}
         >
           <Text style={[styles.tabText, tab === 'disponibles' && styles.tabTextActive]}>
             Disponibles
@@ -164,7 +175,7 @@ export default function ChallengesScreen({ navigation }: any) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tabButton, tab === 'activos' && styles.tabButtonActive]}
-          onPress={() => setTab('activos')}
+          onPress={() => handleTabChange('activos')}
         >
           <Text style={[styles.tabText, tab === 'activos' && styles.tabTextActive]}>
             Activos
@@ -172,7 +183,7 @@ export default function ChallengesScreen({ navigation }: any) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tabButton, tab === 'terminados' && styles.tabButtonActive]}
-          onPress={() => setTab('terminados')}
+          onPress={() => handleTabChange('terminados')}
         >
           <Text style={[styles.tabText, tab === 'terminados' && styles.tabTextActive]}>
             Terminados

@@ -57,6 +57,8 @@ export const EVENT_TYPES = {
   // Checkin diario
   DAILY_CHECKIN_STARTED: 'daily_checkin_started',
   DAILY_CHECKIN_COMPLETED: 'daily_checkin_completed',
+  // NUEVO: trackea cuando el usuario sale del checkin sin completarlo
+  DAILY_CHECKIN_ABANDONED: 'daily_checkin_abandoned',
 
   // Niveles / 12 pasos
   LEVEL_PATH_VIEWED: 'level_path_viewed',
@@ -78,6 +80,10 @@ export const EVENT_TYPES = {
   CHALLENGE_VIEWED: 'challenge_viewed',
   CHALLENGE_JOINED: 'challenge_joined',
   CHALLENGE_COMPLETED: 'challenge_completed',
+
+  // Medallas / Logros
+  // NUEVO: trackea cuando el usuario entra a la pantalla de medallas
+  MEDALS_VIEWED: 'medals_viewed',
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];

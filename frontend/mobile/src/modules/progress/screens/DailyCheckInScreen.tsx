@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
@@ -22,9 +22,24 @@ export default function DailyCheckInScreen({ navigation }: any) {
 
   const { showToast } = useToast();
 
-  // 📊 Analytics: trackear inicio del flujo del checkin (al montar la pantalla)
+  // Refs para tracking de abandono.
+  // - completedRef: se marca true en handleSuccess para que el cleanup
+  //   NO dispare DAILY_CHECKIN_ABANDONED cuando el usuario completo OK.
+  const completedRef = useRef(false);
+
+  // Analytics: trackear inicio del flujo del checkin al montar la pantalla.
+  // El cleanup detecta si el usuario salio sin completar (cualquier mecanismo:
+  // boton atras, gesto, app cerrada) y trackea DAILY_CHECKIN_ABANDONED.
+  // El cleanup es fire-and-forget porque React no permite await en cleanup.
   useEffect(() => {
     analytics.track(EVENT_TYPES.DAILY_CHECKIN_STARTED);
+
+    return () => {
+      // Solo trackear abandono si NO se completo exitosamente
+      if (!completedRef.current) {
+        analytics.track(EVENT_TYPES.DAILY_CHECKIN_ABANDONED);
+      }
+    };
   }, []);
 
   const handleBack = () => {
@@ -43,8 +58,12 @@ export default function DailyCheckInScreen({ navigation }: any) {
     new_form: string | null;
     xp: number;
   }) => {
-    // 📊 Analytics: trackear que completó los 3 pasos exitosamente.
-    // NO guardamos el contenido del checkin (mood, reflexión, etc.) por privacidad.
+    // Marcar como completado ANTES de cualquier track o navegacion,
+    // para que el cleanup del useEffect NO dispare DAILY_CHECKIN_ABANDONED.
+    completedRef.current = true;
+
+    // Analytics: trackear que completo los 3 pasos exitosamente.
+    // NO guardamos el contenido del checkin (mood, reflexion, etc) por privacidad.
     analytics.track(EVENT_TYPES.DAILY_CHECKIN_COMPLETED);
 
     navigation.navigate('CheckInSuccess', {

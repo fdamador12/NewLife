@@ -50,24 +50,16 @@ export default function MeditationPlayerView({
 
   return (
     <View style={styles.container}>
-      {/* HEADER (IGUAL) */}
+      {/* HEADER: removidos los iconos de corazon y download que eran
+          placeholders sin funcionalidad. Si en el futuro se implementa
+          favoritear meditaciones, agregar el boton aqui de nuevo. */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack}>
           <Feather name="chevron-left" size={24} color={colors.text} />
         </TouchableOpacity>
-
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Feather name="heart" size={20} color={colors.white} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.iconButton}>
-            <Feather name="download" size={20} color={colors.white} />
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* CONTENT (IGUAL) */}
+      {/* CONTENT */}
       <View style={styles.playerContent}>
         <Text style={styles.playerTitle}>Escucha...</Text>
         <Text style={styles.playerSubtitle}>
@@ -81,7 +73,7 @@ export default function MeditationPlayerView({
           onSkipForward={onSkipForward} // 🔥 +10s
         />
 
-        {/* PROGRESS (MISMA ESTÉTICA) */}
+        {/* PROGRESS */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar} {...panResponder.panHandlers}>
             <View
@@ -125,7 +117,7 @@ export default function MeditationPlayerView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background, // 👈 intacto
+    backgroundColor: colors.background,
     paddingTop: 60,
     paddingHorizontal: spacing.xl,
   },
@@ -134,20 +126,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-
-  headerRight: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   playerContent: {
@@ -212,7 +190,7 @@ const styles = StyleSheet.create({
 
   exitText: {
     fontSize: fontSizes.sm,
-    color: colors.accent, // 👈 botón naranja intacto
+    color: colors.accent,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

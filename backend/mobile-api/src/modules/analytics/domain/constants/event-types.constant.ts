@@ -49,6 +49,7 @@ export const VALID_EVENT_TYPES_LIST = [
   // Checkin
   'daily_checkin_started',
   'daily_checkin_completed',
+  'daily_checkin_abandoned', // NUEVO
   // Niveles
   'level_path_viewed',
   'level_started',
@@ -65,6 +66,8 @@ export const VALID_EVENT_TYPES_LIST = [
   'challenge_viewed',
   'challenge_joined',
   'challenge_completed',
+  // Medallas / Logros
+  'medals_viewed', // NUEVO
 ] as const;
 
 export type ValidEventType = (typeof VALID_EVENT_TYPES_LIST)[number];
@@ -108,6 +111,7 @@ export const EVENT_TYPE_TO_CATEGORY: Record<ValidEventType, string> = {
   pet_evolved: 'gamification',
   daily_checkin_started: 'progress',
   daily_checkin_completed: 'progress',
+  daily_checkin_abandoned: 'progress', // NUEVO
   level_path_viewed: 'progress',
   level_started: 'progress',
   level_completed: 'progress',
@@ -119,4 +123,5 @@ export const EVENT_TYPE_TO_CATEGORY: Record<ValidEventType, string> = {
   challenge_viewed: 'gamification',
   challenge_joined: 'gamification',
   challenge_completed: 'gamification',
+  medals_viewed: 'gamification', // NUEVO
 };
