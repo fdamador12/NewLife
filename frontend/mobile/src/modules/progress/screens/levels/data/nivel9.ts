@@ -4,7 +4,7 @@ export const nivel9: LevelContent = {
   1: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_open', 'phrase', 'mascot_checklist', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 9, Módulo 1',
+      title: 'Nivel 9',
       description: 'Saber lo que tienes que hacer no siempre significa que sea fácil hacerlo. El miedo, la duda o la incomodidad pueden frenarte justo antes de avanzar.',
     },
     mascot_choice: [
@@ -32,7 +32,7 @@ export const nivel9: LevelContent = {
   2: {
     steps: ['intro', 'mascot_choice', 'phrase', 'complete_sentence', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 9, Módulo 2',
+      title: 'Nivel 9',
       description: 'Actuar no significa hacer algo perfecto, significa hacer algo diferente a lo de siempre. Aquí empiezas a romper el patrón con acciones concretas.',
     },
     mascot_choice: [
@@ -56,7 +56,7 @@ export const nivel9: LevelContent = {
   3: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_choice', 'phrase', 'complete_sentence', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 9, Módulo 3',
+      title: 'Nivel 9',
       description: 'Actuar una vez es importante, pero sostenerlo es lo que realmente transforma. Este es el inicio de una nueva forma de responder.',
     },
     mascot_open: [

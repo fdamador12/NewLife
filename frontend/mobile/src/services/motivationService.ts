@@ -79,17 +79,11 @@ export const desguardarFrase = async (fraseId: string) => {
  */
 export const getMisChallenges = async () => {
   try {
-    return await cacheService.withCache(
-      CACHE_KEYS.ACTIVE_CHALLENGE,
-      15,
-      async () => {
-        const response = await api.get('/motivation/mis-retos');
-        if (response.data?.data) {
-          return response.data.data;
-        }
-        return { activos: [], disponibles: [], terminados: [] };
-      },
-    );
+    const response = await api.get('/motivation/mis-retos');
+    if (response.data?.data) {
+      return response.data.data;
+    }
+    return { activos: [], disponibles: [], terminados: [] };
   } catch (error: any) {
     console.error('❌ Error obteniendo mis retos:', error.message);
     return { activos: [], disponibles: [], terminados: [] };

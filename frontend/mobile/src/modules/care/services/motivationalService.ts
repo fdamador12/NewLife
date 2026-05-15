@@ -2,22 +2,12 @@ import api from '../../../services/api';
 import { cacheService } from '../../../services/cacheService';
 import { CACHE_KEYS } from '../../../services/cacheKeys';
 
-// Caché en memoria: pre-cargada desde AsyncStorage al arrancar el módulo
-// para que useMotivationalPhrases inicialice frases[] sin esperar ningún await.
-let _phrasesMemCache: any[] | null = null;
-(async () => {
-  const cached = await cacheService.get<any[]>(CACHE_KEYS.MOTIVATIONAL_PHRASES);
-  if (cached) _phrasesMemCache = cached;
-})();
-
-export const getMotivationalPhrasesSync = () => _phrasesMemCache;
-
 /**
  * Obtiene todas las frases hasta una fecha específica
  * Retorna todas las frases creadas antes o igual a esa fecha
  */
 export const getFrasesPorFecha = async (fecha: string) => {
-  const result = await cacheService.withCache(
+  return cacheService.withCache(
     CACHE_KEYS.MOTIVATIONAL_PHRASES,
     30,
     async () => {
@@ -27,10 +17,7 @@ export const getFrasesPorFecha = async (fecha: string) => {
       }
       return [];
     },
-    (fresh) => { _phrasesMemCache = fresh; },
   );
-  _phrasesMemCache = result;
-  return result;
 };
 
 /**

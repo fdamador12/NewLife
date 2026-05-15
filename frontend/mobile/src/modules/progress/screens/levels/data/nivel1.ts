@@ -4,7 +4,7 @@ export const nivel1: LevelContent = {
   1: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_checklist', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 1, Módulo 1',
+      title: 'Nivel 1',
       description: 'Es fácil convencerse de que todo está bajo control o que "no es tan grave". La negación no siempre es obvia; a veces se disfraza de excusas, comparaciones o silencios.',
     },
     mascot_choice: [
@@ -31,7 +31,7 @@ export const nivel1: LevelContent = {
   2: {
     steps: ['intro', 'mascot_checklist', 'phrase', 'mascot_open', 'phrase', 'mascot_choice', 'phrase'],
     intro: {
-      title: 'Paso 1, Módulo 2',
+      title: 'Nivel 1',
       description: 'Nada de esto ocurre sin impacto. Poco a poco, las decisiones y hábitos dejan huellas en distintas áreas de tu vida. Reconocerlas no es para culparte, es para entender el alcance real.',
     },
     mascot_checklist: [
@@ -58,7 +58,7 @@ export const nivel1: LevelContent = {
   3: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 1, Módulo 3',
+      title: 'Nivel 1',
       description: 'Hay un punto en el que dejar de resistirte se vuelve necesario. Rendirte no es perder, es aceptar que esto te supera tal como lo has estado manejando. Es el momento más honesto del proceso.',
     },
     complete_sentence: [

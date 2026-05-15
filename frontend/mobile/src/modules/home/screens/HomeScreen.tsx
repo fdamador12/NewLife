@@ -4,7 +4,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { getProfile, getSobrietyTime, getHomeSummary, getProfileSync, logoutUser } from '../../../services/authService';
+import { getProfile, getSobrietyTime, getHomeSummary, logoutUser } from '../../../services/authService';
+import { useCacheQuery } from '../../../hooks/useCacheQuery';
+import { CACHE_KEYS } from '../../../services/cacheKeys';
 import { authEventEmitter } from '../../../services/api';
 import {
   isGuestMode,
@@ -21,11 +23,22 @@ import { getAhorro } from '../../../services/progressService';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function HomeScreen({ navigation }: any) {
-  const [apodo, setApodo] = useState(() => getProfileSync()?.apodo || '');
   const [sobriety, setSobriety] = useState({ dias: 0, horas: 0, minutos: 0 });
   const [ahorro, setAhorro] = useState({ ahorro_total: 0, dias_limpios: 0 });
-  const [isGuest, setIsGuest] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [guestApodo, setGuestApodo] = useState('');
   const { resetPet, fetchPet } = usePet();
+
+  // Profile via SWR — only active for authenticated users.
+  // getSync() returns cached data instantly if warmUp() was called at startup.
+  const { data: userProfile } = useCacheQuery(
+    CACHE_KEYS.PROFILE,
+    30,
+    getProfile,
+    { enabled: isGuest === false },
+  );
+
+  const apodo = isGuest === true ? guestApodo : (userProfile?.apodo ?? '');
 
   useEffect(() => {
     fetchPet();
@@ -46,22 +59,23 @@ export default function HomeScreen({ navigation }: any) {
     return () => { unsubscribe(); };
   }, []);
 
+  // Determine guest mode; load guest apodo if needed.
   useEffect(() => {
-    const fetchProfile = async () => {
+    let cancelled = false;
+    (async () => {
       try {
         const guest = await isGuestMode();
+        if (cancelled) return;
+        setIsGuest(guest);
         if (guest) {
           const profile = await getGuestProfile();
-          setApodo(profile.apodo || '');
-        } else {
-          const profile = await getProfile();
-          setApodo(profile.apodo);
+          if (!cancelled) setGuestApodo(profile.apodo || '');
         }
       } catch (e) {
-        console.log('Error obteniendo perfil:', e);
+        console.log('Error verificando modo invitado:', e);
       }
-    };
-    fetchProfile();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -164,7 +178,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.headerLeft}>
             <Text style={styles.greetingTime}>{getGreetingTime()}</Text>
             <Text style={styles.greeting}>
-              {apodo ? apodo : 'Amigo'}
+              {apodo ? apodo : 'Amig@'}
             </Text>
           </View>
           <TouchableOpacity 

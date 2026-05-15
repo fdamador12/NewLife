@@ -4,7 +4,7 @@ export const nivel2: LevelContent = {
   1: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_open', 'phrase', 'mascot_checklist', 'phrase'],
     intro: {
-      title: 'Paso 2, Módulo 1',
+      title: 'Nivel 2',
       description: 'Durante mucho tiempo aprendiste a desconfiar: de los demás, de las soluciones, incluso de ti mismo. Esa desconfianza no apareció de la nada, se construyó con experiencias, caídas y promesas que no se cumplieron.',
     },
     mascot_choice: [
@@ -31,7 +31,7 @@ export const nivel2: LevelContent = {
   2: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 2, Módulo 2',
+      title: 'Nivel 2',
       description: 'No se trata de creer completamente, sino de dejar una pequeña puerta abierta. El cambio empieza cuando dejas de decir "no" automáticamente a todo lo que podría ayudarte.',
     },
     complete_sentence: [
@@ -55,7 +55,7 @@ export const nivel2: LevelContent = {
   3: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_choice', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 2, Módulo 3',
+      title: 'Nivel 2',
       description: 'La confianza no es solo una idea, es una acción. Empieza con algo pequeño: un paso, una decisión, un intento.',
     },
     mascot_choice: [

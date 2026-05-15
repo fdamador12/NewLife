@@ -4,7 +4,7 @@ export const nivel10: LevelContent = {
   1: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_open', 'phrase', 'mascot_checklist', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 10, Módulo 1',
+      title: 'Nivel 10',
       description: 'En medio del día a día es fácil actuar sin pensar. Este módulo es una pausa: un espacio para revisar cómo estás, qué estás sintiendo y cómo estás actuando.',
     },
     mascot_choice: [
@@ -32,7 +32,7 @@ export const nivel10: LevelContent = {
   2: {
     steps: ['intro', 'mascot_choice', 'phrase', 'complete_sentence', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 10, Módulo 2',
+      title: 'Nivel 10',
       description: 'Equivocarte no significa retroceder. Reflexionar también implica reconocer cuando fallas y decidir qué hacer con eso.',
     },
     mascot_choice: [
@@ -56,7 +56,7 @@ export const nivel10: LevelContent = {
   3: {
     steps: ['intro', 'complete_sentence', 'phrase', 'complete_sentence', 'phrase', 'mascot_choice', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 10, Módulo 3',
+      title: 'Nivel 10',
       description: 'Reflexionar no sirve de mucho si no haces algo con eso. Este módulo es sobre ajustar tu camino sin perder el impulso.',
     },
     complete_sentence: [

@@ -4,7 +4,7 @@ export const nivel6: LevelContent = {
   1: {
     steps: ['intro', 'mascot_checklist', 'phrase', 'mascot_open', 'phrase', 'mascot_choice', 'phrase'],
     intro: {
-      title: 'Paso 6, Módulo 1',
+      title: 'Nivel 6',
       description: 'No todo lo que te hace daño es fácil de dejar. Algunas cosas se quedan porque son conocidas, porque te dan algo, o porque no sabes quién serías sin ellas.',
     },
     mascot_checklist: [
@@ -31,7 +31,7 @@ export const nivel6: LevelContent = {
   2: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 6, Módulo 2',
+      title: 'Nivel 6',
       description: 'Decir "quiero cambiar" no siempre significa lo mismo. A veces lo dices por presión, por culpa o por cansancio. Este momento es para preguntarte si realmente quieres hacerlo por ti.',
     },
     complete_sentence: [
@@ -55,7 +55,7 @@ export const nivel6: LevelContent = {
   3: {
     steps: ['intro', 'mascot_choice', 'phrase', 'complete_sentence', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 6, Módulo 3',
+      title: 'Nivel 6',
       description: 'No se trata de no tener miedo, sino de avanzar con él. Estar listo/a no es sentir seguridad, es decidir que vas a intentarlo aunque no lo tengas todo claro.',
     },
     mascot_choice: [

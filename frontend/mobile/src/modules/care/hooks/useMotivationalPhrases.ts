@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useCacheQuery } from '../../../hooks/useCacheQuery';
+import { CACHE_KEYS } from '../../../services/cacheKeys';
 import {
   getFrasesPorFecha,
-  getMotivationalPhrasesSync,
   guardarFraseMotivacional,
   desguardarFraseMotivacional,
 } from '../services/motivationalService';
@@ -15,75 +16,59 @@ export interface Frase {
 }
 
 export const useMotivationalPhrases = () => {
-  const initialCache = getMotivationalPhrasesSync();
-  const [frases, setFrases] = useState<Frase[]>(initialCache ?? []);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // Stable fetch function — only changes when the date changes (once per day).
+  const fetchFn = useCallback(() => getFrasesPorFecha(today), [today]);
+
+  const {
+    data,
+    loading,
+    error,
+    mutate,
+  } = useCacheQuery<Frase[]>(CACHE_KEYS.MOTIVATIONAL_PHRASES, 30, fetchFn);
+
+  const frases = data ?? [];
+
+  // Called by screens on mount and on navigation focus to trigger revalidation.
+  // withCache handles deduplication — no duplicate network calls.
+  const fetchFrasesPorFecha = useCallback(
+    (_fecha: string) => {
+      getFrasesPorFecha(today).catch(() => {});
+    },
+    [today],
   );
-  // Solo mostrar spinner cuando no hay frases que mostrar todavía
-  const hasDataRef = useRef((initialCache?.length ?? 0) > 0);
 
-  const fetchFrasesPorFecha = useCallback(async (fecha: string) => {
-    try {
-      setError(null);
-      if (!hasDataRef.current) setLoading(true);
-      const data = await getFrasesPorFecha(fecha);
-      console.log('📜 Frases obtenidas:', data);
-      hasDataRef.current = (data?.length ?? 0) > 0;
-      setFrases(data || []);
-      setSelectedDate(fecha);
-    } catch (err: any) {
-      setError(err.message || 'Error obteniendo frases');
-      console.error('❌ Error fetchFrasesPorFecha:', err);
-      setFrases([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // ✅ Toggle favorito
+  // Optimistic toggle: updates UI immediately, reverts on API error.
   const toggleFavorito = useCallback(
     async (fraseId: string) => {
-      try {
-        setError(null);
-        const isFavorite = frases.some((f) => f.frase_id === fraseId && f.isFavorite);
+      const isFavorite = frases.some((f) => f.frase_id === fraseId && f.isFavorite);
 
+      // Optimistic update
+      mutate(frases.map((f) =>
+        f.frase_id === fraseId ? { ...f, isFavorite: !isFavorite } : f,
+      ));
+
+      try {
         if (isFavorite) {
-          // Remover de favoritas
-          setFrases((prev) =>
-            prev.map((f) =>
-              f.frase_id === fraseId ? { ...f, isFavorite: false } : f
-            )
-          );
           await desguardarFraseMotivacional(fraseId);
         } else {
-          // Agregar a favoritas
-          setFrases((prev) =>
-            prev.map((f) =>
-              f.frase_id === fraseId ? { ...f, isFavorite: true } : f
-            )
-          );
           await guardarFraseMotivacional(fraseId);
         }
       } catch (err: any) {
-        setError(err.message || 'Error actualizando favorito');
+        // Revert on failure
+        mutate(frases);
         console.error('❌ Error toggleFavorito:', err);
-        // Refetch para sincronizar
-        await fetchFrasesPorFecha(selectedDate);
       }
     },
-    [frases, selectedDate, fetchFrasesPorFecha]
+    [frases, mutate],
   );
 
   return {
     frases,
     loading,
     error,
-    selectedDate,
     fetchFrasesPorFecha,
     toggleFavorito,
-    setSelectedDate,
   };
 };

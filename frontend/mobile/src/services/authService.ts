@@ -4,16 +4,6 @@ import { getGuestDataForMigration, clearGuestData } from './guestService';
 import { cacheService } from './cacheService';
 import { CACHE_KEYS } from './cacheKeys';
 
-// Caché en memoria: se pre-carga desde AsyncStorage al arrancar el módulo
-// para que getProfileSync() retorne el apodo sin esperar ningún await.
-let _profileMemCache: any = null;
-(async () => {
-  const cached = await cacheService.get<any>(CACHE_KEYS.PROFILE);
-  if (cached) _profileMemCache = cached;
-})();
-
-export const getProfileSync = () => _profileMemCache;
-
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -71,7 +61,6 @@ export const initSobriety = async (fecha_ultimo_consumo: string) => {
  * Logout del usuario
  */
 export const logoutUser = async () => {
-  _profileMemCache = null;
   await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
   await cacheService.clearAll();
 };
@@ -125,17 +114,14 @@ export const completeProfile = async (data: object) => {
  * Obtiene el perfil completo del usuario
  */
 export const getProfile = async () => {
-  const result = await cacheService.withCache(
+  return cacheService.withCache(
     CACHE_KEYS.PROFILE,
     30,
     async () => {
       const response = await api.get('/user/profile');
       return response.data;
     },
-    (fresh) => { _profileMemCache = fresh; },
   );
-  _profileMemCache = result;
-  return result;
 };
 
 export const deleteAllData = async (): Promise<void> => {
@@ -224,19 +210,13 @@ export const calculateSobrietyTime = (fechaUTCString: string | null) => {
  */
 export const getSobrietyTime = async () => {
   try {
-    return await cacheService.withCache(
-      CACHE_KEYS.SOBRIETY_TIME,
-      5,
-      async () => {
-        const response = await api.get('/progress/sobriety-time');
-        const contador = response.data?.contador;
-        console.log('✅ Tiempo sobrio obtenido:', contador);
-        return {
-          message: response.data?.message,
-          contador: contador || { dias: 0, horas: 0, minutos: 0 },
-        };
-      },
-    );
+    const response = await api.get('/progress/sobriety-time');
+    const contador = response.data?.contador;
+    console.log('✅ Tiempo sobrio obtenido:', contador);
+    return {
+      message: response.data?.message,
+      contador: contador || { dias: 0, horas: 0, minutos: 0 },
+    };
   } catch (error: any) {
     console.error('❌ Error obteniendo tiempo sobrio:', error.message);
     return {

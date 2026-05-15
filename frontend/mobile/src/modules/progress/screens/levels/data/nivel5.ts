@@ -4,7 +4,7 @@ export const nivel5: LevelContent = {
   1: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_open', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 5, Módulo 1',
+      title: 'Nivel 5',
       description: 'Callar puede parecer más fácil, pero lo que no se expresa no desaparece. Se acumula, se transforma y muchas veces pesa más con el tiempo.',
     },
     mascot_choice: [
@@ -26,7 +26,7 @@ export const nivel5: LevelContent = {
   2: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 5, Módulo 2',
+      title: 'Nivel 5',
       description: 'Compartir no es exponerte completamente, es elegir empezar. No necesitas confianza total, solo un primer intento.',
     },
     mascot_choice: [
@@ -51,7 +51,7 @@ export const nivel5: LevelContent = {
   3: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_open', 'phrase', 'mascot_choice', 'phrase'],
     intro: {
-      title: 'Paso 5, Módulo 3',
+      title: 'Nivel 5',
       description: 'Expresar lo que llevas dentro no soluciona todo, pero sí cambia algo: ya no lo estás cargando igual. Liberar es soltar un poco del peso.',
     },
     mascot_open: [
