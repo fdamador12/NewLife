@@ -4,7 +4,7 @@ export const nivel11: LevelContent = {
   1: {
     steps: ['intro', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 11, Módulo 1',
+      title: 'Nivel 11',
       description: 'No siempre estás acostumbrado/a a detenerte. Muchas veces sigues en automático o llenas el silencio para no sentir. Este módulo es simplemente eso: una pausa real.',
     },
     mascot_choice: [
@@ -25,7 +25,7 @@ export const nivel11: LevelContent = {
   2: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_checklist', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 11, Módulo 2',
+      title: 'Nivel 11',
       description: 'Conectar no es solo pausar, es empezar a escucharte de verdad. No desde la crítica, sino desde la curiosidad.',
     },
     complete_sentence: [
@@ -55,7 +55,7 @@ export const nivel11: LevelContent = {
   3: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_open', 'phrase', 'mascot_choice', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 11, Módulo 3',
+      title: 'Nivel 11',
       description: 'Después de todo lo vivido, empieza a aparecer una pregunta más profunda: ¿para qué? Conectar también es empezar a construir un sentido propio.',
     },
     complete_sentence: [

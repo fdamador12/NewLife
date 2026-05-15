@@ -4,7 +4,7 @@ export const nivel4: LevelContent = {
   1: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_checklist', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 4, Módulo 1',
+      title: 'Nivel 4',
       description: 'No siempre es fácil quedarse con uno mismo. Muchas veces evitamos mirar lo que sentimos porque no sabemos qué hacer con eso. Este es el primer intento de observarte sin huir.',
     },
     complete_sentence: [
@@ -34,7 +34,7 @@ export const nivel4: LevelContent = {
   2: {
     steps: ['intro', 'mascot_choice', 'phrase', 'complete_sentence', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 4, Módulo 2',
+      title: 'Nivel 4',
       description: 'Muchas de tus decisiones no son nuevas, solo son repeticiones. Entender tus patrones es empezar a romperlos.',
     },
     mascot_choice: [
@@ -58,7 +58,7 @@ export const nivel4: LevelContent = {
   3: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 4, Módulo 3',
+      title: 'Nivel 4',
       description: 'Verte con claridad puede doler. Pero el cambio no empieza con culpa, empieza con aceptación. No eres solo tus errores, pero tampoco puedes ignorarlos.',
     },
     mascot_open: [

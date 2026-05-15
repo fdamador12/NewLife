@@ -4,7 +4,7 @@ export const nivel12: LevelContent = {
   1: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 12, Módulo 1',
+      title: 'Nivel 12',
       description: 'Después de todo este proceso, algo en ti cambió. Tal vez no todo, pero sí lo suficiente para que ahora tengas algo distinto que ofrecer.',
     },
     complete_sentence: [
@@ -28,7 +28,7 @@ export const nivel12: LevelContent = {
   2: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 12, Módulo 2',
+      title: 'Nivel 12',
       description: 'Compartir no es dar consejos desde arriba, es hablar desde lo vivido. Es conectar con otros desde la autenticidad, no desde la perfección.',
     },
     mascot_choice: [
@@ -50,7 +50,7 @@ export const nivel12: LevelContent = {
   3: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_open', 'phrase', 'mascot_choice', 'phrase'],
     intro: {
-      title: 'Paso 12, Módulo 3',
+      title: 'Nivel 12',
       description: 'Este no es un final, es una forma nueva de vivir. Integrar es llevar todo lo aprendido contigo, no como algo externo, sino como parte de quién eres ahora.',
     },
     complete_sentence: [

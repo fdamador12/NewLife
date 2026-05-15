@@ -4,7 +4,7 @@ export const nivel8: LevelContent = {
   1: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_open', 'phrase', 'mascot_choice', 'phrase'],
     intro: {
-      title: 'Paso 8, Módulo 1',
+      title: 'Nivel 8',
       description: 'Aceptar que nuestras acciones han afectado a otros puede ser incómodo, incluso doloroso. Pero ignorarlo no lo desaparece. Este es el primer paso para mirar más allá de ti mismo/a.',
     },
     mascot_open: [
@@ -26,7 +26,7 @@ export const nivel8: LevelContent = {
   2: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 8, Módulo 2',
+      title: 'Nivel 8',
       description: 'Es fácil justificar, minimizar o culpar a otros. Asumir responsabilidad es dejar esas defensas y reconocer lo que sí estuvo en tus manos.',
     },
     complete_sentence: [
@@ -50,7 +50,7 @@ export const nivel8: LevelContent = {
   3: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'mascot_choice', 'phrase'],
     intro: {
-      title: 'Paso 8, Módulo 3',
+      title: 'Nivel 8',
       description: 'Reparar no siempre significa arreglar todo o recibir perdón. A veces empieza solo con la intención sincera de hacer las cosas de otra manera.',
     },
     complete_sentence: [

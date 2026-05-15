@@ -82,28 +82,16 @@ export const getTodayCheckin = async () => {
  * Obtiene el historial de gratitud
  */
 export const getGratitudeHistory = async () => {
-  return cacheService.withCache(
-    CACHE_KEYS.LATEST_GRATITUDE,
-    15,
-    async () => {
-      const response = await api.get('/progress/gratitude-history');
-      return response.data;
-    },
-  );
+  const response = await api.get('/progress/gratitude-history');
+  return response.data;
 };
 
 /**
  * Obtiene el camino actual (nivel y subnivel)
  */
 export const getCamino = async () => {
-  return cacheService.withCache(
-    CACHE_KEYS.CAMINO,
-    15,
-    async () => {
-      const response = await api.get('/progress/camino');
-      return response.data;
-    },
-  );
+  const response = await api.get('/progress/camino');
+  return response.data;
 };
 
 /**
@@ -167,17 +155,9 @@ export const getRiskCharts = async () => {
 export const getCaminoProgress = async () => {
   try {
     console.log('📊 Obteniendo progreso en el camino...');
-    // Reutiliza el caché de getCamino (misma clave, mismo endpoint)
-    const data = await cacheService.withCache(
-      CACHE_KEYS.CAMINO,
-      15,
-      async () => {
-        const response = await api.get('/progress/camino');
-        console.log('✅ Respuesta completa:', response.data);
-        return response.data;
-      },
-    );
-    const progressData = data?.data || data;
+    const response = await api.get('/progress/camino');
+    console.log('✅ Respuesta completa:', response.data);
+    const progressData = response.data?.data || response.data;
     console.log('📊 Progreso extraído:', progressData);
     return progressData || { nivel: 1, subnivel: 1 };
   } catch (error: any) {

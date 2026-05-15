@@ -4,7 +4,7 @@ export const nivel7: LevelContent = {
   1: {
     steps: ['intro', 'mascot_choice', 'phrase', 'mascot_open', 'phrase', 'mascot_checklist', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 7, Módulo 1',
+      title: 'Nivel 7',
       description: 'Pedir ayuda no siempre es natural. Puede sentirse incómodo, innecesario o incluso vergonzoso. Muchas veces aprendiste que tenías que resolver todo por tu cuenta.',
     },
     mascot_choice: [
@@ -32,7 +32,7 @@ export const nivel7: LevelContent = {
   2: {
     steps: ['intro', 'complete_sentence', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 7, Módulo 2',
+      title: 'Nivel 7',
       description: 'No solo se trata de pedir, sino de permitirte recibir. A veces incluso cuando la ayuda está disponible, cuesta aceptarla.',
     },
     complete_sentence: [
@@ -56,7 +56,7 @@ export const nivel7: LevelContent = {
   3: {
     steps: ['intro', 'mascot_open', 'phrase', 'mascot_choice', 'phrase', 'mascot_open', 'phrase'],
     intro: {
-      title: 'Paso 7, Módulo 3',
+      title: 'Nivel 7',
       description: 'Este es un momento interno. No importa a quién o cómo lo hagas: pedir cambio es reconocer que necesitas algo distinto y estar dispuesto/a a aceptarlo.',
     },
     mascot_choice: [

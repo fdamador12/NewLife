@@ -1,18 +1,10 @@
 import api from '../../../services/api';
-import { cacheService } from '../../../services/cacheService';
-import { CACHE_KEYS } from '../../../services/cacheKeys';
 import { PetState, AddXpResponse, XpAction } from '../types/pet.types';
 
 export const petService = {
   getPet: async (): Promise<PetState> => {
-    return cacheService.withCache(
-      CACHE_KEYS.PET,
-      5,
-      async () => {
-        const response = await api.get('/pet');
-        return response.data;
-      },
-    );
+    const response = await api.get('/pet');
+    return response.data;
   },
 
   addXp: async (action: XpAction, nivel?: number, subnivel?: number): Promise<AddXpResponse> => {

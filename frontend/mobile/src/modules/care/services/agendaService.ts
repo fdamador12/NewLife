@@ -1,6 +1,4 @@
 import api from '../../../services/api';
-import { cacheService } from '../../../services/cacheService';
-import { CACHE_KEYS } from '../../../services/cacheKeys';
 
 // ===== TIPOS =====
 
@@ -133,14 +131,8 @@ function eventToFrontend(event: AgendaEventBackend): AgendaEventFrontend {
 
 export const agendaService = {
   async getAgenda(): Promise<AgendaEventFrontend[]> {
-    return cacheService.withCache(
-      CACHE_KEYS.AGENDA_EVENTS,
-      5,
-      async () => {
-        const response = await api.get<AgendaResponse>('/care/agenda');
-        return response.data.data.map(eventToFrontend);
-      },
-    );
+    const response = await api.get<AgendaResponse>('/care/agenda');
+    return response.data.data.map(eventToFrontend);
   },
 
   async createAgenda(event: AgendaEventFrontend): Promise<AgendaEventFrontend> {

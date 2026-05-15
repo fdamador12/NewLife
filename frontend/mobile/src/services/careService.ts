@@ -172,17 +172,11 @@ export const getCategorias = async () => {
  * Obtiene los eventos de la agenda del usuario
  */
 export const getEventos = async () => {
-  return cacheService.withCache(
-    CACHE_KEYS.AGENDA_EVENTS,
-    5,
-    async () => {
-      const response = await api.get('/care/agenda');
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        return response.data.data;
-      }
-      return [];
-    },
-  );
+  const response = await api.get('/care/agenda');
+  if (response.data?.data && Array.isArray(response.data.data)) {
+    return response.data.data;
+  }
+  return [];
 };
 
 /**
