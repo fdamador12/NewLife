@@ -23,9 +23,7 @@ services:
       ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN}
       CORS_ORIGIN: ${CORS_ORIGIN}
       # ── MinIO ─────────────────────────────────────────────────────
-      # Endpoint interno: el backend habla con MinIO por la red de Docker
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
-      # Endpoint público: URL que se devuelve al frontend para mostrar imágenes
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
       MINIO_REGION: ${MINIO_REGION}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -35,11 +33,11 @@ services:
       MEDIA_MAX_FILE_SIZE_MB: ${MEDIA_MAX_FILE_SIZE_MB}
       MEDIA_MAX_IMAGE_DIMENSION: ${MEDIA_MAX_IMAGE_DIMENSION}
       MEDIA_MIN_IMAGE_DIMENSION: ${MEDIA_MIN_IMAGE_DIMENSION}
+    # SAFE MODE: admin-api solo depende de minio levantado (sin health/init).
+    # Si minio-init falla, admin-api SIGUE arrancando (el upload no funcionara
+    # hasta que se arregle el bucket, pero el resto del sistema queda operativo).
     depends_on:
-      minio:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+      - minio
     restart: unless-stopped
 
   # ── Backend Mobile (api) ─────────────────────────────────────────
@@ -72,7 +70,6 @@ services:
       - "5182:3000"
     environment:
       NODE_ENV: development
-      # Apunta al admin-api en producción
       NEXT_PUBLIC_API_URL: https://newlife-admin-api.openlab.uninorte.edu.co
     volumes:
       - ./frontend/web:/app
@@ -84,7 +81,7 @@ services:
 
   # ── Almacenamiento de Media (MinIO) ──────────────────────────────
   minio:
-    # newlife-media.openlab.uninorte.edu.co (futuro subdominio)
+    # newlife-media.openlab.uninorte.edu.co
     image: minio/minio:latest
     container_name: newlife-minio
     ports:
@@ -94,13 +91,10 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
-      # Mapea el almacenamiento al disco físico
       - ./media-data:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
     healthcheck:
-      # MinIO Client viene incluido en la imagen oficial.
-      # mc ready verifica que MinIO acepta conexiones.
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
@@ -108,10 +102,10 @@ services:
       start_period: 20s
 
   # ── Inicialización de MinIO ──────────────────────────────────────
-  # Servicio efímero que se ejecuta una sola vez en cada deploy.
-  # Crea el bucket público si no existe y configura el acceso anónimo.
-  # Es IDEMPOTENTE: si el bucket ya existe, no falla — solo termina.
-  # Después de ejecutarse, el contenedor sale con código 0.
+  # Servicio efimero que crea el bucket publico si no existe.
+  # IDEMPOTENTE: si el bucket ya existe, no falla.
+  # En SAFE MODE: si este servicio falla, el admin-api SIGUE arrancando
+  # (porque admin-api NO tiene "condition: service_completed_successfully").
   minio-init:
     image: minio/mc:latest
     container_name: newlife-minio-init
@@ -126,9 +120,9 @@ services:
       /bin/sh -c "
       echo 'Configurando alias de MinIO...';
       /usr/bin/mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\";
-      echo 'Creando bucket público (si no existe)...';
+      echo 'Creando bucket publico (si no existe)...';
       /usr/bin/mc mb --ignore-existing local/$$MINIO_BUCKET_PUBLIC;
-      echo 'Configurando bucket como público (lectura anónima)...';
+      echo 'Configurando bucket como publico (lectura anonima)...';
       /usr/bin/mc anonymous set download local/$$MINIO_BUCKET_PUBLIC;
       echo 'Bucket configurado correctamente. Saliendo.';
       exit 0;
