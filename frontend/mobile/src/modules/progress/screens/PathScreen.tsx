@@ -3,6 +3,7 @@ import {
     View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useLevelProgress } from '../../../hooks/useLevelProgress';
 import { performAnimatedScroll } from '../utils/pathScreenAnimation';
@@ -190,6 +191,12 @@ export default function PathScreen({ navigation }: any) {
     const scrollAnimRef = useRef(new Animated.Value(0)).current;
     const hasScrolledRef = useRef(false);
 
+    // FIX bug analytics: trackear LEVEL_PATH_VIEWED solo la PRIMERA vez que
+    // el usuario entra al camino en la sesion actual. Si entra a un nivel,
+    // lo completa y vuelve, NO se debe trackear de nuevo.
+    // Este ref persiste mientras el componente esta montado.
+    const hasTrackedRef = useRef(false);
+
     const userProgress = {
         level: progress.nivel,
         sublevel: progress.subnivel,
@@ -197,16 +204,22 @@ export default function PathScreen({ navigation }: any) {
 
     console.log('📊 PathScreen - Progress:', userProgress);
 
-    // Analytics: trackear vista del camino de 12 pasos al montar.
-    // Incluimos el progreso actual del usuario para poder analizar
-    // si los usuarios que visitan el camino estan al inicio, mitad o avanzados.
-    useEffect(() => {
-        analytics.track(EVENT_TYPES.LEVEL_PATH_VIEWED, {
-            current_level: progress.nivel,
-            current_sublevel: progress.subnivel,
-        });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    // FIX: usar useFocusEffect con ref para evitar tracks duplicados.
+    // useFocusEffect se dispara cada vez que la pantalla recibe foco
+    // (al entrar, al volver desde otra pantalla). El ref garantiza que
+    // solo trackeamos la primera vez.
+    useFocusEffect(
+        React.useCallback(() => {
+            if (!hasTrackedRef.current && !loading) {
+                hasTrackedRef.current = true;
+                analytics.track(EVENT_TYPES.LEVEL_PATH_VIEWED, {
+                    current_level: progress.nivel,
+                    current_sublevel: progress.subnivel,
+                });
+            }
+            // No cleanup necesario — el ref se mantiene mientras este montado
+        }, [progress.nivel, progress.subnivel, loading])
+    );
 
     const handleGoBack = () => {
         navigation.reset({

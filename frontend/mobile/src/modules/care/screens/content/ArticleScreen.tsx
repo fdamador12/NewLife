@@ -122,14 +122,12 @@ export default function ArticleScreen({ navigation, route }: any) {
           </Text>
           <Text style={styles.headerSubtitle}>{item.duration}</Text>
         </View>
-        {/* Boton de favorito agregado: cambia visual segun estado isLiked */}
+        {/* Unico boton de favorito: el del header (funcional, hace toggle) */}
         <TouchableOpacity onPress={handleToggleFavorito} style={styles.headerAction}>
           <Feather
             name="heart"
             size={20}
             color={isLiked ? '#FF6B6B' : colors.text}
-            // El fill solo se aplica si el icono lo soporta - feather no lo hace
-            // pero usamos el color rojo cuando esta liked para diferenciacion visual
           />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleShare} style={styles.headerAction}>
@@ -151,19 +149,12 @@ export default function ArticleScreen({ navigation, route }: any) {
 
         <Text style={styles.title}>{item.title}</Text>
 
+        {/* FIX: removido el segundo corazon que estaba aqui (era decorativo,
+            mostraba "1" o "—" segun isLiked y era visualmente confuso).
+            Solo dejamos el badge de categoria. */}
         <View style={styles.metaRow}>
           <View style={styles.tag}>
             <Text style={styles.tagText}>{item.category}</Text>
-          </View>
-          <View style={styles.metaStats}>
-            <Feather
-              name="heart"
-              size={14}
-              color={isLiked ? '#FF6B6B' : colors.textMuted}
-            />
-            <Text style={styles.metaStat}>{isLiked ? '1' : '—'}</Text>
-            <Feather name="share" size={14} color={colors.textMuted} />
-            <Text style={styles.metaStat}>—</Text>
           </View>
         </View>
 
@@ -245,7 +236,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg, marginBottom: spacing.md,
   },
   metaRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     marginHorizontal: spacing.xl, marginBottom: spacing.md,
   },
   tag: {
@@ -253,8 +244,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: 4,
   },
   tagText: { fontSize: fontSizes.xs, color: colors.text, fontWeight: '600' },
-  metaStats: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  metaStat: { fontSize: fontSizes.sm, color: colors.textMuted },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     marginHorizontal: spacing.xl, marginBottom: spacing.lg,

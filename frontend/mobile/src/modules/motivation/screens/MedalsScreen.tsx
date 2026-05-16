@@ -1,17 +1,30 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Share,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useMotivation } from '../hooks/useMotivation';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function MedalsScreen({ navigation }: any) {
   const { misMedallas, loading, fetchMisMedallas } = useMotivation();
 
+  // Ref para evitar duplicar el track en re-renders del componente.
+  const trackedRef = useRef(false);
+
   useEffect(() => {
     fetchMisMedallas();
   }, [fetchMisMedallas]);
+
+  // Analytics: trackear vista de la pantalla de medallas al montar.
+  // Solo trackea que entro, sin properties adicionales.
+  useEffect(() => {
+    if (!trackedRef.current) {
+      trackedRef.current = true;
+      analytics.track(EVENT_TYPES.MEDALS_VIEWED);
+    }
+  }, []);
 
   const handleShare = async (titulo: string) => {
     await Share.share({

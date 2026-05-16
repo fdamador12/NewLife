@@ -1,6 +1,3 @@
-# docker-compose.yml
-# Levanta: admin-api, mobile-api, frontend-web, minio
-# La app móvil (React Native) no se dockeriza — corre en emulador/dispositivo
 name: newlife
 services:
 
@@ -36,6 +33,9 @@ services:
       MEDIA_MAX_FILE_SIZE_MB: ${MEDIA_MAX_FILE_SIZE_MB}
       MEDIA_MAX_IMAGE_DIMENSION: ${MEDIA_MAX_IMAGE_DIMENSION}
       MEDIA_MIN_IMAGE_DIMENSION: ${MEDIA_MIN_IMAGE_DIMENSION}
+    # SAFE MODE: admin-api solo depende de minio levantado (sin health/init).
+    # Si minio-init falla, admin-api SIGUE arrancando (el upload no funcionara
+    # hasta que se arregle el bucket, pero el resto del sistema queda operativo).
     depends_on:
       - minio
     restart: unless-stopped
@@ -79,12 +79,12 @@ services:
 
   # ── Almacenamiento de Media (MinIO) ──────────────────────────────
   minio:
-    # newlife-media.openlab.uninorte.edu.co (futuro subdominio)
+    # newlife-media.openlab.uninorte.edu.co
     image: minio/minio:latest
     container_name: newlife-minio
     ports:
       - "5183:9000" # API compatible con S3
-      - "5184:9001" # Consola web
+      - "5184:9001" # Consola web (UI admin)
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -92,3 +92,37 @@ services:
       - ./media-data:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Inicialización de MinIO ──────────────────────────────────────
+  # Servicio efimero que crea el bucket publico si no existe.
+  # IDEMPOTENTE: si el bucket ya existe, no falla.
+  # En SAFE MODE: si este servicio falla, el admin-api SIGUE arrancando
+  # (porque admin-api NO tiene "condition: service_completed_successfully").
+  minio-init:
+    image: minio/mc:latest
+    container_name: newlife-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_PUBLIC: ${MINIO_BUCKET_PUBLIC}
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Configurando alias de MinIO...';
+      /usr/bin/mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\";
+      echo 'Creando bucket publico (si no existe)...';
+      /usr/bin/mc mb --ignore-existing local/$$MINIO_BUCKET_PUBLIC;
+      echo 'Configurando bucket como publico (lectura anonima)...';
+      /usr/bin/mc anonymous set download local/$$MINIO_BUCKET_PUBLIC;
+      echo 'Bucket configurado correctamente. Saliendo.';
+      exit 0;
+      "
+    restart: "no"

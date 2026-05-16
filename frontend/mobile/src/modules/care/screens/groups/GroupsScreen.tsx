@@ -124,29 +124,30 @@ export default function GroupsScreen({ navigation }: any) {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {filtered.map((grupo) => (
             <View key={grupo.grupo_id} style={styles.groupCard}>
-              {/* Logo arriba (column layout, no row) */}
-              {grupo.logo_url ? (
-                <Image
-                  source={{ uri: grupo.logo_url }}
-                  style={styles.groupLogo}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.groupLogoPlaceholder}>
-                  <Feather name="home" size={32} color={colors.textMuted} />
-                </View>
-              )}
-
-              {/* Info debajo del logo */}
-              <View style={styles.groupInfo}>
-                <Text style={styles.groupName} numberOfLines={2}>
-                  {grupo.nombre}
-                </Text>
-                {grupo.descripcion && (
-                  <Text style={styles.groupDescription} numberOfLines={3}>
-                    {grupo.descripcion}
-                  </Text>
+              {/* Fila horizontal: logo cuadrado a la izquierda + texto a la derecha */}
+              <View style={styles.cardTopRow}>
+                {grupo.logo_url ? (
+                  <Image
+                    source={{ uri: grupo.logo_url }}
+                    style={styles.groupLogo}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.groupLogoPlaceholder}>
+                    <Feather name="home" size={28} color={colors.textMuted} />
+                  </View>
                 )}
+
+                <View style={styles.groupInfo}>
+                  <Text style={styles.groupName} numberOfLines={2}>
+                    {grupo.nombre}
+                  </Text>
+                  {grupo.descripcion && (
+                    <Text style={styles.groupDescription} numberOfLines={3}>
+                      {grupo.descripcion}
+                    </Text>
+                  )}
+                </View>
               </View>
 
               {/* Ubicacion */}
@@ -261,25 +262,36 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: fontSizes.md, color: colors.textMuted, textAlign: 'center' },
   scroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
-  // FIX: el card es column-layout (logo arriba, info abajo, acciones al final)
-  // En el codigo previo, cardHeader era 'row' lo cual no funcionaba con
-  // groupLogo width: '100%'. Eliminamos cardHeader y dejamos todo column.
   groupCard: {
     backgroundColor: colors.white, borderRadius: borderRadius.md,
     padding: spacing.lg, gap: spacing.md,
     elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4,
   },
+  // NUEVO: fila superior con logo a la izquierda y texto a la derecha
+  cardTopRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
   groupLogo: {
-    width: '100%', height: 160,
-    borderRadius: borderRadius.md, backgroundColor: '#F0F0F0',
+    width: 80,
+    height: 80,
+    borderRadius: borderRadius.md,
+    backgroundColor: '#F0F0F0',
   },
   groupLogoPlaceholder: {
-    width: '100%', height: 160,
-    borderRadius: borderRadius.md, backgroundColor: '#F0F0F0',
-    alignItems: 'center', justifyContent: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: borderRadius.md,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  groupInfo: { gap: spacing.xs },
+  groupInfo: {
+    flex: 1,
+    gap: spacing.xs,
+  },
   groupName: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text },
   groupDescription: { fontSize: fontSizes.sm, color: colors.textMuted, lineHeight: 18 },
   locationSection: {

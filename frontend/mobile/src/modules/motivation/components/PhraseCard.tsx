@@ -15,7 +15,10 @@ type PhraseCardProps = {
   fraseId: string;
   texto: string;
   isFavorite: boolean;
-  onFavoriteChange?: () => void;
+  // FIX bug #4: el callback ahora recibe (fraseId, isFavoriteNow) para que la
+  // pantalla padre pueda trackear DAILY_PHRASE_FAVORITED solo cuando se AGREGA.
+  // Mantenemos compatibilidad: si no se pasan argumentos, sigue funcionando.
+  onFavoriteChange?: (fraseId?: string, isFavoriteNow?: boolean) => void;
 };
 
 export function PhraseCard({
@@ -36,30 +39,32 @@ export function PhraseCard({
   };
 
   const handleToggleLike = async () => {
-    // ✅ Cambio inmediato en la UI
+    // Cambio inmediato en la UI
     const wasLiked = isLiked;
     setIsLiked(!wasLiked);
     setIsLoading(true);
 
     try {
       if (wasLiked) {
-        // ✅ Eliminar de favoritas - DELETE /motivation/frases-guardadas/:fraseId
+        // Eliminar de favoritas - DELETE /motivation/frases-guardadas/:fraseId
         console.log(`❌ Eliminando frase ${fraseId} de favoritas`);
         await desguardarFrase(fraseId);
         console.log(`✅ Frase ${fraseId} eliminada de favoritas`);
       } else {
-        // ✅ Agregar a favoritas - POST /motivation/frases-guardadas
+        // Agregar a favoritas - POST /motivation/frases-guardadas
         console.log(`❤️ Guardando frase ${fraseId} como favorita`);
         await guardarFrase(fraseId);
         console.log(`✅ Frase ${fraseId} guardada como favorita`);
       }
 
-      // ✅ Notificar al padre para refetch
+      // Notificar al padre para refetch + tracking.
+      // Pasamos fraseId y el estado nuevo (!wasLiked) para que la pantalla
+      // pueda decidir si trackear el evento de favorito.
       if (onFavoriteChange) {
-        onFavoriteChange();
+        onFavoriteChange(fraseId, !wasLiked);
       }
     } catch (error: any) {
-      // ❌ Si falla, revertir el cambio
+      // Si falla, revertir el cambio
       console.error('❌ Error toggling favorite:', error.message);
       setIsLiked(wasLiked);
     } finally {

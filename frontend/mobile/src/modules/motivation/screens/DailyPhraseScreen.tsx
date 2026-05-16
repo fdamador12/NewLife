@@ -43,10 +43,22 @@ export default function DailyPhraseScreen({ navigation }: any) {
     }
   }, [fraseDia?.frase_id]);
 
-  const handleFavoriteChange = () => {
-    // ✅ Refetch inmediato cuando cambia favorita
+  // FIX bug analytics: trackear daily_phrase_favorited cuando el usuario marca
+  // como favorita una frase desde esta pantalla. Antes esto NO se trackeaba,
+  // solo se trackeaba desde MotivationalPhrasesScreen.
+  // El callback recibe el ID de la frase y si quedo favorita o no, para que
+  // solo trackeemos al AGREGAR a favoritos, no al quitar.
+  const handleFavoriteChange = (fraseId?: string, isFavoriteNow?: boolean) => {
+    // Refetch inmediato cuando cambia favorita
     fetchFraseDia();
     fetchFrasesGuardadas();
+
+    // Si se llamo con argumentos y la frase quedo favorita, trackear
+    if (fraseId && isFavoriteNow === true) {
+      analytics.track(EVENT_TYPES.DAILY_PHRASE_FAVORITED, {
+        phrase_id: fraseId,
+      });
+    }
   };
 
   return (
