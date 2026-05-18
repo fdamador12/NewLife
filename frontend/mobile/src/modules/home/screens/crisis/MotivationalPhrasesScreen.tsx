@@ -16,7 +16,17 @@ import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 export default function MotivationalPhrasesScreen({ navigation }: any) {
   const { frases, loading, toggleFavorito, fetchFrasesPorFecha } = useMotivationalPhrases();
   const hasFetched = useRef(false);
-  const lastTrackedPhraseRef = useRef<string | null>(null);
+
+  // FIX: trackear CRISIS_PHRASES_VIEWED (no DAILY_PHRASE_VIEWED) porque esta
+  // pantalla se accede desde el SOS y es una lista (multiples frases visibles).
+  // No incluimos phrase_id porque atribuir a una sola frase seria enganoso.
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (!trackedRef.current) {
+      trackedRef.current = true;
+      analytics.track(EVENT_TYPES.CRISIS_PHRASES_VIEWED);
+    }
+  }, []);
 
   useEffect(() => {
     if (!hasFetched.current) {
@@ -30,29 +40,14 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
     const unsubscribe = navigation.addListener('focus', () => {
       const today = new Date().toISOString().split('T')[0];
       fetchFrasesPorFecha(today);
+      // Resetear tracking al volver a enfocar
+      trackedRef.current = false;
     });
     return unsubscribe;
   }, [navigation, fetchFrasesPorFecha]);
 
-  // Analytics: trackear la frase de HOY (la primera = index 0) cada vez que
-  // se carga. Sin dedup global pero sin trackear duplicados consecutivos del
-  // mismo render: lastTrackedPhraseRef evita que un rerender con la misma
-  // frase ya cargada (sin cambios) dispare el evento de nuevo.
-  // Si el usuario sale y vuelve a la pantalla, sí se trackea de nuevo (es lo
-  // que queremos: refleja engagement real con esa frase).
-  useEffect(() => {
-    if (frases.length > 0) {
-      const fraseHoy = frases[0];
-      if (fraseHoy?.frase_id && fraseHoy.frase_id !== lastTrackedPhraseRef.current) {
-        lastTrackedPhraseRef.current = fraseHoy.frase_id;
-        analytics.track(EVENT_TYPES.DAILY_PHRASE_VIEWED, {
-          phrase_id: fraseHoy.frase_id,
-          source: 'motivational_phrases_screen',
-        });
-      }
-    }
-  }, [frases]);
-
+  // FIX bug analytics: trackear daily_phrase_favorited al marcar como favorita.
+  // Aqui SI tiene sentido el phrase_id porque es una accion sobre UNA frase.
   const handleToggleFavorito = (fraseId: string) => {
     const frase = frases.find((f) => f.frase_id === fraseId);
     const wasFavorite = frase?.isFavorite ?? false;
