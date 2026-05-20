@@ -46,6 +46,9 @@ export default function ContentScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
 
   // Analytics: refs para tracking de busquedas.
+  // IMPORTANTE: lastTrackedQueryRef SE QUEDA EN MEMORIA LOCAL del cliente,
+  // solo para evitar trackear la misma busqueda dos veces seguidas. El termino
+  // NUNCA se envia al backend (ver track() abajo).
   const lastTrackedQueryRef = useRef<string>('');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -70,11 +73,23 @@ export default function ContentScreen({ navigation }: any) {
 
   // Analytics: trackear busquedas con debounce robusto.
   //
-  // Estrategia mejorada (v2):
+  // PRIVACIDAD: NO enviamos el texto de la busqueda al backend. Solo enviamos
+  // metricas agregadas (results_count, query_length) que permiten medir
+  // efectividad de la busqueda sin revelar lo que cada usuario busca. Esto
+  // cumple con el principio de minimizacion de datos (Ley 1581 Art. 4 y la
+  // politica de privacidad de NewLife).
+  //
+  // Por que no enviamos query: lo que la gente busca en una app de bienestar
+  // puede revelar informacion muy personal (ej: "recaida", "ansiedad",
+  // "soledad"). Almacenar esos terminos seria una violacion de privacidad
+  // innecesaria, ya que para nuestras metricas solo necesitamos saber CUANTO
+  // se busca y SI los resultados son utiles, no QUE se busca.
+  //
+  // Estrategia de debounce:
   // 1. Cancelar timer pendiente cada vez que cambia el input
   // 2. Programar nuevo timer de 2500ms (mas tolerante a emuladores lentos)
   // 3. NO trackear si la query es menor a 3 caracteres (evita ruido)
-  // 4. NO trackear si la query es identica a la ultima trackeada
+  // 4. NO trackear si la query es identica a la ultima trackeada (en memoria local)
   // 5. Si el usuario borra el input, no trackear
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -87,12 +102,15 @@ export default function ContentScreen({ navigation }: any) {
     if (trimmed.length < SEARCH_MIN_CHARS) return;
 
     // No trackear si es la misma query que ya trackeamos
+    // (lastTrackedQueryRef es solo en memoria, NO se envia al backend)
     if (trimmed === lastTrackedQueryRef.current) return;
 
     debounceTimerRef.current = setTimeout(() => {
+      // PRIVACIDAD: enviamos solo metricas agregadas, NO el texto de la busqueda.
       analytics.track(EVENT_TYPES.CONTENT_SEARCHED, {
-        query: trimmed,
+        query_length: trimmed.length,
         results_count: filtered?.length ?? 0,
+        had_results: (filtered?.length ?? 0) > 0,
       });
       lastTrackedQueryRef.current = trimmed;
     }, SEARCH_IDLE_MS);

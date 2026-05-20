@@ -21,14 +21,20 @@ export const EVENT_TYPES = {
   BREATHING_EXERCISE_STARTED: 'breathing_exercise_started',
   BREATHING_EXERCISE_COMPLETED: 'breathing_exercise_completed',
   ZEN_MODE_ENTERED: 'zen_mode_entered',
+  // NUEVO: trackea cuando se accede a frases motivacionales desde el SOS
+  CRISIS_PHRASES_VIEWED: 'crisis_phrases_viewed',
 
   // Meditaciones guiadas
   GUIDED_MEDITATION_STARTED: 'guided_meditation_started',
   GUIDED_MEDITATION_COMPLETED: 'guided_meditation_completed',
 
   // Frases diarias
+  // DAILY_PHRASE_VIEWED ahora NO lleva phrase_id porque la pantalla muestra
+  // la frase del dia + lista de favoritas. Atribuir a un solo id es enganoso.
   DAILY_PHRASE_VIEWED: 'daily_phrase_viewed',
   DAILY_PHRASE_FAVORITED: 'daily_phrase_favorited',
+  // NUEVO: trackea cuando se accede a la lista completa de frases en Cuidado
+  MOTIVATIONAL_LIST_VIEWED: 'motivational_list_viewed',
 
   // Contenido educativo
   CONTENT_LIST_VIEWED: 'content_list_viewed',
@@ -57,7 +63,6 @@ export const EVENT_TYPES = {
   // Checkin diario
   DAILY_CHECKIN_STARTED: 'daily_checkin_started',
   DAILY_CHECKIN_COMPLETED: 'daily_checkin_completed',
-  // NUEVO: trackea cuando el usuario sale del checkin sin completarlo
   DAILY_CHECKIN_ABANDONED: 'daily_checkin_abandoned',
 
   // Niveles / 12 pasos
@@ -82,7 +87,6 @@ export const EVENT_TYPES = {
   CHALLENGE_COMPLETED: 'challenge_completed',
 
   // Medallas / Logros
-  // NUEVO: trackea cuando el usuario entra a la pantalla de medallas
   MEDALS_VIEWED: 'medals_viewed',
 } as const;
 

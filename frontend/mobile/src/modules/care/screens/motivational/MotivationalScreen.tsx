@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger } from 'react-native-popup-m
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 import { useMotivationalPhrases } from '../../hooks/useMotivationalPhrases';
 import MotivationalCard from './components/MotivationalCard';
+import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 
 type SortOption = 'recent' | 'oldest' | 'favorites' | 'non-favorites';
 
@@ -28,7 +29,17 @@ export default function MotivationalScreen({ navigation }: any) {
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const menuRef = React.useRef(null);
 
-  // ✅ TODOS LOS HOOKS AL INICIO
+  // FIX: agregar tracking de MOTIVATIONAL_LIST_VIEWED al entrar.
+  // Esta pantalla mostraba la lista historica de frases pero NO trackeaba
+  // nada en analytics. Sin phrase_id porque es una lista (multiples frases
+  // visibles, no sabemos cual esta leyendo el usuario).
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (!trackedRef.current) {
+      trackedRef.current = true;
+      analytics.track(EVENT_TYPES.MOTIVATIONAL_LIST_VIEWED);
+    }
+  }, []);
 
   // Cargar frases al montar
   useEffect(() => {
@@ -41,11 +52,28 @@ export default function MotivationalScreen({ navigation }: any) {
     const unsubscribe = navigation.addListener('focus', () => {
       const today = new Date().toISOString().split('T')[0];
       fetchFrasesPorFecha(today);
+      // Resetear tracking al volver a enfocar la pantalla
+      trackedRef.current = false;
     });
     return unsubscribe;
   }, [navigation, fetchFrasesPorFecha]);
 
-  // Lógica de ordenamiento
+  // FIX bug analytics: trackear daily_phrase_favorited al marcar como favorita.
+  // Aqui SI tiene sentido el phrase_id porque es una accion sobre UNA frase.
+  const handleToggleFavorito = (fraseId: string) => {
+    const frase = frases.find((f) => f.frase_id === fraseId);
+    const wasFavorite = frase?.isFavorite ?? false;
+
+    toggleFavorito(fraseId);
+
+    if (!wasFavorite) {
+      analytics.track(EVENT_TYPES.DAILY_PHRASE_FAVORITED, {
+        phrase_id: fraseId,
+      });
+    }
+  };
+
+  // Logica de ordenamiento
   const sortedFrases = useMemo(() => {
     let sorted = [...frases];
 
@@ -167,7 +195,7 @@ export default function MotivationalScreen({ navigation }: any) {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando frases...</Text>
         </View>
-      ) : frases.length === 0 ? (
+      ) : sortedFrases.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconContainer}>
             <Feather name="inbox" size={32} color="#9CA3AF" />
@@ -183,7 +211,7 @@ export default function MotivationalScreen({ navigation }: any) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {frases.map((item, index) => (
+          {sortedFrases.map((item, index) => (
             <View key={item.frase_id} style={styles.cardContainer}>
               {/* Indicador de timeline */}
               <View style={styles.timelineIndicator}>
@@ -191,7 +219,7 @@ export default function MotivationalScreen({ navigation }: any) {
                   styles.timelineDot,
                   index === 0 && styles.timelineDotActive
                 ]} />
-                {index < frases.length - 1 && (
+                {index < sortedFrases.length - 1 && (
                   <View style={styles.timelineLine} />
                 )}
               </View>
@@ -224,7 +252,7 @@ export default function MotivationalScreen({ navigation }: any) {
                   text={item.frase}
                   image={require('../../../../assets/images/phrase.jpg')}
                   isFavorite={item.isFavorite || false}
-                  onToggleFavorite={toggleFavorito}
+                  onToggleFavorite={handleToggleFavorito}
                 />
               </View>
             </View>

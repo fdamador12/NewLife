@@ -47,24 +47,40 @@ export class LoginAdminUseCase {
       );
     }
 
-    // 4. Verificar que tiene rol de ADMIN o SUPERADMIN
+    // 4. ORDEN CRITICO: verificar ESTADO ANTES que rol.
+    //
+    // Antes este check estaba DESPUES del check de rol, lo cual causaba que
+    // usuarios eliminados/baneados/suspendidos recibieran "No tienes permisos"
+    // en lugar de un mensaje claro sobre su estado.
+    //
+    // Ejemplo del bug previo:
+    //   Usuario elimina su cuenta desde la landing → estado=ELIMINADO
+    //   Intenta login en admin con sus credenciales viejas
+    //   Sistema decia "No tienes permisos" (confuso, parece que falta autorizacion)
+    //   Correcto: "Esta cuenta ha sido eliminada" (claro sobre lo que pasa)
+    if (user.estado === 'ELIMINADO') {
+      throw new UnauthorizedException('Esta cuenta ha sido eliminada.');
+    }
+    if (user.isBanned && user.isBanned()) {
+      throw new UnauthorizedException(
+        'Tu cuenta ha sido suspendida permanentemente.',
+      );
+    }
+    if (user.isSuspended && user.isSuspended()) {
+      throw new UnauthorizedException(
+        `Tu cuenta está suspendida hasta ${user.suspension_hasta}.`,
+      );
+    }
+    // Fallback por si canAccess captura algun caso no cubierto arriba
+    if (user.canAccess && !user.canAccess()) {
+      throw new UnauthorizedException('Tu cuenta no está activa.');
+    }
+
+    // 5. Verificar que tiene rol de ADMIN o SUPERADMIN
     if (!user.isAdmin()) {
       throw new ForbiddenException(
         'No tienes permisos para acceder al panel de administración.',
       );
-    }
-
-    // 5. Verificar que su cuenta puede acceder (no suspendida ni baneada)
-    if (!user.canAccess()) {
-      if (user.isBanned()) {
-        throw new UnauthorizedException('Tu cuenta ha sido baneada.');
-      }
-      if (user.isSuspended()) {
-        throw new UnauthorizedException(
-          `Tu cuenta está suspendida hasta ${user.suspension_hasta}.`,
-        );
-      }
-      throw new UnauthorizedException('Tu cuenta no está activa.');
     }
 
     // 6. Actualizar last_login
