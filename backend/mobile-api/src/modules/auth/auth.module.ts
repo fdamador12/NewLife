@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthService } from './application/services/auth.service';
@@ -10,14 +10,20 @@ import { RegisterUseCase } from './application/use-cases/register.use-case';
 import { RegisterStaffUseCase } from './application/use-cases/register-staff.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { MigrateGuestUseCase } from './application/use-cases/migrate-guest.use-case';
+import { RequestAccountDeletionUseCase } from './application/use-cases/request-account-deletion.use-case';
 import { DatabaseModule } from '../database/database.module';
+import { UsersModule } from '../users/users.module';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 
 @Module({
   imports: [
-    DatabaseModule, 
-    ConfigModule, 
-    EventEmitterModule.forRoot() // Se recomienda .forRoot() si es la configuración global
+    DatabaseModule,
+    ConfigModule,
+    EventEmitterModule.forRoot(),
+    // forwardRef por si UsersModule tambien importa AuthModule (evita ciclos).
+    // Necesitamos DeleteAllDataUseCase de UsersModule para el flujo de
+    // eliminacion publica desde landing.
+    forwardRef(() => UsersModule),
   ],
   controllers: [AuthController],
   providers: [
@@ -29,6 +35,7 @@ import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-cas
     RefreshTokenUseCase,
     MigrateGuestUseCase,
     VerifyEmailUseCase,
+    RequestAccountDeletionUseCase,
     {
       provide: 'IAuthProviderPort',
       useClass: RobleAuthAdapter,

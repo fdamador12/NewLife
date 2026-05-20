@@ -2,6 +2,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { MotivationModule } from './modules/motivation/motivation.module';
 import { CareModule } from './modules/care/care.module';
 import { MediaModule } from './modules/media/media.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -34,11 +35,18 @@ async function bootstrap() {
     .addTag('Admin — Frases del Día')
     .addTag('Admin — Retos')
     .addTag('Admin — Grupos de Apoyo')
+    .addTag('Admin — Analytics')
     .addTag('Media — Imágenes')
     .build();
 
   const webDocument = SwaggerModule.createDocument(app, webConfig, {
-    include: [AdminModule, MotivationModule, CareModule, MediaModule],
+    include: [
+      AdminModule,
+      MotivationModule,
+      CareModule,
+      MediaModule,
+      AnalyticsModule,
+    ],
   });
 
   SwaggerModule.setup('api/docs/web', app, webDocument);

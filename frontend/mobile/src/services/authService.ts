@@ -124,8 +124,14 @@ export const getProfile = async () => {
   );
 };
 
-export const deleteAllData = async (): Promise<void> => {
-  await api.delete('/user/all-data');
+export const deleteAllData = async (motivo?: string): Promise<void> => {
+  // Solo enviamos motivo si es no-vacio para evitar guardar strings vacios
+  // en delete_motivo del backend.
+  const body = motivo && motivo.trim().length > 0
+    ? { motivo: motivo.trim() }
+    : {};
+ 
+  await api.delete('/user/all-data', { data: body });
   await logoutUser();
 };
 

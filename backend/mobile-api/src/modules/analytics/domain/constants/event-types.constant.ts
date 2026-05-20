@@ -21,12 +21,14 @@ export const VALID_EVENT_TYPES_LIST = [
   'breathing_exercise_started',
   'breathing_exercise_completed',
   'zen_mode_entered',
+  'crisis_phrases_viewed', // NUEVO
   // Meditaciones
   'guided_meditation_started',
   'guided_meditation_completed',
   // Frases
   'daily_phrase_viewed',
   'daily_phrase_favorited',
+  'motivational_list_viewed', // NUEVO
   // Contenido
   'content_list_viewed',
   'content_viewed',
@@ -49,7 +51,7 @@ export const VALID_EVENT_TYPES_LIST = [
   // Checkin
   'daily_checkin_started',
   'daily_checkin_completed',
-  'daily_checkin_abandoned', // NUEVO
+  'daily_checkin_abandoned',
   // Niveles
   'level_path_viewed',
   'level_started',
@@ -67,7 +69,7 @@ export const VALID_EVENT_TYPES_LIST = [
   'challenge_joined',
   'challenge_completed',
   // Medallas / Logros
-  'medals_viewed', // NUEVO
+  'medals_viewed',
 ] as const;
 
 export type ValidEventType = (typeof VALID_EVENT_TYPES_LIST)[number];
@@ -91,10 +93,12 @@ export const EVENT_TYPE_TO_CATEGORY: Record<ValidEventType, string> = {
   breathing_exercise_started: 'crisis',
   breathing_exercise_completed: 'crisis',
   zen_mode_entered: 'crisis',
+  crisis_phrases_viewed: 'crisis', // NUEVO
   guided_meditation_started: 'content',
   guided_meditation_completed: 'content',
   daily_phrase_viewed: 'content',
   daily_phrase_favorited: 'content',
+  motivational_list_viewed: 'content', // NUEVO
   content_list_viewed: 'content',
   content_viewed: 'content',
   content_favorited: 'content',
@@ -111,7 +115,7 @@ export const EVENT_TYPE_TO_CATEGORY: Record<ValidEventType, string> = {
   pet_evolved: 'gamification',
   daily_checkin_started: 'progress',
   daily_checkin_completed: 'progress',
-  daily_checkin_abandoned: 'progress', // NUEVO
+  daily_checkin_abandoned: 'progress',
   level_path_viewed: 'progress',
   level_started: 'progress',
   level_completed: 'progress',
@@ -123,5 +127,5 @@ export const EVENT_TYPE_TO_CATEGORY: Record<ValidEventType, string> = {
   challenge_viewed: 'gamification',
   challenge_joined: 'gamification',
   challenge_completed: 'gamification',
-  medals_viewed: 'gamification', // NUEVO
+  medals_viewed: 'gamification',
 };

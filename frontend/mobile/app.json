@@ -3,7 +3,7 @@
   "expo": {
     "name": "NewLife",
     "slug": "newlife",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "icon": "./src/assets/images/logo.png",
     "platforms": [
       "android"

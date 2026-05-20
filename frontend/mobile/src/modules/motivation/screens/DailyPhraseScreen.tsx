@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
@@ -17,43 +17,47 @@ export default function DailyPhraseScreen({ navigation }: any) {
     fetchFrasesGuardadas,
   } = useMotivation();
 
+  // Ref para trackear solo UNA vez por sesion de pantalla (no por re-render).
+  // Se resetea cuando el componente se desmonta.
+  const trackedRef = useRef(false);
+
   useEffect(() => {
-    // ✅ Cargar inmediatamente al montar
     fetchFraseDia();
     fetchFrasesGuardadas();
 
-    // ✅ Refetch cuando vuelves a la pantalla (desde otra pantalla)
     const unsubscribe = navigation.addListener('focus', () => {
       fetchFraseDia();
       fetchFrasesGuardadas();
+      // Resetear tracking al volver a enfocar la pantalla.
+      // Asi si el usuario navega afuera y vuelve, se trackea de nuevo.
+      trackedRef.current = false;
     });
 
     return unsubscribe;
   }, [navigation, fetchFraseDia, fetchFrasesGuardadas]);
 
-  // Analytics: trackear daily_phrase_viewed cada vez que se carga la frase.
-  // Sin dedup: si el usuario vuelve a esta pantalla, se trackea de nuevo.
-  // Eso refleja el engagement real con esta frase especifica.
+  // Analytics: trackear DAILY_PHRASE_VIEWED al montar la pantalla.
+  // NO incluimos phrase_id porque la pantalla muestra la frase del dia +
+  // lista de frases guardadas. Atribuir a un solo phrase_id seria enganoso
+  // porque el usuario puede estar leyendo cualquiera de las visibles.
   useEffect(() => {
-    if (fraseDia?.frase_id) {
-      analytics.track(EVENT_TYPES.DAILY_PHRASE_VIEWED, {
-        phrase_id: fraseDia.frase_id,
-        source: 'daily_phrase_screen',
-      });
+    if (!trackedRef.current && !loading) {
+      trackedRef.current = true;
+      analytics.track(EVENT_TYPES.DAILY_PHRASE_VIEWED);
     }
-  }, [fraseDia?.frase_id]);
+  }, [loading]);
 
   // FIX bug analytics: trackear daily_phrase_favorited cuando el usuario marca
-  // como favorita una frase desde esta pantalla. Antes esto NO se trackeaba,
-  // solo se trackeaba desde MotivationalPhrasesScreen.
+  // como favorita una frase desde esta pantalla.
   // El callback recibe el ID de la frase y si quedo favorita o no, para que
   // solo trackeemos al AGREGAR a favoritos, no al quitar.
+  // Aqui SI tiene sentido el phrase_id porque es una accion sobre UNA frase
+  // especifica (no una vista de lista).
   const handleFavoriteChange = (fraseId?: string, isFavoriteNow?: boolean) => {
     // Refetch inmediato cuando cambia favorita
     fetchFraseDia();
     fetchFrasesGuardadas();
 
-    // Si se llamo con argumentos y la frase quedo favorita, trackear
     if (fraseId && isFavoriteNow === true) {
       analytics.track(EVENT_TYPES.DAILY_PHRASE_FAVORITED, {
         phrase_id: fraseId,
@@ -90,16 +94,12 @@ export default function DailyPhraseScreen({ navigation }: any) {
 
         {/* Frases Guardadas - Excluir la frase del día */}
         {(() => {
-          // ✅ Filtrar: solo frases guardadas que NO sean la del día
+          // Filtrar: solo frases guardadas que NO sean la del dia
           const otherSavedPhrases = Array.isArray(frasesGuardadas)
             ? frasesGuardadas.filter((frase) => frase.frase_id !== fraseDia?.frase_id)
             : [];
 
-          console.log('🔍 otherSavedPhrases:', otherSavedPhrases);
-          console.log('🔍 otherSavedPhrases.length:', otherSavedPhrases.length);
-          console.log('🔍 frasesGuardadas.length:', frasesGuardadas.length);
-
-          // ✅ CASO 1: Hay frases guardadas (que no son la del día)
+          // CASO 1: Hay frases guardadas (que no son la del dia)
           if (otherSavedPhrases.length > 0) {
             return (
               <>
@@ -117,12 +117,12 @@ export default function DailyPhraseScreen({ navigation }: any) {
             );
           }
 
-          // ✅ CASO 2: Solo la frase del día está guardada (no mostrar nada)
+          // CASO 2: Solo la frase del dia esta guardada (no mostrar nada)
           if (frasesGuardadas.length === 1 && frasesGuardadas[0]?.frase_id === fraseDia?.frase_id) {
             return null;
           }
 
-          // ✅ CASO 3: No hay nada guardado (mostrar mensaje)
+          // CASO 3: No hay nada guardado (mostrar mensaje)
           return (
             <View style={styles.emptyState}>
               <Feather name="inbox" size={48} color={colors.textMuted} />
