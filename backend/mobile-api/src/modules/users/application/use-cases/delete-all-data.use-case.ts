@@ -35,6 +35,35 @@ const ROBLE_ID_TABLES = [
   'comentario_respuestas',
 ];
 
+/** Placeholder usado para anonimizar el nombre del usuario eliminado. */
+const ANONYMIZED_NAME = '[Cuenta eliminada]';
+
+/**
+ * Caso de uso de borrado total de cuenta.
+ *
+ * FLUJO:
+ * 1. Resuelve el _id de Roble del usuario por su usuario_id (uuid del JWT).
+ * 2. Borra los datos personales de 25 tablas en paralelo.
+ * 3. SOFT DELETE del registro en `usuarios`:
+ *    - Marca estado='ELIMINADO' para bloqueo de login
+ *    - Anonimiza `nombre` con placeholder (sin romper schema NOT NULL)
+ *    - Guarda `deleted_at` y opcionalmente `delete_motivo`
+ *
+ * SCHEMA REQUERIDO en tabla `usuarios`:
+ * - `estado` (varchar, nullable): se setea a 'ELIMINADO'
+ * - `deleted_at` (timestamp, nullable): cuando se elimino
+ * - `delete_motivo` (varchar, nullable): motivo opcional del usuario
+ *
+ * IMPORTANTE: NO ponemos campos a null aunque parezca natural hacerlo.
+ * Razon: el schema actual tiene `nombre`, `last_login`, etc. como NOT NULL,
+ * y cambiarlos a nullable rompe codigo existente que asume que NO son null
+ * (LoginUseCase, getProfile, getHomeSummary, etc.).
+ *
+ * Estrategia anti-null:
+ * - `nombre` → placeholder "[Cuenta eliminada]" (cumple GDPR + no rompe codigo)
+ * - `last_login` → se conserva (no es PII identificable)
+ * - Otros campos → se conservan (la cuenta no puede acceder, son inutiles)
+ */
 @Injectable()
 export class DeleteAllDataUseCase {
   private readonly logger = new Logger(DeleteAllDataUseCase.name);
@@ -44,7 +73,13 @@ export class DeleteAllDataUseCase {
     private readonly systemAuth: SystemAuthService,
   ) {}
 
-  async execute(usuarioUuid: string): Promise<void> {
+  /**
+   * Borra todos los datos del usuario.
+   *
+   * @param usuarioUuid - usuario_id (uuid del JWT)
+   * @param motivo - motivo opcional de la eliminacion (para auditoria)
+   */
+  async execute(usuarioUuid: string, motivo?: string): Promise<void> {
     const token = await this.systemAuth.getMasterToken();
 
     // 1. Resolver _id de Roble del usuario
@@ -85,14 +120,43 @@ export class DeleteAllDataUseCase {
 
     await Promise.all([...uuidDeletes, ...robleIdDeletes]);
 
-    // 4. Borrar el registro principal de usuarios al final
-    try {
-      if (robleId) {
-        await this.db.delete('usuarios', '_id', robleId, token);
-        this.logger.log(`✅ usuarios borrado`);
+    // 4. SOFT DELETE del registro principal en `usuarios`.
+    //
+    // CRITICO: este paso evita que la cuenta "resucite" en LoginUseCase.
+    //
+    // ANONIMIZACION sin tocar schema:
+    // - `nombre` cambia a placeholder (no es null para no romper queries)
+    // - `estado` = 'ELIMINADO' (bloqueo de login)
+    // - `deleted_at` = timestamp actual
+    // - `delete_motivo` = motivo opcional
+    if (robleId) {
+      try {
+        const updatePayload: Record<string, any> = {
+          estado: 'ELIMINADO',
+          nombre: ANONYMIZED_NAME,
+          deleted_at: new Date().toISOString(),
+        };
+
+        // Solo agregar motivo si vino del caller (landing). Movil no envia motivo.
+        if (motivo) {
+          updatePayload.delete_motivo = motivo;
+        }
+
+        await this.db.update('usuarios', '_id', robleId, updatePayload, token);
+        this.logger.log(
+          `✅ usuarios marcado como ELIMINADO y anonimizado` +
+          (motivo ? ` motivo="${motivo}"` : ''),
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `❌ CRITICO: no se pudo marcar usuario como ELIMINADO. ` +
+          `La cuenta puede ser reactivable. Error: ${err.message}`,
+        );
+        // Re-lanzar el error para que el caller sepa que algo crítico fallo
+        throw err;
       }
-    } catch (err: any) {
-      this.logger.warn(`⚠️ usuarios: ${err.message}`);
+    } else {
+      this.logger.warn(`⚠️ No se encontro robleId para uuid=${usuarioUuid}, no se pudo hacer soft delete`);
     }
 
     this.logger.log(`🎉 Borrado total completado para ${usuarioUuid}`);
