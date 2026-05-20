@@ -3,13 +3,13 @@
 //
 // DISENO:
 // - Sin header redundante (el documento ya tiene su propio titulo grande)
-// - Boton flotante "Volver al inicio" arriba a la izquierda
+// - Sin botones de navegacion (la pagina se sirve tambien desde el WebView
+//   movil dentro de la app, donde links como "/" no tienen sentido)
 // - Contenido sincronizado con politica-privacidad v1.1.0
 // - Estructura por cards para cada seccion (mas legible)
-// - Tabla de contenidos clickeable con scroll suave
+// - Tabla de contenidos clickeable con scroll suave (anchors internos, OK en WebView)
 
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
 
 export const metadata = {
   title: "Política de Privacidad — NewLife",
@@ -21,17 +21,7 @@ export default function PrivacidadPage() {
   return (
     <div className="min-h-screen bg-[#f8f6f3] relative">
 
-      {/* Boton flotante: Volver al inicio */}
-      <Link
-        href="/"
-        className="fixed top-6 left-6 z-50 inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#e5e5e5] rounded-full shadow-sm hover:shadow-md transition-shadow text-sm text-[#4a4a4a] hover:text-[#1a1a1a]"
-        aria-label="Volver al inicio"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline">Volver al inicio</span>
-      </Link>
-
-      <main className="max-w-4xl mx-auto px-6 py-16 md:py-20">
+      <main className="max-w-4xl mx-auto px-6 py-12 md:py-16">
 
         {/* Titulo principal del documento */}
         <div className="mb-10">
@@ -692,10 +682,6 @@ export default function PrivacidadPage() {
             <a href="mailto:proyecto.newlife.2026@gmail.com" className="text-[#d4854a] hover:underline">
               proyecto.newlife.2026@gmail.com
             </a>
-            <span className="text-[#e5e5e5]">·</span>
-            <Link href="/" className="text-[#d4854a] hover:underline">
-              Volver al inicio
-            </Link>
           </div>
         </div>
 

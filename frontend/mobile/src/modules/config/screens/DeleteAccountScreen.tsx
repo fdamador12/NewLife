@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -8,16 +9,26 @@ import { useToast } from '../../../feedback/ToastContext';
 import { usePet } from '../../pet/hooks/usePet';
 import { deleteAllData } from '../../../services/authService';
 
+// Limite consistente con la landing web (/eliminar-cuenta)
+const MAX_MOTIVO_LENGTH = 500;
+
 export default function DeleteAccountScreen({ navigation }: any) {
   const { showToast } = useToast();
   const { resetPet } = usePet();
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  // Motivo opcional: feedback voluntario del usuario sobre por que se va.
+  // Mismo limite (500 chars) que el formulario de eliminacion de la landing
+  // para mantener consistencia entre canales.
+  const [motivo, setMotivo] = useState('');
 
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deleteAllData();
+      // Trim para no enviar solo espacios en blanco. Si queda vacio mandamos
+      // undefined para no guardar strings vacios en delete_motivo del backend.
+      const motivoTrimmed = motivo.trim();
+      await deleteAllData(motivoTrimmed.length > 0 ? motivoTrimmed : undefined);
       resetPet();
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (e: any) {
@@ -26,6 +37,13 @@ export default function DeleteAccountScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseModal = () => {
+    if (loading) return;
+    setShowModal(false);
+    // Limpiar motivo al cerrar para que no quede al reabrir
+    setMotivo('');
   };
 
   return (
@@ -90,43 +108,74 @@ export default function DeleteAccountScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Modal de confirmación */}
+      {/* Modal de confirmación con campo de motivo opcional */}
       <Modal visible={showModal} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modal}>
 
-            <View style={styles.modalIconWrapper}>
-              <Feather name="trash-2" size={32} color="#FF6B6B" />
+              <View style={styles.modalIconWrapper}>
+                <Feather name="trash-2" size={32} color="#FF6B6B" />
+              </View>
+
+              <Text style={styles.modalTitle}>Eliminar todos mis datos</Text>
+              <Text style={styles.modalDescription}>
+                Esta acción es irreversible. Todos tus datos, historial y progreso serán eliminados permanentemente.
+              </Text>
+
+              {/* Campo de motivo opcional */}
+              <View style={styles.motivoWrapper}>
+                <Text style={styles.motivoLabel}>
+                  Cuéntanos por qué (opcional)
+                </Text>
+                <TextInput
+                  style={styles.motivoInput}
+                  value={motivo}
+                  onChangeText={setMotivo}
+                  placeholder="Tu opinión nos ayuda a mejorar..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={MAX_MOTIVO_LENGTH}
+                  editable={!loading}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.motivoCounter}>
+                  {motivo.length} / {MAX_MOTIVO_LENGTH}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modalDeleteButton, loading && { opacity: 0.7 }]}
+                onPress={handleDelete}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={styles.modalDeleteButtonText}>Sí, eliminar definitivamente</Text>
+                }
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={handleCloseModal}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
             </View>
-
-            <Text style={styles.modalTitle}>Eliminar todos mis datos</Text>
-            <Text style={styles.modalDescription}>
-              Esta acción es irreversible. Todos tus datos, historial y progreso serán eliminados permanentemente.
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.modalDeleteButton, loading && { opacity: 0.7 }]}
-              onPress={handleDelete}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading
-                ? <ActivityIndicator size="small" color={colors.white} />
-                : <Text style={styles.modalDeleteButtonText}>Sí, eliminar definitivamente</Text>
-              }
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.modalCancelButton}
-              onPress={() => setShowModal(false)}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.modalCancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -170,8 +219,13 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
   modal: {
     backgroundColor: colors.white, borderRadius: 24,
@@ -187,6 +241,38 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm, color: colors.textMuted,
     textAlign: 'center', lineHeight: 20,
   },
+
+  // Campo de motivo opcional
+  motivoWrapper: {
+    width: '100%',
+    marginTop: spacing.xs,
+  },
+  motivoLabel: {
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  motivoInput: {
+    width: '100%',
+    minHeight: 80,
+    maxHeight: 120,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSizes.sm,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  motivoCounter: {
+    fontSize: fontSizes.xs,
+    color: colors.textMuted,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+
   modalDeleteButton: {
     backgroundColor: '#FF6B6B', borderRadius: borderRadius.md,
     paddingVertical: spacing.md, width: '100%', alignItems: 'center', marginTop: spacing.sm,

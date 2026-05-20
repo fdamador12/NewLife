@@ -18,7 +18,9 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
+  ApiBody,
 } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
 import { CompleteProfileUseCase } from '../../application/use-cases/complete-profile.use-case';
 import { GetProfileUseCase } from '../../application/use-cases/get-profile.use-case';
@@ -27,6 +29,24 @@ import { DeleteAccountUseCase } from '../../application/use-cases/delete-account
 import { InitialRegisterDto } from '../dtos/initial-register.dto';
 import { UpdateProfileDto } from '../dtos/update-profile.dto';
 import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-data.use-case';
+
+/**
+ * DTO para el body del endpoint DELETE /user/all-data.
+ *
+ * El motivo es OPCIONAL: si el usuario decide compartir por que se va, lo
+ * guardamos en `usuarios.delete_motivo` para retroalimentacion del producto.
+ * Movil envia este motivo desde el modal de confirmacion de eliminacion.
+ *
+ * Los decoradores @IsOptional/@IsString son CRITICOS: sin ellos, el
+ * ValidationPipe global de NestJS rechaza el body con 400 Bad Request
+ * cuando llegan propiedades que no estan declaradas (whitelist mode).
+ */
+class DeleteAllDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  motivo?: string;
+}
 
 @ApiTags('Perfil de Usuario')
 @ApiBearerAuth()
@@ -78,11 +98,44 @@ export class UserController {
     return this.deleteAccountUseCase.execute(req.user.uid);
   }
 
-  // En user.controller.ts — agregar junto a DELETE /user/account
+  /**
+   * DELETE /user/all-data
+   *
+   * Borra todos los datos del usuario y hace soft delete del registro
+   * principal (estado='ELIMINADO', nombre anonimizado, deleted_at).
+   *
+   * Body opcional: { motivo?: string }
+   * - Si se provee, se guarda en delete_motivo para feedback del equipo.
+   * - Si no se provee, el campo queda sin actualizar (no se guarda string vacio).
+   *
+   * Es el mismo use case que usa la landing /eliminar-cuenta, lo que garantiza
+   * comportamiento consistente entre canales.
+   */
   @Delete('all-data')
   @UseGuards(JwtAuthGuard)
-  async deleteAllData(@Req() req: any) {
-    await this.deleteAllDataUseCase.execute(req.user.uid);
+  @ApiOperation({
+    summary: 'Eliminar cuenta y TODOS los datos del usuario (soft delete)',
+  })
+  @ApiBody({
+    description: 'Motivo opcional de la eliminacion',
+    required: false,
+    schema: {
+      type: 'object',
+      properties: {
+        motivo: { type: 'string', maxLength: 500, nullable: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Datos eliminados y cuenta anonimizada.' })
+  async deleteAllData(
+    @Req() req: any,
+    @Body() body: DeleteAllDataDto = {},
+  ) {
+    const motivo = body?.motivo?.trim();
+    await this.deleteAllDataUseCase.execute(
+      req.user.uid,
+      motivo && motivo.length > 0 ? motivo : undefined,
+    );
     return { message: 'Todos tus datos han sido eliminados.' };
   }
 }

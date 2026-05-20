@@ -2,18 +2,25 @@
 // app/eliminar-cuenta/page.tsx
 // Pagina publica de solicitud de eliminacion de cuenta - requerida por Google Play
 //
+// DISENO:
+// - Sin header redundante (la pagina se sirve tambien desde el WebView movil
+//   dentro de la app, donde links como "/" no tienen sentido)
+// - Botones "Volver al inicio" SOLO en pantallas de estado final
+//   (success, already-deleted, protected-account) porque son funcionales:
+//   el usuario necesita una salida despues de completar la accion
+//
 // FLUJO DE SEGURIDAD:
 // 1. Usuario ingresa email + password + motivo opcional
 // 2. Backend verifica credenciales contra Roble auth
-// 3. Si las credenciales fallan → 401 (banner rojo)
-// 4. Si la cuenta ya estaba eliminada → 410 (pantalla azul informativa)
-// 5. Si es cuenta admin/superadmin → 403 (pantalla amarilla con contacto)
-// 6. Si todo OK → 200 (pantalla verde de exito)
+// 3. Si las credenciales fallan -> 401 (banner rojo)
+// 4. Si la cuenta ya estaba eliminada -> 410 (pantalla azul informativa)
+// 5. Si es cuenta admin/superadmin -> 403 (pantalla amarilla con contacto)
+// 6. Si todo OK -> 200 (pantalla verde de exito)
 
 import { useState } from "react"
 import Link from "next/link"
 import {
-  Leaf, CheckCircle, AlertCircle, Eye, EyeOff, Trash2, Shield,
+  CheckCircle, AlertCircle, Eye, EyeOff, Trash2, Shield,
 } from "lucide-react"
 
 // Estados del formulario
@@ -100,17 +107,6 @@ export default function EliminarCuentaPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f6f3]">
-      {/* Header minimalista - solo logo */}
-      <header className="bg-white border-b border-[#e5e5e5]">
-        <div className="max-w-2xl mx-auto px-6 py-4">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#d4854a] flex items-center justify-center">
-              <Leaf className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-[#1a1a1a]">NewLife</span>
-          </Link>
-        </div>
-      </header>
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         {/* ─── Estado: éxito ─────────────────────────────────────── */}
@@ -373,10 +369,6 @@ export default function EliminarCuentaPage() {
             <div className="mt-6 text-center text-xs text-[#a3a3a3]">
               <Link href="/privacidad" className="hover:text-[#737373] transition-colors">
                 Política de Privacidad
-              </Link>
-              {" · "}
-              <Link href="/" className="hover:text-[#737373] transition-colors">
-                Volver al inicio
               </Link>
             </div>
           </>

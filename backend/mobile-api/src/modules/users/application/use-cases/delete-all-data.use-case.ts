@@ -19,11 +19,16 @@ const UUID_TABLES = [
   'config_usuarios',
 ];
 
-// Tablas donde el ID es el _id de Roble (user_id en esas tablas)
+// Tablas donde el ID es el _id de Roble (user_id en esas tablas).
+//
+// FIX 2025-05: 'comunidad_usuario' (singular) era un typo que dejaba huerfanas
+// las membresias del usuario en la tabla real `comunidad_usuarios` (plural).
+// Verificado contra el resto del backend: TODAS las demas operaciones
+// (insertar membresia, actualizar tipo de acceso, etc.) usan 'comunidad_usuarios'.
 const ROBLE_ID_TABLES = [
   'foro_respuesta_comentarios',
   'comentario_likes',
-  'comunidad_usuario',
+  'comunidad_usuarios',
   'solicitudes_baneo',
   'posts',
   'foros_respuestas',
