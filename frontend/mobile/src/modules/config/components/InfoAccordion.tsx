@@ -12,6 +12,7 @@ type Props = {
   pronombre: string;
   motivoSobrio: string;
   gastoSemanal: string;
+  readOnly?: boolean;
   onUpdated: (data: {
     apodo: string;
     pronombre: string;
@@ -25,6 +26,7 @@ export default function InfoAccordion({
   pronombre: initialPronombre,
   motivoSobrio: initialMotivo,
   gastoSemanal: initialGasto,
+  readOnly = false,
   onUpdated,
 }: Props) {
   const { showToast } = useToast();
@@ -89,7 +91,7 @@ export default function InfoAccordion({
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Apodo</Text>
-            {editing
+            {editing && !readOnly
               ? <TextInput style={styles.fieldInput} value={apodo} onChangeText={setApodo} placeholder="Tu apodo" placeholderTextColor={colors.textMuted} />
               : <Text style={styles.fieldValue}>{apodo || '—'}</Text>
             }
@@ -99,7 +101,7 @@ export default function InfoAccordion({
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Pronombre</Text>
-            {editing
+            {editing && !readOnly
               ? <TextInput style={styles.fieldInput} value={pronombre} onChangeText={setPronombre} placeholder="Él, Ella, Elle..." placeholderTextColor={colors.textMuted} />
               : <Text style={styles.fieldValue}>{pronombre || '—'}</Text>
             }
@@ -109,7 +111,7 @@ export default function InfoAccordion({
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Mi motivación</Text>
-            {editing
+            {editing && !readOnly
               ? <TextInput style={styles.fieldInput} value={motivoSobrio} onChangeText={setMotivoSobrio} placeholder="¿Por qué quieres mantenerte sobrio?" placeholderTextColor={colors.textMuted} multiline />
               : <Text style={styles.fieldValue}>{motivoSobrio || '—'}</Text>
             }
@@ -119,7 +121,7 @@ export default function InfoAccordion({
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Gasto semanal estimado</Text>
-            {editing
+            {editing && !readOnly
               ? <TextInput style={styles.fieldInput} value={gastoSemanal} onChangeText={setGastoSemanal} placeholder="0" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
               : <Text style={styles.fieldValue}>{gastoSemanal ? `$${Number(gastoSemanal).toLocaleString()}` : '—'}</Text>
             }
@@ -127,23 +129,26 @@ export default function InfoAccordion({
 
           <View style={styles.divider} />
 
-          {editing ? (
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
-                <Text style={styles.cancelText}>Cancelar</Text>
+          {/* ✅ Solo mostrar botón editar si no es readOnly */}
+          {!readOnly && (
+            editing ? (
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
+                  <Text style={styles.cancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+                  {saving
+                    ? <ActivityIndicator size="small" color={colors.white} />
+                    : <Text style={styles.saveText}>Guardar cambios</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
+                <Feather name="edit-2" size={16} color={colors.primary} />
+                <Text style={styles.editText}>Editar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-                {saving
-                  ? <ActivityIndicator size="small" color={colors.white} />
-                  : <Text style={styles.saveText}>Guardar cambios</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
-              <Feather name="edit-2" size={16} color={colors.primary} />
-              <Text style={styles.editText}>Editar</Text>
-            </TouchableOpacity>
+            )
           )}
         </View>
       )}

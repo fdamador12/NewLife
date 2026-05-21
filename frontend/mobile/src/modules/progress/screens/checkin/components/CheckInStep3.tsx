@@ -5,6 +5,7 @@ import BlobCard from './BlobCard';
 import { FormData } from '../../checkin/types';
 import { saveDailyCheckin } from '../../../../../services/progressService';
 import { usePet } from '../../../../pet/hooks/usePet';
+import { isGuestMode, saveGuestCheckin } from '../../../../../services/guestService';
 
 type Props = {
   formData: FormData;
@@ -25,6 +26,7 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 
   const handleFinish = async () => {
     setLoading(true);
+    const guest = await isGuestMode();
     try {
       const checkinPayload = {
         emocion: formData.emocion,
@@ -37,9 +39,14 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
         }),
       };
 
-      console.log('📤 Preparando envío de daily-checkin:', JSON.stringify(checkinPayload, null, 2));
-      await saveDailyCheckin(checkinPayload);
-      console.log('✅ Registro diario guardado exitosamente');
+      if (guest) {
+        await saveGuestCheckin(checkinPayload);
+        console.log('✅ Registro diario guardado en AsyncStorage (guest)');
+      } else {
+        console.log('📤 Preparando envío de daily-checkin:', JSON.stringify(checkinPayload, null, 2));
+        await saveDailyCheckin(checkinPayload);
+        console.log('✅ Registro diario guardado exitosamente');
+      }
 
       let totalXpGained = 0;
       let evolved = false;
@@ -77,7 +84,9 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 
     } catch (error: any) {
       console.log('❌ Error al guardar:', error);
-      if (!error.response) {
+      if (guest) {
+        showToast('No se pudo guardar el registro. Intenta de nuevo.', 'error');
+      } else if (!error.response) {
         showToast('Sin conexión. Verifica tu internet e intenta de nuevo.', 'error');
       } else if (error.response.status === 401) {
         showToast('Tu sesión expiró. Por favor vuelve a iniciar sesión.', 'error');

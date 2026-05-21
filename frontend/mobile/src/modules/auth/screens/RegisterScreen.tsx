@@ -92,21 +92,12 @@ export default function RegisterScreen({ navigation }: any) {
 
       await registerUser(nombre, email, password);
 
-      if (wasGuest) {
-        try {
-          await migrateGuestToUser();
-          await clearGuestData();
-          console.log('✅ Datos de invitado migrados correctamente');
-        } catch (err) {
-          console.log('⚠️ Migración pendiente, datos locales preservados');
-        }
-      }
-
-      if (guestCompletedProfile) {
-        navigation.replace('Home');
-      } else {
-        navigation.navigate('VerifyEmail', { email, password });
-      }
+      // ✅ Siempre ir a VerifyEmail — el migrate ocurre después de verificar
+      navigation.navigate('VerifyEmail', {
+        email,
+        password,
+        fromGuest: wasGuest && guestCompletedProfile,
+      });
 
     } catch (err: any) {
       if (!err.response) {
@@ -129,7 +120,7 @@ export default function RegisterScreen({ navigation }: any) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.replace('Welcome')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Icon name="chevron-left" size={24} color={colors.text} />
         </TouchableOpacity>
 

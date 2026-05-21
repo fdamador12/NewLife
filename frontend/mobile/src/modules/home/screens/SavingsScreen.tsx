@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getAhorro } from '../../../services/progressService';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
+import { isGuestMode, getGuestAhorro } from '../../../services/guestService';
 
 interface AhorroData {
   dias_limpios: number;
@@ -19,7 +20,6 @@ export default function SavingsScreen({ navigation }: any) {
   const [ahorro, setAhorro] = useState<AhorroData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 📊 Analytics: trackear que el usuario abrió la pantalla de ahorros
   useEffect(() => {
     analytics.track(EVENT_TYPES.SAVINGS_VIEWED);
   }, []);
@@ -27,8 +27,16 @@ export default function SavingsScreen({ navigation }: any) {
   useEffect(() => {
     const fetchAhorro = async () => {
       try {
-        const data = await getAhorro();
-        setAhorro(data);
+        const guest = await isGuestMode();
+        if (guest) {
+          // ✅ Guest — calcular desde AsyncStorage
+          const data = await getGuestAhorro();
+          setAhorro(data);
+        } else {
+          // ✅ Usuario normal — llamada al backend
+          const data = await getAhorro();
+          setAhorro(data);
+        }
       } catch (e) {
         console.log('Error obteniendo ahorro:', e);
       } finally {
@@ -58,7 +66,6 @@ export default function SavingsScreen({ navigation }: any) {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Card principal — ahorro total */}
         <View style={styles.mainCard}>
           <View style={styles.mainIconWrapper}>
             <Feather name="dollar-sign" size={32} color="#F5A623" />
@@ -72,7 +79,6 @@ export default function SavingsScreen({ navigation }: any) {
           </Text>
         </View>
 
-        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Feather name="calendar" size={20} color={colors.primary} />
@@ -95,7 +101,6 @@ export default function SavingsScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Botón ver detalle */}
         <TouchableOpacity
           style={styles.detailButton}
           onPress={() => navigation.navigate('Analysis')}

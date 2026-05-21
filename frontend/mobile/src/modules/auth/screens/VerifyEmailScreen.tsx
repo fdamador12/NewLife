@@ -1,4 +1,3 @@
-// src/screens/auth/VerifyEmailScreen.tsx
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
@@ -8,12 +7,17 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useToast } from '../../../feedback/ToastContext';
-import { verifyEmail, loginUser } from '../../../services/authService';
+import { verifyEmail, loginUser, migrateGuestToUser } from '../../../services/authService';
+import { clearGuestData } from '../../../services/guestService';
 
 const CODE_LENGTH = 6;
 
 export default function VerifyEmailScreen({ route, navigation }: any) {
-  const { email, password } = route.params as { email: string; password: string };
+  const { email, password, fromGuest = false } = route.params as {
+    email: string;
+    password: string;
+    fromGuest?: boolean;
+  };
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -50,10 +54,24 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
       // 1. Verificar email
       await verifyEmail(email, fullCode);
 
-      // 2. Login automático con las credenciales que ya tenemos
+      // 2. Login automático
       await loginUser(email, password);
 
-      // 3. Continuar el flujo normal como antes
+      // 3. ✅ Si venía de guest — migrar datos y limpiar
+      if (fromGuest) {
+        try {
+          await migrateGuestToUser();
+          await clearGuestData();
+          console.log('✅ Datos de invitado migrados correctamente');
+        } catch (err) {
+          console.log('⚠️ Error en migración — datos locales preservados:', err);
+        }
+        // ✅ Guest con perfil completo → Home directo sin las 10 preguntas
+        navigation.replace('Home');
+        return;
+      }
+
+      // 4. Usuario normal → Story (10 preguntas)
       navigation.replace('Story');
 
     } catch (err: any) {
@@ -61,10 +79,19 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
       if (msg.includes('inválido') || msg.includes('invalid') || msg.includes('expirado')) {
         showToast('Código inválido o expirado', 'error');
       } else if (msg.includes('verificado') || msg.includes('already')) {
-        // Si ya estaba verificado, igual hacemos login
         try {
           await loginUser(email, password);
-          navigation.replace('Story');
+          if (fromGuest) {
+            try {
+              await migrateGuestToUser();
+              await clearGuestData();
+            } catch {
+              console.log('⚠️ Error en migración');
+            }
+            navigation.replace('Home');
+          } else {
+            navigation.replace('Story');
+          }
         } catch {
           showToast('Error al iniciar sesión. Entra manualmente.', 'error');
           navigation.replace('Login');

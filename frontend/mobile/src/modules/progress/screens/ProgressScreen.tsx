@@ -7,6 +7,7 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../constants/the
 import { getGratitudeHistory } from '../../../services/progressService';
 import { LEVELS } from './PathScreen';
 import { useLevelProgress } from '../../../hooks/useLevelProgress';
+import { isGuestMode, getGuestCheckins } from '../../../services/guestService';
 
 interface GratitudeEntry {
     dia: string;
@@ -21,7 +22,6 @@ export default function ProgressScreen({ navigation }: any) {
 
     const currentLevel = LEVELS.find(l => l.id === progress.nivel) || LEVELS[0];
 
-    // ✅ Solo mostrar cuando AMBOS han cargado
     const isReady = !loading && !progressLoading;
 
     useEffect(() => {
@@ -31,35 +31,59 @@ export default function ProgressScreen({ navigation }: any) {
     const fetchLatestGratitude = async () => {
         try {
             setLoading(true);
-            const response = await getGratitudeHistory();
-            const records = response?.data || [];
 
-            if (records.length > 0) {
-                // Ordenar por fecha + hora más reciente primero
-                const sorted = records.sort((a: GratitudeEntry, b: GratitudeEntry) => {
-                    const dateTimeA = `${a.dia}T${a.hora}`;
-                    const dateTimeB = `${b.dia}T${b.hora}`;
-                    const timestampA = new Date(dateTimeA).getTime();
-                    const timestampB = new Date(dateTimeB).getTime();
-                    return timestampB - timestampA;
-                });
+            const guest = await isGuestMode();
 
-                // Tomar el más reciente
-                const latest = sorted[0];
+            if (guest) {
+                // ✅ Guest — leer de AsyncStorage
+                const checkins = await getGuestCheckins();
+                const withGratitude = checkins.filter(
+                    (c: any) => c.gratitud && c.gratitud.trim() !== ''
+                );
 
-                // Formatear fecha
-                const date = new Date(latest.dia);
-                const formatted_date = date.toLocaleDateString('es-ES', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                });
+                if (withGratitude.length > 0) {
+                    const sorted = withGratitude.sort((a: any, b: any) => {
+                        const dateTimeA = `${a.dia}T${a.hora}`;
+                        const dateTimeB = `${b.dia}T${b.hora}`;
+                        return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime();
+                    });
 
-                setLatestGratitude({
-                    dia: formatted_date,
-                    gratitud: latest.gratitud,
-                    hora: latest.hora,
-                });
+                    const latest = sorted[0];
+                    const date = new Date(latest.dia + 'T00:00:00');
+                    setLatestGratitude({
+                        dia: date.toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                        }),
+                        gratitud: latest.gratitud,
+                        hora: latest.hora || '00:00',
+                    });
+                }
+            } else {
+                // ✅ Usuario normal — llamada al backend
+                const response = await getGratitudeHistory();
+                const records = response?.data || [];
+
+                if (records.length > 0) {
+                    const sorted = records.sort((a: GratitudeEntry, b: GratitudeEntry) => {
+                        const dateTimeA = `${a.dia}T${a.hora}`;
+                        const dateTimeB = `${b.dia}T${b.hora}`;
+                        return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime();
+                    });
+
+                    const latest = sorted[0];
+                    const date = new Date(latest.dia);
+                    setLatestGratitude({
+                        dia: date.toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                        }),
+                        gratitud: latest.gratitud,
+                        hora: latest.hora,
+                    });
+                }
             }
         } catch (err) {
             console.log('Error obteniendo última gratitud:', err);
@@ -74,20 +98,16 @@ export default function ProgressScreen({ navigation }: any) {
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
                 <Text style={styles.title}>Mi progreso</Text>
                 <Text style={styles.subtitle}>Avanza y descubre cómo has progresado.</Text>
 
-                {/* Tu camino */}
                 <TouchableOpacity style={styles.sectionHeader} onPress={() => navigation.navigate('Path')}>
                     <Text style={styles.sectionTitle}>Tu camino</Text>
                     <Feather name="chevron-right" size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                {/* ✅ Mostrar solo cuando está listo */}
                 {isReady ? (
                     <TouchableOpacity style={styles.caminoWrapper} onPress={() => navigation.navigate('Path')}>
-                        {/* Personaje */}
                         <View style={styles.caminoLeft}>
                             <Image
                                 source={require('../../../assets/images/character_progreso.png')}
@@ -97,7 +117,6 @@ export default function ProgressScreen({ navigation }: any) {
                             <Text style={styles.moduleLabel}>Módulo {progress.subnivel}</Text>
                         </View>
 
-                        {/* Cuadro con datos reales */}
                         <View style={styles.caminoCard}>
                             <View style={styles.nivelBadgeWrapper}>
                                 <View style={styles.nivelBadge}>
@@ -111,7 +130,6 @@ export default function ProgressScreen({ navigation }: any) {
                         </View>
                     </TouchableOpacity>
                 ) : (
-                    // ✅ Skeleton mientras carga
                     <View style={styles.caminoWrapper}>
                         <View style={styles.caminoLeft}>
                             <View style={[styles.characterImage, styles.skeletonPlaceholder]} />
@@ -124,13 +142,11 @@ export default function ProgressScreen({ navigation }: any) {
                     </View>
                 )}
 
-                {/* Historial de gratitud */}
                 <TouchableOpacity style={styles.sectionHeader} onPress={() => navigation.navigate('GratitudeHistory')}>
                     <Text style={styles.sectionTitle}>Historial de gratitud</Text>
                     <Feather name="chevron-right" size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                {/* ✅ Mostrar último registro o mensaje vacío */}
                 {!loading && (
                     <TouchableOpacity
                         style={styles.gratitudeCard}
@@ -158,7 +174,6 @@ export default function ProgressScreen({ navigation }: any) {
                     </TouchableOpacity>
                 )}
 
-                {/* Mi análisis */}
                 <TouchableOpacity style={styles.sectionHeader} onPress={() => navigation.navigate('Analysis')}>
                     <Text style={styles.sectionTitle}>Mi análisis</Text>
                     <Feather name="chevron-right" size={18} color={colors.text} />
@@ -173,7 +188,6 @@ export default function ProgressScreen({ navigation }: any) {
                 <View style={styles.bottomPadding} />
             </ScrollView>
 
-            {/* Botón fijo abajo */}
             <TouchableOpacity style={styles.dailyButton} onPress={() => navigation.navigate('DailyCheckIn')}>
                 <Text style={styles.dailyButtonText}>Hacer registro diario</Text>
             </TouchableOpacity>

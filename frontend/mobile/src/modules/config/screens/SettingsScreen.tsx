@@ -3,33 +3,53 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, fontSizes, spacing } from '../../../constants/theme';
+import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getProfile, logoutUser, requestPasswordChange } from '../../../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePet } from '../../pet/hooks/usePet';
 import { useToast } from '../../../feedback/ToastContext';
 import InfoAccordion from '../components/InfoAccordion';
 import SettingsRow from '../components/SettingsRow';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
-import { isGuestMode, clearGuestData } from '../../../services/guestService';
+import { isGuestMode, clearGuestData, getGuestProfile } from '../../../services/guestService';
+import { useConfirm } from '../../../feedback/ConfirmContext';
 
 export default function SettingsScreen({ navigation }: any) {
   const { showToast } = useToast();
   const { resetPet } = usePet();
+  const { showConfirm } = useConfirm();
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
   const [apodo, setApodo] = useState('');
   const [pronombre, setPronombre] = useState('');
   const [motivoSobrio, setMotivoSobrio] = useState('');
   const [gastoSemanal, setGastoSemanal] = useState('');
+  
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await getProfile();
-        setApodo(data?.apodo || '');
-        setPronombre(data?.pronombre || '');
-        setMotivoSobrio(data?.motivo_sobrio || '');
-        setGastoSemanal(data?.gasto_semanal?.toString() || '');
+        const guest = await isGuestMode();
+        setIsGuest(guest);
+
+        if (guest) {
+          // ✅ Guest — leer de AsyncStorage
+          const data = await getGuestProfile();
+          setApodo(data?.apodo || '');
+          setPronombre(data?.pronombre || '');
+          setMotivoSobrio(data?.motivo_sobrio || '');
+          setGastoSemanal(
+            data?.gasto_semana?.toString() ||
+            data?.gasto_semanal?.toString() ||
+            ''
+          );
+        } else {
+          // ✅ Usuario normal — llamada al backend
+          const data = await getProfile();
+          setApodo(data?.apodo || '');
+          setPronombre(data?.pronombre || '');
+          setMotivoSobrio(data?.motivo_sobrio || '');
+          setGastoSemanal(data?.gasto_semanal?.toString() || '');
+        }
       } catch (e) {
         console.log('Error obteniendo perfil:', e);
         showToast('No se pudo cargar el perfil', 'error');
@@ -50,13 +70,33 @@ export default function SettingsScreen({ navigation }: any) {
       if (guest) {
         await clearGuestData();
       } else {
-        await logoutUser(); // ← reemplaza el AsyncStorage.multiRemove
+        await logoutUser();
       }
       analytics.reset();
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (e) {
       console.log('Error cerrando sesión:', e);
     }
+  };
+
+  const handleDeleteGuestData = () => {
+    showConfirm({
+      title: 'Borrar todos mis datos',
+      message: 'Esta acción es permanente. Se borrarán todos tus registros, progreso, mascota y configuración. No podrás recuperarlos.',
+      confirmText: 'Borrar todo',
+      cancelText: 'Cancelar',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          resetPet();
+          await clearGuestData();
+          analytics.reset();
+          navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+        } catch (e) {
+          console.log('Error borrando datos guest:', e);
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -81,11 +121,13 @@ export default function SettingsScreen({ navigation }: any) {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        {/* ✅ Info personal — solo lectura en guest, editable en usuario normal */}
         <InfoAccordion
           apodo={apodo}
           pronombre={pronombre}
           motivoSobrio={motivoSobrio}
           gastoSemanal={gastoSemanal}
+          readOnly={isGuest}
           onUpdated={(data) => {
             setApodo(data.apodo);
             setPronombre(data.pronombre);
@@ -101,40 +143,64 @@ export default function SettingsScreen({ navigation }: any) {
           label="Políticas de privacidad"
           onPress={() => navigation.navigate('PrivacyPolicy')}
         />
-        <View style={styles.gap} />
-
-        <SettingsRow
-          icon="lock"
-          label="Cambiar contraseña"
-          onPress={async () => {
-            try {
-              await requestPasswordChange();
-              showToast('Te enviamos un enlace a tu correo para cambiar la contraseña', 'success');
-            } catch {
-              showToast('No se pudo enviar el correo. Intenta de nuevo.', 'error');
-            }
-          }}
-        />
 
         <View style={styles.gap} />
 
-        <SettingsRow
-          icon="trash-2"
-          label="Eliminar cuenta"
-          onPress={() => navigation.navigate('DeleteAccount')}
-          danger
-        />
+        {isGuest ? (
+          // ✅ Guest — botón migrar
+          <SettingsRow
+            icon="upload"
+            label="Crear cuenta y guardar progreso"
+            onPress={() => navigation.navigate('Register')}
+          />
+        ) : (
+          // ✅ Usuario normal — cambiar contraseña y eliminar cuenta
+          <>
+            <SettingsRow
+              icon="lock"
+              label="Cambiar contraseña"
+              onPress={async () => {
+                try {
+                  await requestPasswordChange();
+                  showToast('Te enviamos un enlace a tu correo para cambiar la contraseña', 'success');
+                } catch {
+                  showToast('No se pudo enviar el correo. Intenta de nuevo.', 'error');
+                }
+              }}
+            />
+            <View style={styles.gap} />
+            <SettingsRow
+              icon="trash-2"
+              label="Eliminar cuenta"
+              onPress={() => navigation.navigate('DeleteAccount')}
+              danger
+            />
+          </>
+        )}
 
         <View style={styles.gap} />
 
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-          activeOpacity={0.8}
-        >
-          <Feather name="log-out" size={20} color="#FF6B6B" />
-          <Text style={styles.logoutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
+        {isGuest ? (
+          // ✅ Guest — borrar todos los datos con confirmación fuerte
+          <TouchableOpacity
+            style={styles.deleteGuestButton}
+            onPress={handleDeleteGuestData}
+            activeOpacity={0.8}
+          >
+            <Feather name="trash-2" size={20} color="#FF6B6B" />
+            <Text style={styles.deleteGuestText}>Borrar todos mis datos</Text>
+          </TouchableOpacity>
+        ) : (
+          // ✅ Usuario normal — cerrar sesión
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+            activeOpacity={0.8}
+          >
+            <Feather name="log-out" size={20} color="#FF6B6B" />
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -158,4 +224,10 @@ const styles = StyleSheet.create({
     borderRadius: 12, borderWidth: 1, borderColor: '#FFCCCC',
   },
   logoutText: { color: '#FF6B6B', fontWeight: '700', fontSize: fontSizes.md },
+  deleteGuestButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.sm, backgroundColor: '#FFF5F5', padding: spacing.md,
+    borderRadius: 12, borderWidth: 1, borderColor: '#FFCCCC',
+  },
+  deleteGuestText: { color: '#FF6B6B', fontWeight: '700', fontSize: fontSizes.md },
 });

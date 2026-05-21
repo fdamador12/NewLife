@@ -13,10 +13,10 @@ import {
   clearGuestData,
   getGuestProfile,
   getGuestSobrietyTime,
+  getGuestAhorro,
 } from '../../../services/guestService';
 import SobrietyCard from './components/SobrietyCard';
 import SavingsCard from './components/SavingsCard';
-import GuestBanner from './components/GuestBanner';
 import PetWidget from '../../pet/components/PetWidget';
 import { usePet } from '../../pet/hooks/usePet';
 import { getAhorro } from '../../../services/progressService';
@@ -29,8 +29,6 @@ export default function HomeScreen({ navigation }: any) {
   const [guestApodo, setGuestApodo] = useState('');
   const { resetPet, fetchPet } = usePet();
 
-  // Profile via SWR — only active for authenticated users.
-  // getSync() returns cached data instantly if warmUp() was called at startup.
   const { data: userProfile } = useCacheQuery(
     CACHE_KEYS.PROFILE,
     30,
@@ -59,7 +57,6 @@ export default function HomeScreen({ navigation }: any) {
     return () => { unsubscribe(); };
   }, []);
 
-  // Determine guest mode; load guest apodo if needed.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -113,7 +110,14 @@ export default function HomeScreen({ navigation }: any) {
     const fetchAhorro = async () => {
       try {
         const guest = await isGuestMode();
-        if (!guest) {
+        if (guest) {
+          // ✅ Guest — calcular desde AsyncStorage
+          const data = await getGuestAhorro();
+          setAhorro({
+            ahorro_total: data.ahorro_total ?? 0,
+            dias_limpios: data.dias_limpios ?? 0,
+          });
+        } else {
           const data = await getAhorro();
           setAhorro({
             ahorro_total: data.ahorro_total ?? 0,
@@ -127,33 +131,6 @@ export default function HomeScreen({ navigation }: any) {
     fetchAhorro();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      // 📊 Analytics: AWAITEAMOS el track antes de borrar el token.
-      // Si no lo awaitamos, multiRemove borraría el token mientras el track
-      // está leyéndolo y el evento se perdería silenciosamente.
-      // El track NUNCA rechaza la Promise (todos los errores son atrapados internamente),
-      // así que es seguro awaitarlo sin riesgo.
-      if (!isGuest) {
-        await analytics.track(EVENT_TYPES.USER_LOGGED_OUT);
-      }
-
-      resetPet();
-      if (isGuest) {
-        await clearGuestData();
-      } else {
-        await logoutUser();
-      }
-
-      // 📊 Analytics: limpiar la sesión para que el próximo usuario tenga session_id nuevo
-      analytics.reset();
-
-      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
-    } catch (e) {
-      console.log('Error cerrando sesion:', e);
-    }
-  };
-
   const getGreetingTime = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Buenos dias,';
@@ -161,7 +138,6 @@ export default function HomeScreen({ navigation }: any) {
     return 'Buenas noches,';
   };
 
-  // 📊 Analytics: trackear el SOS y luego navegar
   const handleSosPress = () => {
     analytics.track(EVENT_TYPES.SOS_TRIGGERED, { source: 'home_button' });
     navigation.navigate('SOS');
@@ -173,7 +149,6 @@ export default function HomeScreen({ navigation }: any) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header mejorado */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greetingTime}>{getGreetingTime()}</Text>
@@ -181,7 +156,7 @@ export default function HomeScreen({ navigation }: any) {
               {apodo ? apodo : 'Amig@'}
             </Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => navigation.navigate('Settings')}
           >
@@ -189,10 +164,8 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Pet Widget */}
         <PetWidget onPress={() => navigation.navigate('PetScreen')} />
 
-        {/* Seccion de logros */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Tu progreso</Text>
@@ -204,32 +177,21 @@ export default function HomeScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Seccion de ahorro */}
-        {!isGuest && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
-            </View>
-            <SavingsCard
-              ahorroTotal={ahorro.ahorro_total}
-              diasLimpios={ahorro.dias_limpios}
-              onPress={() => navigation.navigate('SavingsScreen')}
-            />
+        {/* ✅ Ahorro visible para guest y usuario normal */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
           </View>
-        )}
-
-        {/* Banner de invitado o logout */}
-        {isGuest && (
-          <GuestBanner
-            onCreateAccount={() => navigation.navigate('Register')}
-            onLogout={handleLogout}
+          <SavingsCard
+            ahorroTotal={ahorro.ahorro_total}
+            diasLimpios={ahorro.dias_limpios}
+            onPress={() => navigation.navigate('SavingsScreen')}
           />
-        )}
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Boton SOS flotante mejorado */}
       <View style={styles.sosWrapper}>
         <TouchableOpacity
           style={styles.sosButton}
@@ -283,9 +245,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.5,
   },
-  wave: {
-    fontSize: 26,
-  },
   settingsButton: {
     width: 44,
     height: 44,
@@ -307,35 +266,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  sectionIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   sectionTitle: {
     fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.text,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: '#fdfdfd',
-    padding: spacing.md,
-    borderRadius: 12,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: '#a5a2a2',
-  },
-  logoutText: {
-    color: '#443e3e',
-    fontWeight: '600',
-    fontSize: fontSizes.md,
   },
   sosWrapper: {
     position: 'absolute',
@@ -382,11 +316,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.white,
     letterSpacing: 1,
-  },
-  sosSubtitle: {
-    fontSize: fontSizes.sm,
-    color: 'rgba(255,255,255,0.85)',
-    fontWeight: '500',
   },
   sosArrow: {
     width: 36,
