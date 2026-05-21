@@ -59,7 +59,6 @@ import DailyPhraseScreen from '../modules/motivation/screens/DailyPhraseScreen';
 import MedalsScreen from '../modules/motivation/screens/MedalsScreen';
 import ChallengesScreen from '../modules/motivation/screens/ChallengesScreen';
 import ChallengeDetailScreen from '../modules/motivation/screens/ChallengeDetailScreen';
-import CareScreen from '../modules/care/screens/CareScreen';
 import ContactsScreen from '../modules/care/screens/contacts/ContactsScreen';
 import GroupsScreen from '../modules/care/screens/groups/GroupsScreen';
 import ContentScreen from '../modules/care/screens/content/ContentScreen';
@@ -79,9 +78,6 @@ import PetInfoScreen from '../modules/pet/screens/PetInfoScreen';
 import PetCollectionScreen from '../modules/pet/screens/PetCollectionScreen/index';
 import VerifyEmailScreen from '../modules/auth/screens/VerifyEmailScreen';
 import ForgotPasswordScreen from '../modules/auth/screens/ForgotPasswordScreen';
-
-
-<<<<<<< HEAD
 import MyCommunitiesScreen from '../modules/social/screens/MyCommunitiesScreen';
 import CommunityDetailScreen from '../modules/social/screens/CommunityDetailScreen';
 import CommunityChatScreen from '../modules/social/screens/CommunityChatScreen';
@@ -91,8 +87,6 @@ import DailyForumDetailScreen from '../modules/social/screens/DailyForumDetailSc
 import DailyForumCommunityPickerScreen from '../modules/social/screens/DailyForumCommunityPickerScreen';
 import PostDetailScreen from '../modules/social/screens/PostDetailScreen';
 import CommunityModerationScreen from '../modules/social/screens/CommunityModerationScreen';
-=======
->>>>>>> main
 
 const Stack = createNativeStackNavigator();
 
@@ -102,113 +96,6 @@ type AppNavigatorProps = {
 
 export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorProps) {
   return (
-<<<<<<< HEAD
-    <OnboardingProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          screenOptions={{ headerShown: false }}
-          initialRouteName={initialRoute}
-        >
-          <Stack.Screen name="Splash1" component={SplashScreen1} />
-          <Stack.Screen name="Splash2" component={SplashScreen2} />
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Story" component={StoryScreen} />
-          <Stack.Screen name="Step1" component={Step1_Apodo} />
-          <Stack.Screen name="Step2" component={Step2_Pronombres} />
-          <Stack.Screen name="Step3" component={Step3_UltimoConsumo} />
-          <Stack.Screen name="Step4" component={Step4_Motivo} />
-          <Stack.Screen name="Step5" component={Step5_Dinero} />
-          <Stack.Screen name="Step6" component={Step6_Telefono} />
-          <Stack.Screen name="Step7" component={Step7_LugaresRiesgo} />
-          <Stack.Screen name="Step8" component={Step8_PuntosDebiles} />
-          <Stack.Screen name="Step9" component={Step9_Privacidad} />
-          <Stack.Screen name="Step10" component={Step10_Horario} />
-          <Stack.Screen name="Home" component={MainScreen} />
-          <Stack.Screen name="SOS" component={SOSScreen} />
-          <Stack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} />
-          <Stack.Screen name="CrisisMode" component={CrisisModeScreen} />
-          <Stack.Screen name="BreathingScreen" component={BreathingScreen} />
-          <Stack.Screen name="MotivationalPhrasesScreen" component={MotivationalPhrasesScreen} />
-          <Stack.Screen name="GuidedMeditationScreen" component={GuidedMeditationScreen} />
-          <Stack.Screen name="Congratulations" component={CongratulationsScreen} />
-          <Stack.Screen name="AppTour" component={AppTourScreen} />
-          <Stack.Screen name="GratitudeHistory" component={GratitudeHistoryScreen} />
-          <Stack.Screen name="DailyCheckIn" component={DailyCheckInScreen} />
-          <Stack.Screen name="CheckInSuccess" component={CheckInSuccessScreen} />
-          <Stack.Screen name="Analysis" component={AnalysisScreen} />
-          <Stack.Screen name="Path" component={PathScreen} />
-          <Stack.Screen name="Nivel1Modulo1" component={Nivel1Modulo1} />
-          <Stack.Screen name="Nivel1Modulo2" component={Nivel1Modulo2} />
-          <Stack.Screen name="Nivel1Modulo3" component={Nivel1Modulo3} />
-          <Stack.Screen name="LevelComplete" component={LevelCompleteScreen} />
-          <Stack.Screen name="Nivel2Modulo1" component={Nivel2Modulo1} />
-          <Stack.Screen name="Nivel2Modulo2" component={Nivel2Modulo2} />
-          <Stack.Screen name="Nivel2Modulo3" component={Nivel2Modulo3} />
-          <Stack.Screen name="Nivel3Modulo1" component={Nivel3Modulo1} />
-          <Stack.Screen name="Nivel3Modulo2" component={Nivel3Modulo2} />
-          <Stack.Screen name="Nivel3Modulo3" component={Nivel3Modulo3} />
-          <Stack.Screen name="Nivel4Modulo1" component={Nivel4Modulo1} />
-          <Stack.Screen name="Nivel4Modulo2" component={Nivel4Modulo2} />
-          <Stack.Screen name="Nivel4Modulo3" component={Nivel4Modulo3} />
-          <Stack.Screen name="Nivel5Modulo1" component={Nivel5Modulo1} />
-          <Stack.Screen name="Nivel5Modulo2" component={Nivel5Modulo2} />
-          <Stack.Screen name="Nivel5Modulo3" component={Nivel5Modulo3} />
-          <Stack.Screen name="Nivel6Modulo1" component={Nivel6Modulo1} />
-          <Stack.Screen name="Nivel6Modulo2" component={Nivel6Modulo2} />
-          <Stack.Screen name="Nivel6Modulo3" component={Nivel6Modulo3} />
-          <Stack.Screen name="Nivel7Modulo1" component={Nivel7Modulo1} />
-          <Stack.Screen name="Nivel7Modulo2" component={Nivel7Modulo2} />
-          <Stack.Screen name="Nivel7Modulo3" component={Nivel7Modulo3} />
-          <Stack.Screen name="Nivel8Modulo1" component={Nivel8Modulo1} />
-          <Stack.Screen name="Nivel8Modulo2" component={Nivel8Modulo2} />
-          <Stack.Screen name="Nivel8Modulo3" component={Nivel8Modulo3} />
-          <Stack.Screen name="Nivel9Modulo1" component={Nivel9Modulo1} />
-          <Stack.Screen name="Nivel9Modulo2" component={Nivel9Modulo2} />
-          <Stack.Screen name="Nivel9Modulo3" component={Nivel9Modulo3} />
-          <Stack.Screen name="Nivel10Modulo1" component={Nivel10Modulo1} />
-          <Stack.Screen name="Nivel10Modulo2" component={Nivel10Modulo2} />
-          <Stack.Screen name="Nivel10Modulo3" component={Nivel10Modulo3} />
-          <Stack.Screen name="Nivel11Modulo1" component={Nivel11Modulo1} />
-          <Stack.Screen name="Nivel11Modulo2" component={Nivel11Modulo2} />
-          <Stack.Screen name="Nivel11Modulo3" component={Nivel11Modulo3} />
-          <Stack.Screen name="Nivel12Modulo1" component={Nivel12Modulo1} />
-          <Stack.Screen name="Nivel12Modulo2" component={Nivel12Modulo2} />
-          <Stack.Screen name="Nivel12Modulo3" component={Nivel12Modulo3} />
-          <Stack.Screen name="DailyPhrase" component={DailyPhraseScreen} />
-          <Stack.Screen name="Medals" component={MedalsScreen} />
-          <Stack.Screen name="Challenges" component={ChallengesScreen} />
-          <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
-          <Stack.Screen name="CareContacts" component={ContactsScreen} />
-          <Stack.Screen name="GroupsScreen" component={GroupsScreen} />
-          <Stack.Screen name="ContentScreen" component={ContentScreen} />
-          <Stack.Screen name="ArticleScreen" component={ArticleScreen} />
-          <Stack.Screen name="CategoryScreen" component={CategoryScreen} />
-          <Stack.Screen name="FavoritesScreen" component={FavoritesScreen} />
-          <Stack.Screen name="AgendaScreen" component={AgendaScreen} />
-          <Stack.Screen name="AddEventScreen" component={AddEventScreen} />
-          <Stack.Screen name="CreatePost" component={CreatePostScreen} />
-          <Stack.Screen name="SocialProfile" component={SocialProfileScreen} />
-          <Stack.Screen name="UserProfile" component={SocialProfileScreen} />
-          <Stack.Screen name="EditProfile" component={EditProfileMenuScreen} />
-          <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
-          <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
-          <Stack.Screen name="LegalScreen" component={LegalScreen} />
-          <Stack.Screen name="DailyForum" component={DailyForumScreen} />
-          <Stack.Screen name="DailyForumDetail" component={DailyForumDetailScreen} />
-          <Stack.Screen name="MyCommunities" component={MyCommunitiesScreen} />
-          <Stack.Screen name="CommunityDetail" component={CommunityDetailScreen} />
-          <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
-          <Stack.Screen name="CreatePostCommunity" component={CreatePostCommunityScreen} />
-          <Stack.Screen name="DailyForumCommunityPicker" component={DailyForumCommunityPickerScreen} />
-          <Stack.Screen name="PostDetail" component={PostDetailScreen} />
-          <Stack.Screen name="CommunityModeration" component={CommunityModerationScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </OnboardingProvider>
-=======
     <MenuProvider>
       <OnboardingProvider>
         <ToastProvider>
@@ -313,6 +200,16 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Social" component={SocialScreen} />
                   <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
                   <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                  {/* Screens de comunidad */}
+                  <Stack.Screen name="MyCommunities" component={MyCommunitiesScreen} />
+                  <Stack.Screen name="CommunityDetail" component={CommunityDetailScreen} />
+                  <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
+                  <Stack.Screen name="CreatePostCommunity" component={CreatePostCommunityScreen} />
+                  <Stack.Screen name="DailyForum" component={DailyForumScreen} />
+                  <Stack.Screen name="DailyForumDetail" component={DailyForumDetailScreen} />
+                  <Stack.Screen name="DailyForumCommunityPicker" component={DailyForumCommunityPickerScreen} />
+                  <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+                  <Stack.Screen name="CommunityModeration" component={CommunityModerationScreen} />
                 </Stack.Navigator>
                 <Toast />
                 <ConfirmModal />
@@ -322,6 +219,5 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
         </ToastProvider>
       </OnboardingProvider>
     </MenuProvider>
->>>>>>> main
   );
 }

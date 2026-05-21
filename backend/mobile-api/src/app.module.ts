@@ -8,16 +8,13 @@ import { CareModule } from './modules/care/care.module';
 import { HomeModule } from './modules/home/home.module';
 import { ProgressModule } from './modules/progress/progress.module';
 import { CommunitiesModule } from './modules/communities/communities.module';
-<<<<<<< HEAD
 import { ChatModule } from './modules/chat/chat.module';
-=======
 import { MotivationModule } from './modules/motivation/motivation.module';
 import { SosModule } from './modules/sos/sos.module';
 import { GuidedMeditationModule } from './modules/guided-meditation/guided-meditation.module';
 import { PetModule } from './modules/pet/pet.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ZonesModule } from './zones/zones.module';
->>>>>>> main
 
 @Module({
   imports: [
@@ -30,16 +27,13 @@ import { ZonesModule } from './zones/zones.module';
     HomeModule,
     ProgressModule,
     CommunitiesModule,
-<<<<<<< HEAD
     ChatModule,
-=======
     MotivationModule,
     SosModule,
     GuidedMeditationModule,
     PetModule,
     AnalyticsModule,
     ZonesModule,
->>>>>>> main
   ],
 })
 export class AppModule {}
