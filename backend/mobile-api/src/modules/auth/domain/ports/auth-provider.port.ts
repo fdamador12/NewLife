@@ -8,4 +8,5 @@ export interface IAuthProviderPort {
   logout(accessToken: string): Promise<void>;
   forgotPassword(email: string): Promise<void>;
   resetPassword(token: string, newPassword: string): Promise<void>;
+  verifyEmail(email: string, code: string): Promise<void>;
 }

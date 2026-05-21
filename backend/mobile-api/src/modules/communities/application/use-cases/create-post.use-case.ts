@@ -1,45 +1,52 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/infrastructure/database.service';
 import { SystemAuthService } from '../../../auth/infrastructure/services/system-auth.service';
-import { ResolveUserIdHelper } from '../helpers/resolve-user-id.helper';
 
 @Injectable()
 export class CreatePostUseCase {
   constructor(
     private readonly dbService: DatabaseService,
     private readonly systemAuth: SystemAuthService,
-    private readonly resolveUserId: ResolveUserIdHelper,
   ) {}
- 
-  async execute(comunidadId: string, usuarioUuid: string, contenido: string, titulo?: string) {
+
+  async execute(comunidadId: string, usuarioId: string, contenido: string) {
     const masterToken = await this.systemAuth.getMasterToken();
-    const robleId = await this.resolveUserId.getRobleId(usuarioUuid);
- 
+
+    // 1. Verificar membresía y tipo de acceso
     const membRes = await this.dbService.find(
       'comunidad_usuarios',
-      { comunidad_id: comunidadId, usuario_id: robleId },
+      { comunidad_id: comunidadId, usuario_id: usuarioId },
       masterToken,
     );
     const membRows = Array.isArray(membRes) ? membRes : (membRes.rows || []);
     const membresia = membRows[0];
- 
-    if (!membresia) throw new ForbiddenException('No eres miembro de esta comunidad.');
+
+    if (!membresia) {
+      throw new ForbiddenException('No eres miembro de esta comunidad.');
+    }
+
     if (membresia.tipo_acceso === 'SOLO_VER') {
       throw new ForbiddenException('Tu tipo de acceso no permite publicar en esta comunidad.');
     }
- 
+
+    // 2. Crear el post
     const now = new Date().toISOString();
-    const result = await this.dbService.insert('posts', [{
+    const newPost = {
       comunidad_id: comunidadId,
-      autor_id:     robleId,
-      titulo:       titulo || null,
+      autor_id:     usuarioId,
       contenido,
       created_at:   now,
       edited_at:    null,
       eliminado:    false,
-    }], masterToken);
- 
-    const inserted = result?.inserted?.[0] || result?.[0] || {};
-    return { id: inserted._id, contenido: inserted.contenido, created_at: inserted.created_at };
+    };
+
+    const result = await this.dbService.insert('posts', [newPost], masterToken);
+    const inserted = result?.inserted?.[0] || result?.[0] || newPost;
+
+    return {
+      id:         inserted._id,
+      contenido:  inserted.contenido,
+      created_at: inserted.created_at,
+    };
   }
 }

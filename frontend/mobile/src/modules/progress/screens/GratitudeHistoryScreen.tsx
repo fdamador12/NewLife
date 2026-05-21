@@ -1,24 +1,86 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { getGratitudeHistory } from '../../../services/progressService';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
-const GRATITUDE_ENTRIES = [
-  { id: '1', date: '5 oct 2025', text: 'Agradezco que salí con mis amigos sin tomar.' },
-  { id: '2', date: '4 oct 2025', text: 'Dormí bien por primera vez en días.' },
-  { id: '3', date: '3 oct 2025', text: 'Mi mamá me apoyó cuando me sentía mal.' },
-  { id: '4', date: '3 oct 2025', text: 'Agradezco por tener la oportunidad de empezar de nuevo.' },
-  { id: '5', date: '3 oct 2025', text: 'Agradezco por sentirme acompañado en este proceso.' },
-  { id: '6', date: '3 oct 2025', text: 'Agradezco por las cosas que salieron bien hoy.' },
-  { id: '7', date: '3 oct 2025', text: 'Agradezco por haber podido ayudar a alguien.' },
-  { id: '8', date: '3 oct 2025', text: 'Agradezco por sentirme más tranquilo que antes.' },
-  { id: '9', date: '3 oct 2025', text: 'Agradezco por el clima de hoy.' },
-  { id: '10', date: '3 oct 2025', text: 'Agradezco por las risas en medio del caos.' },
-];
+interface GratitudeEntry {
+  dia: string;
+  gratitud: string;
+  hora: string;
+}
 
 export default function GratitudeHistoryScreen({ navigation }: any) {
+  const [entries, setEntries] = useState<GratitudeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Analytics: trackear visita al historial de gratitud (al montar).
+  useEffect(() => {
+    analytics.track(EVENT_TYPES.GRATITUDE_HISTORY_VIEWED);
+  }, []);
+
+  useEffect(() => {
+    fetchGratitudeHistory();
+  }, []);
+
+  const fetchGratitudeHistory = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('📤 Obteniendo historial de gratitud...');
+      
+      const response = await getGratitudeHistory();
+      
+      console.log('✅ Respuesta del servidor:', response);
+
+      // Extraer los registros
+      const records = response?.data || [];
+
+      // ✅ DESPUÉS (ordena por fecha + hora)
+      const sorted = records.sort((a: GratitudeEntry, b: GratitudeEntry) => {
+        // El backend retorna "dia" como "2026-04-15" (solo fecha)
+        // Pero en "hora" está la hora: "14:32"
+        // Combinar ambos para ordenar por timestamp completo
+        const dateTimeA = `${a.dia}T${a.hora}`;
+        const dateTimeB = `${b.dia}T${b.hora}`;
+        
+        const timestampA = new Date(dateTimeA).getTime();
+        const timestampB = new Date(dateTimeB).getTime();
+        
+        return timestampB - timestampA; // ✅ Más reciente primero
+      });
+
+      // ✅ FORMATEAR fechas: "5 oct 2025"
+      const formatted = sorted.map((entry: any) => {
+        const date = new Date(entry.dia);
+        const formatted_date = date.toLocaleDateString('es-ES', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+
+        return {
+          dia: formatted_date,
+          gratitud: entry.gratitud,
+          hora: entry.hora,
+        };
+      });
+
+      console.log('📊 Datos formateados:', formatted);
+      setEntries(formatted);
+    } catch (err: any) {
+      console.error('❌ Error obteniendo historial:', err);
+      setError('No se pudo cargar el historial de gratitud');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
 
@@ -33,17 +95,44 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {GRATITUDE_ENTRIES.map((entry) => (
-          <View key={entry.id} style={styles.card}>
-            <Text style={styles.date}>{entry.date}</Text>
-            <Text style={styles.text}>{entry.text}</Text>
-          </View>
-        ))}
-      </ScrollView>
+      {/* Contenido */}
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.loadingText}>Cargando historial...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <Feather name="alert-circle" size={48} color={colors.textMuted} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchGratitudeHistory}
+          >
+            <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
+          </TouchableOpacity>
+        </View>
+      ) : entries.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Feather name="heart" size={48} color={colors.textMuted} />
+          <Text style={styles.emptyText}>No hay registros de gratitud aún</Text>
+          <Text style={styles.emptySubtext}>
+            Completa tu primer registro diario para empezar
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          {entries.map((entry, index) => (
+            <View key={index} style={styles.card}>
+              <Text style={styles.date}>{entry.dia}</Text>
+              <Text style={styles.text}>{entry.gratitud}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
     </View>
   );
@@ -85,6 +174,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
+    marginBottom: spacing.sm,
   },
   date: {
     fontSize: fontSizes.md,
@@ -96,5 +186,44 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.textMuted,
     lineHeight: 20,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  loadingText: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    marginTop: spacing.md,
+  },
+  errorText: {
+    fontSize: fontSizes.md,
+    color: colors.text,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.lg, backgroundColor: colors.accent,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.md,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: fontSizes.sm,
+  },
+  emptyText: {
+    fontSize: fontSizes.md,
+    color: colors.text,
+    marginTop: spacing.md,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
 });

@@ -4,8 +4,34 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
+import { analytics, EVENT_TYPES, SOS_OPTIONS } from '../../../../services/analytics';
 
 export default function CrisisModeScreen({ navigation }: any) {
+
+    // 📊 Analytics: trackear cuál de las 3 sub-opciones del modo crisis eligió.
+    // Estas son las opciones FINALES (las que realmente miden qué herramienta usa
+    // el usuario para calmarse).
+    const handleBreathingPress = () => {
+        analytics.track(EVENT_TYPES.SOS_OPTION_SELECTED, {
+            option: SOS_OPTIONS.BREATHING,
+        });
+        navigation.navigate('BreathingScreen');
+    };
+
+    const handleMotivationalPhrasesPress = () => {
+        analytics.track(EVENT_TYPES.SOS_OPTION_SELECTED, {
+            option: SOS_OPTIONS.MOTIVATIONAL_PHRASES,
+        });
+        navigation.navigate('MotivationalPhrasesScreen');
+    };
+
+    const handleGuidedMeditationPress = () => {
+        analytics.track(EVENT_TYPES.SOS_OPTION_SELECTED, {
+            option: SOS_OPTIONS.GUIDED_MEDITATION,
+        });
+        navigation.navigate('GuidedMeditationScreen');
+    };
+
     return (
         <View style={styles.container}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -16,7 +42,7 @@ export default function CrisisModeScreen({ navigation }: any) {
             <Text style={styles.subtitle}>Elige cómo quieres calmarte</Text>
 
             <View style={styles.options}>
-                <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('BreathingScreen')}>
+                <TouchableOpacity style={styles.card} onPress={handleBreathingPress}>
                     <View style={[styles.iconCircle, { backgroundColor: '#5C6BC0' }]}>
                         <Icon name="wind" size={28} color={colors.white} />
                     </View>
@@ -26,7 +52,7 @@ export default function CrisisModeScreen({ navigation }: any) {
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('MotivationalPhrasesScreen')}>
+                <TouchableOpacity style={styles.card} onPress={handleMotivationalPhrasesPress}>
                     <View style={[styles.iconCircle, { backgroundColor: '#F4845F' }]}>
                         <Icon name="heart" size={28} color={colors.white} />
                     </View>
@@ -36,7 +62,7 @@ export default function CrisisModeScreen({ navigation }: any) {
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('GuidedMeditationScreen')}>
+                <TouchableOpacity style={styles.card} onPress={handleGuidedMeditationPress}>
                     <View style={[styles.iconCircle, { backgroundColor: '#26A69A' }]}>
                         <Icon name="headphones" size={28} color={colors.white} />
                     </View>

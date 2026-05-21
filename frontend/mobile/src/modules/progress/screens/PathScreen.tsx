@@ -1,34 +1,33 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions,
+    View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { useLevelProgress } from '../../../hooks/useLevelProgress';
+import { performAnimatedScroll } from '../utils/pathScreenAnimation';
+import { setLevelHeight } from '../utils/levelHeights';
+import { useToast } from '../../../feedback/ToastContext';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 const { width } = Dimensions.get('window');
 
-const LEVELS = [
-    { id: 1, title: 'Reconocer', description: 'Admití que perdí el control sobre mi consumo y que mi vida se volvió difícil de manejar.' },
-    { id: 2, title: 'Confiar', description: 'Empecé a creer que un poder más grande que yo puede ayudarme a recuperar la claridad.' },
-    { id: 3, title: 'Entregar', description: 'Decidí confiar mi voluntad y mi vida a ese poder superior, tal como yo lo entiendo.' },
-    { id: 4, title: 'Explorar', description: 'Hice una revisión sincera y profunda de mí mismo: mis actos, errores y emociones.' },
-    { id: 5, title: 'Compartir', description: 'Confesé ante mí, ante otro ser humano y ante mi poder superior la verdad sobre mis fallas.' },
-    { id: 6, title: 'Prepararme', description: 'Estuve dispuesto a dejar atrás mis defectos y viejas actitudes que me hacían daño.' },
-    { id: 7, title: 'Pedir cambio', description: 'Le pedí humildemente a mi poder superior que me ayudara a superar esas debilidades.' },
-    { id: 8, title: 'Reparar', description: 'Hice una lista de las personas a las que herí y me preparé para enmendar el daño.' },
-    { id: 9, title: 'Actuar', description: 'Busqué reparar el daño directamente con quienes pude, sin causarles más dolor.' },
-    { id: 10, title: 'Reflexionar', description: 'Sigo revisando mi conducta y reconozco mis errores en el momento que los cometo.' },
-    { id: 11, title: 'Conectar', description: 'Busco a mi poder superior con oración o meditación para mantener claridad y dirección.' },
-    { id: 12, title: 'Compartir', description: 'Después de vivir estos pasos, trato de ayudar a otros y aplicar estos principios en mi vida.' },
+export const LEVELS = [
+    { id: 1, title: 'Reconocer', shortDescription: 'Reconocí que mi consumo me superó y afectó mi vida.', description: 'Admití que perdí el control sobre mi consumo y que mi vida se volvió difícil de manejar.' },
+    { id: 2, title: 'Confiar', shortDescription: 'Creo que un poder mayor puede ayudarme a recuperarme.', description: 'Empecé a creer que un poder más grande que yo puede ayudarme a recuperar la claridad.' },
+    { id: 3, title: 'Entregar', shortDescription: 'Confío mi voluntad a un poder superior.', description: 'Decidí confiar mi voluntad y mi vida a ese poder superior, tal como yo lo entiendo.' },
+    { id: 4, title: 'Explorar', shortDescription: 'Hice una revisión sincera de mí mismo.', description: 'Hice una revisión sincera y profunda de mí mismo: mis actos, errores y emociones.' },
+    { id: 5, title: 'Compartir', shortDescription: 'Confesé la verdad sobre mis fallas.', description: 'Confesé ante mí, ante otro ser humano y ante mi poder superior la verdad sobre mis fallas.' },
+    { id: 6, title: 'Prepararme', shortDescription: 'Estoy dispuesto a dejar atrás mis defectos.', description: 'Estuve dispuesto a dejar atrás mis defectos y viejas actitudes que me hacían daño.' },
+    { id: 7, title: 'Pedir cambio', shortDescription: 'Pido humildemente ayuda para superar mis debilidades.', description: 'Le pedí humildemente a mi poder superior que me ayudara a superar esas debilidades.' },
+    { id: 8, title: 'Reparar', shortDescription: 'Hice una lista de quienes herí.', description: 'Hice una revisión sincera y profunda de mí mismo: mis actos, errores y emociones.' },
+    { id: 9, title: 'Actuar', shortDescription: 'Busqué reparar el daño sin causar más dolor.', description: 'Busqué reparar el daño directamente con quienes pude, sin causarles más dolor.' },
+    { id: 10, title: 'Reflexionar', shortDescription: 'Reviso mi conducta y reconozco mis errores.', description: 'Sigo revisando mi conducta y reconozco mis errores en el momento que los cometo.' },
+    { id: 11, title: 'Conectar', shortDescription: 'Me conecto con mi poder superior mediante la meditación.', description: 'Busco a mi poder superior con oración o meditación para mantener claridad y dirección.' },
+    { id: 12, title: 'Compartir', shortDescription: 'Ayudo a otros a vivir estos principios.', description: 'Después de vivir estos pasos, trato de ayudar a otros y aplicar estos principios en mi vida.' },
 ];
 
-// Mock: usuario va en nivel 1, subnivel 2 (libro completado, en estrella)
-const USER_PROGRESS = {
-    level: 12,
-    sublevel: 3, // 1=libro, 2=estrella, 3=corazon
-};
-
-// Subniveles: orden libro(1), estrella(2), corazon(3)
 const SUBLEVEL_ORDER = ['libro', 'estrella', 'corazon'];
 
 type SubnodeProps = {
@@ -45,7 +44,6 @@ function SubNode({ type, state, isCurrent }: SubnodeProps & { isCurrent?: boolea
             if (type === 'estrella') return require('../../../assets/images/estrella.png');
             return require('../../../assets/images/corazon.png');
         }
-        // pending
         if (type === 'libro') return require('../../../assets/images/librogris.png');
         if (type === 'estrella') return require('../../../assets/images/estrellagris.png');
         return require('../../../assets/images/corazongris.png');
@@ -78,42 +76,56 @@ const MODULE_ROUTES: Record<number, Record<number, string>> = {
 function LevelCard({
     level,
     userProgress,
-    navigation,  // agrega navigation como prop
+    navigation,
+    isLocked,
+    showToast,
 }: {
     level: typeof LEVELS[0];
-    userProgress: typeof USER_PROGRESS;
+    userProgress: { level: number; sublevel: number };
     navigation: any;
+    isLocked: (nivel: number, subnivel: number) => boolean;
+    showToast: (message: string, type?: 'error' | 'success' | 'info') => void;
 }) {
     const isCurrentLevel = userProgress.level === level.id;
     const isCompletedLevel = userProgress.level > level.id;
     const isLockedLevel = userProgress.level < level.id;
     const isDisabled = isLockedLevel;
 
-    const handlePress = () => {
-        const levelRoutes = MODULE_ROUTES[level.id];
-        if (!levelRoutes) return;
-        const route = levelRoutes[userProgress.sublevel];
-        if (route) navigation.navigate(route);
-    };
-
     const getSubnodeState = (sublevelIndex: number): SubnodeProps['state'] => {
         if (isLockedLevel) return 'locked';
         if (isCompletedLevel) return 'completed';
-        // current level
         const completedSublevel = userProgress.sublevel - 1;
         if (sublevelIndex < completedSublevel) return 'completed';
         if (sublevelIndex === completedSublevel) return 'current';
         return 'pending';
     };
 
+    const handleSubnodePress = (subnivel: number) => {
+        console.log(`📌 Click en Nivel ${level.id} Módulo ${subnivel}`);
+
+        if (isLocked(level.id, subnivel)) {
+            console.log('❌ Módulo bloqueado');
+            showToast(`Completa el Nivel ${userProgress.level}, Módulo ${userProgress.sublevel} primero`, 'info');
+            return;
+        }
+
+        const route = MODULE_ROUTES[level.id]?.[subnivel];
+        if (route) {
+            console.log(`✅ Navegando a ${route}`);
+            navigation.navigate(route);
+        }
+    };
+
     return (
-        <TouchableOpacity
+        <View
             style={styles.levelWrapper}
-            activeOpacity={0.8}
+            onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setLevelHeight(level.id, height);
+                console.log(`📏 Nivel ${level.id} altura: ${height}px`);
+            }}
         >
-            {/* Card */}
             <View style={[styles.levelCard, isDisabled && styles.levelCardDisabled]}>
-                {/* Badge nivel */}
                 <View style={[styles.nivelBadge, isDisabled && styles.nivelBadgeDisabled]}>
                     <Text style={styles.nivelBadgeText}>Nivel {level.id}</Text>
                 </View>
@@ -125,17 +137,15 @@ function LevelCard({
                 </Text>
             </View>
 
-            {/* Subnodos */}
             <View style={styles.subnodesWrapper}>
                 <View style={styles.subnodesTopRow}>
                     {SUBLEVEL_ORDER.slice(0, 2).map((type, i) => {
+                        const subnivel = i + 1;
                         const state = getSubnodeState(i);
-                        const route = MODULE_ROUTES[level.id]?.[i + 1];
                         return (
                             <TouchableOpacity
                                 key={i}
-                                disabled={state === 'locked' || state === 'pending'}
-                                onPress={() => route && navigation.navigate(route)}
+                                onPress={() => handleSubnodePress(subnivel)}
                                 activeOpacity={0.8}
                             >
                                 <SubNode
@@ -149,12 +159,11 @@ function LevelCard({
                 </View>
                 <View style={styles.subnodesBottomRow}>
                     {(() => {
+                        const subnivel = 3;
                         const state = getSubnodeState(2);
-                        const route = MODULE_ROUTES[level.id]?.[3];
                         return (
                             <TouchableOpacity
-                                disabled={state === 'locked' || state === 'pending'}
-                                onPress={() => route && navigation.navigate(route)}
+                                onPress={() => handleSubnodePress(subnivel)}
                                 activeOpacity={0.8}
                             >
                                 <SubNode
@@ -168,40 +177,103 @@ function LevelCard({
                 </View>
             </View>
 
-            {/* Conector hacia abajo */}
             {level.id < 12 && (
                 <View style={styles.connector} />
             )}
-        </TouchableOpacity>
+        </View>
     );
 }
 
 export default function PathScreen({ navigation }: any) {
+    const { progress, loading, isLocked } = useLevelProgress();
+    const { showToast } = useToast();
+    const flatListRef = useRef<FlatList>(null);
+    const scrollAnimRef = useRef(new Animated.Value(0)).current;
+    const hasScrolledRef = useRef(false);
+
+    // FIX bug analytics: trackear LEVEL_PATH_VIEWED solo la PRIMERA vez que
+    // el usuario entra al camino en la sesion actual. Si entra a un nivel,
+    // lo completa y vuelve, NO se debe trackear de nuevo.
+    // Este ref persiste mientras el componente esta montado.
+    const hasTrackedRef = useRef(false);
+
+    const userProgress = {
+        level: progress.nivel,
+        sublevel: progress.subnivel,
+    };
+
+    console.log('📊 PathScreen - Progress:', userProgress);
+
+    // FIX: usar useFocusEffect con ref para evitar tracks duplicados.
+    // useFocusEffect se dispara cada vez que la pantalla recibe foco
+    // (al entrar, al volver desde otra pantalla). El ref garantiza que
+    // solo trackeamos la primera vez.
+    useFocusEffect(
+        React.useCallback(() => {
+            if (!hasTrackedRef.current && !loading) {
+                hasTrackedRef.current = true;
+                analytics.track(EVENT_TYPES.LEVEL_PATH_VIEWED, {
+                    current_level: progress.nivel,
+                    current_sublevel: progress.subnivel,
+                });
+            }
+            // No cleanup necesario — el ref se mantiene mientras este montado
+        }, [progress.nivel, progress.subnivel, loading])
+    );
+
+    const handleGoBack = () => {
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home', params: { initialTab: 'Progress' } }],
+        });
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+                <TouchableOpacity onPress={handleGoBack}>
                     <Feather name="chevron-left" size={24} color={colors.text} />
                 </TouchableOpacity>
                 <View>
                     <Text style={styles.headerTitle}>Tu camino</Text>
-                    <Text style={styles.headerSubtitle}>Basado en los 12 pasos de AA</Text>
+                    <Text style={styles.headerSubtitle}>
+                        Nivel {userProgress.level}, Módulo {userProgress.sublevel}
+                    </Text>
                 </View>
             </View>
 
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                showsVerticalScrollIndicator={false}
-            >
-                {LEVELS.map((level) => (
-                    <LevelCard
-                        key={level.id}
-                        level={level}
-                        userProgress={USER_PROGRESS}
-                        navigation={navigation}
-                    />
-                ))}
-            </ScrollView>
+            {!loading ? (
+                <FlatList
+                    ref={flatListRef}
+                    data={LEVELS}
+                    keyExtractor={(item) => String(item.id)}
+                    contentContainerStyle={styles.flatListContent}
+                    renderItem={({ item: level }) => (
+                        <LevelCard
+                            level={level}
+                            userProgress={userProgress}
+                            navigation={navigation}
+                            isLocked={isLocked}
+                            showToast={showToast}
+                        />
+                    )}
+                    scrollEnabled={true}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => {
+                        performAnimatedScroll(
+                            flatListRef,
+                            scrollAnimRef,
+                            hasScrolledRef,
+                            userProgress.level,
+                        );
+                    }}
+                />
+            ) : (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.accent} />
+                    <Text style={styles.loadingText}>Cargando tu progreso...</Text>
+                </View>
+            )}
         </View>
     );
 }
@@ -228,7 +300,7 @@ const styles = StyleSheet.create({
         fontSize: fontSizes.sm,
         color: colors.textMuted,
     },
-    scroll: {
+    flatListContent: {
         paddingHorizontal: spacing.xl,
         paddingBottom: spacing.xl,
         alignItems: 'center',
@@ -293,13 +365,6 @@ const styles = StyleSheet.create({
     levelDescriptionDisabled: {
         color: '#BBBBBB',
     },
-    subnodesRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: spacing.xl,
-        marginTop: spacing.md,
-        marginBottom: spacing.xs,
-    },
     subNodeImage: {
         width: 70,
         height: 70,
@@ -326,5 +391,17 @@ const styles = StyleSheet.create({
     subNodeImageCurrent: {
         width: 105,
         height: 105,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    loadingText: {
+        marginTop: spacing.md,
+        fontSize: fontSizes.md,
+        color: colors.textMuted,
+        fontWeight: '600',
     },
 });

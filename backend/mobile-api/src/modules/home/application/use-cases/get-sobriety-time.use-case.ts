@@ -1,47 +1,53 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { DatabaseService } from '../../../database/infrastructure/database.service';
+import { Injectable, Logger } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
+import { IProgressProviderPort } from '../../../progress/domain/ports/progress-provider.port';
 import { SystemAuthService } from '../../../auth/infrastructure/services/system-auth.service';
 
 @Injectable()
 export class GetSobrietyTimeUseCase {
+  private logger = new Logger(GetSobrietyTimeUseCase.name);
+
   constructor(
-    private readonly dbService: DatabaseService,
+    @Inject('IProgressProviderPort')
+    private readonly progressProvider: IProgressProviderPort,
     private readonly systemAuth: SystemAuthService,
   ) {}
 
-  async execute(userId: string) {
-    const masterToken = await this.systemAuth.getMasterToken();
+  async execute(usuarioId: string): Promise<any> {
+    this.logger.log(`📊 Calculando tiempo sobrio para usuario: ${usuarioId}`);
 
-    const res = await this.dbService.find('sobriedad', { usuario_id: userId }, masterToken);
-    const rows = Array.isArray(res) ? res : (res.rows || []);
+    try {
+      const masterToken = await this.systemAuth.getMasterToken();
+      const sobrietyRecord = await this.progressProvider.getSobrietyRecord(
+        usuarioId,
+        masterToken,
+      );
 
-    if (rows.length === 0) {
-      throw new NotFoundException('No se encontró información de sobriedad.');
-    }
-
-    const fechaUltimoConsumo = new Date(rows[0].fecha_ultimo_consumo);
-    const updatedAt = new Date(rows[0].updated_at);
-    const ahora = new Date();
-    const ahoraCol = new Date(ahora.getTime() - (5 * 60 * 60 * 1000));
-    
-    const diffMs = Math.max(0, ahoraCol.getTime() - fechaUltimoConsumo.getTime());
-
-    const totalMinutos = Math.floor(diffMs / (1000 * 60));
-    const totalHoras = Math.floor(totalMinutos / 60);
-
-    const dias = Math.floor(totalHoras / 24);
-    const horas = totalHoras % 24;
-    const minutos = totalMinutos % 60;
-
-    return {
-      usuario_id: userId,
-      fecha_ultimo_consumo: rows[0].fecha_ultimo_consumo,
-      actualizado_el: rows[0].updated_at, 
-      contador: {
-        dias,
-        horas,
-        minutos
+      if (!sobrietyRecord || !sobrietyRecord.fecha_ultimo_consumo) {
+        this.logger.warn(
+          `⚠️  No hay registro de sobriedad para usuario: ${usuarioId}`,
+        );
+        return {
+          message: 'No hay registro de sobriedad',
+          fecha_ultimo_consumo: null,
+        };
       }
-    };
+
+      // ✅ Retornar SOLO la fecha en UTC
+      // El frontend se encarga de convertir a zona horaria local
+      this.logger.log(
+        `✅ Fecha último consumo (UTC): ${sobrietyRecord.fecha_ultimo_consumo}`,
+      );
+
+      return {
+        message: 'Fecha de sobriedad obtenida exitosamente',
+        fecha_ultimo_consumo: sobrietyRecord.fecha_ultimo_consumo,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error calculando tiempo sobrio: ${error.message}`,
+      );
+      throw error;
+    }
   }
 }

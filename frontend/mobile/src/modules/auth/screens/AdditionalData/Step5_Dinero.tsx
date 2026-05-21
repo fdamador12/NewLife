@@ -17,7 +17,9 @@ const CURRENCIES = [
 
 const formatAmount = (value: string, separator: string) => {
   const numbers = value.replace(/\D/g, '');
-  return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+  if (!numbers) return '';
+  const stripped = numbers.replace(/^0+(\d)/, '$1').replace(/^0+$/, '0');
+  return stripped.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
 };
 
 export default function Step5_Dinero({ navigation }: any) {
@@ -35,7 +37,7 @@ export default function Step5_Dinero({ navigation }: any) {
     <>
       <StepLayout
         currentStep={5}
-        question="¿Cuánto gastabas más o menos en alcohol a la semana?"
+        question="¿Cuánto gastabas más o menos en tu adicción a la semana?"
         characterImage={require('../../../../assets/images/character6.png')}
         onBack={() => navigation.goBack()}
         onContinue={() => {
@@ -44,6 +46,7 @@ export default function Step5_Dinero({ navigation }: any) {
           navigation.navigate('Step6');
         }}
         showButton={true}
+        disabled={!amount}
       >
         <View style={styles.inputWrapper}>
           <TouchableOpacity style={styles.currencySelector} onPress={() => setShowPicker(true)}>

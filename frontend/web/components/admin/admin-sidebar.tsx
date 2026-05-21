@@ -3,15 +3,20 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import {
-  Leaf,
-  LayoutDashboard,
-  Users,
-  Building2,
-  AlertTriangle,
+import { 
+  Leaf, 
+  LayoutDashboard, 
+  Users, 
+  Building2, 
+  AlertTriangle, 
   BookOpen,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  HeartHandshake,
+  Trophy,
+  Quote,
+  MessageSquare,
+  Activity
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,12 +35,22 @@ const navigation = [
     items: [
       { name: "Usuarios", href: "/admin/usuarios", icon: Users },
       { name: "Comunidades", href: "/admin/comunidades", icon: Building2 },
-      { name: "Sol. de baneo", href: "/admin/solicitudes-baneo", icon: AlertTriangle, badge: 0 },
+      { name: "Sol. de baneo", href: "/admin/solicitudes-baneo", icon: AlertTriangle, badge: 3 }, // Ojo: Aquí puedes conectar este 3 dinámicamente luego
+      { name: "Foros del día", href: "/admin/foros", icon: MessageSquare },
+      { name: "Métricas de uso", href: "/admin/metricas", icon: Activity },
     ],
   },
   {
-    title: "Contenido",
+    title: "Motivación",
     items: [
+      { name: "Frases del día", href: "/admin/frases", icon: Quote },
+      { name: "Retos", href: "/admin/retos", icon: Trophy },
+    ],
+  },
+  {
+    title: "Cuidado",
+    items: [
+      { name: "Grupos de apoyo", href: "/admin/grupos-apoyo", icon: HeartHandshake },
       { name: "Contenido educativo", href: "/admin/contenido", icon: BookOpen },
     ],
   },

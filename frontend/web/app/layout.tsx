@@ -18,7 +18,7 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'NewLife - Tu compañero hacia una vida sin alcohol',
+  title: 'NewLife - Tu compañero hacia una vida libre de sustancias',
   description:
     'Acompaña tu sobriedad con retos, reflexiones y autocuidado. Registra tu progreso y conéctate con una comunidad que te entiende.',
 }

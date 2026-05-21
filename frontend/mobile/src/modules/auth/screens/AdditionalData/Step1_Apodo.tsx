@@ -21,6 +21,7 @@ export default function Step1_Apodo({ navigation }: any) {
         navigation.navigate('Step2');
       }}
       showButton={true}
+      disabled={!apodo.trim()}
     >
       <TextInput
         style={styles.input}

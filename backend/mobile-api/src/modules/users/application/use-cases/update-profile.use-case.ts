@@ -7,7 +7,6 @@ export interface UpdateProfileDto {
   pronombre?: string;
   motivo_sobrio?: string;
   gasto_semanal?: number;
-  descripcion?: string;
 }
 
 @Injectable()
@@ -20,12 +19,8 @@ export class UpdateProfileUseCase {
   async execute(userId: string, updates: UpdateProfileDto) {
     const masterToken = await this.systemAuth.getMasterToken();
 
-    // 1. Verificar perfil (informacion_personal)
-    const res = await this.dbService.find(
-      'informacion_personal',
-      { usuario_id: userId },
-      masterToken
-    );
+    // Verificar que existe el perfil
+    const res = await this.dbService.find('informacion_personal', { usuario_id: userId }, masterToken);
     const rows = Array.isArray(res) ? res : (res.rows || []);
 
     if (rows.length === 0) {
@@ -33,51 +28,24 @@ export class UpdateProfileUseCase {
     }
 
     const record = rows[0];
+    const fieldsToUpdate: Record<string, any> = {};
 
-    // 2. Campos para informacion_personal
-    const personalFieldsToUpdate: Record<string, any> = {};
+    if (updates.apodo !== undefined)        fieldsToUpdate.apodo        = updates.apodo;
+    if (updates.pronombre !== undefined)    fieldsToUpdate.pronombre    = updates.pronombre;
+    if (updates.motivo_sobrio !== undefined) fieldsToUpdate.motivo_sobrio = updates.motivo_sobrio;
+    if (updates.gasto_semanal !== undefined) fieldsToUpdate.gasto_semanal = Number(updates.gasto_semanal);
 
-    if (updates.apodo !== undefined)         personalFieldsToUpdate.apodo = updates.apodo;
-    if (updates.pronombre !== undefined)     personalFieldsToUpdate.pronombre = updates.pronombre;
-    if (updates.motivo_sobrio !== undefined) personalFieldsToUpdate.motivo_sobrio = updates.motivo_sobrio;
-    if (updates.gasto_semanal !== undefined) personalFieldsToUpdate.gasto_semanal = Number(updates.gasto_semanal);
-
-    // 3. Campos para usuarios
-    const userFieldsToUpdate: Record<string, any> = {};
-
-    if (updates.descripcion !== undefined) {
-      userFieldsToUpdate.descripcion = updates.descripcion;
-    }
-
-    // 4. Validación: que haya algo que actualizar
-    if (
-      Object.keys(personalFieldsToUpdate).length === 0 &&
-      Object.keys(userFieldsToUpdate).length === 0
-    ) {
+    if (Object.keys(fieldsToUpdate).length === 0) {
       return { message: 'No hay campos para actualizar.' };
     }
 
-    // 5. Actualizar informacion_personal (si aplica)
-    if (Object.keys(personalFieldsToUpdate).length > 0) {
-      await this.dbService.update(
-        'informacion_personal',
-        '_id',
-        record._id,
-        personalFieldsToUpdate,
-        masterToken,
-      );
-    }
-
-    // 6. Actualizar usuarios (si aplica)
-    if (Object.keys(userFieldsToUpdate).length > 0) {
-      await this.dbService.update(
-        'usuarios',
-        'usuario_id', 
-        userId,
-        userFieldsToUpdate,
-        masterToken,
-      );
-    }
+    await this.dbService.update(
+      'informacion_personal',
+      '_id',
+      record._id,
+      fieldsToUpdate,
+      masterToken,
+    );
 
     return { message: 'Perfil actualizado exitosamente.' };
   }

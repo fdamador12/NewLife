@@ -6,10 +6,38 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { registerUser } from '../../../services/authService';
-import { isGuestMode, clearGuestData } from '../../../services/guestService';
+import { isGuestMode, clearGuestData, hasGuestCompletedProfile } from '../../../services/guestService';
 import { migrateGuestToUser } from '../../../services/authService';
+import { hasCompletedOnboardingProfile } from '../../../services/onboarding-storage';
+import FieldError from '../../../feedback/FieldError';
+import { useToast } from '../../../feedback/ToastContext';
 
 const INPUT_HEIGHT = 52;
+
+const validarPassword = (pwd: string): string => {
+  if (!pwd) return 'La contraseña es obligatoria';
+  if (pwd.length < 8) return 'Debe tener al menos 8 caracteres';
+  if (!/[A-Z]/.test(pwd)) return 'Debe incluir al menos una letra mayúscula';
+  if (!/[a-z]/.test(pwd)) return 'Debe incluir al menos una letra minúscula';
+  if (!/[0-9]/.test(pwd)) return 'Debe incluir al menos un número';
+  if (!/[!@#$_\-.]/.test(pwd)) return 'Debe incluir un símbolo: ! @ # $ _ - .';
+  return '';
+};
+
+const validarEmail = (mail: string): string => {
+  if (!mail.trim()) return 'El correo es obligatorio';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail.trim())) return 'Ingresa un correo válido, ej: nombre@correo.com';
+  return '';
+};
+
+const parsearErrorServidor = (msg: string, status?: number): string => {
+  const m = (msg || '').toLowerCase();
+  if (status === 409 || m.includes('exist') || m.includes('registrado') || m.includes('uso')) {
+    return 'Ya existe una cuenta con ese correo.';
+  }
+  if (status === 500) return 'Error del servidor. Intenta más tarde.';
+  return 'Algo salió mal. Intenta de nuevo.';
+};
 
 export default function RegisterScreen({ navigation }: any) {
   const [nombre, setNombre] = useState('');
@@ -18,45 +46,77 @@ export default function RegisterScreen({ navigation }: any) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async () => {
-    setError('');
+  const [nombreError, setNombreError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmError, setConfirmError] = useState('');
 
-    if (!nombre || !email || !password || !confirmPassword) {
-      setError('Por favor completa todos los campos.');
-      return;
+  const { showToast } = useToast();
+
+  const handleRegister = async () => {
+    setNombreError('');
+    setEmailError('');
+    setPasswordError('');
+    setConfirmError('');
+
+    let valid = true;
+
+    if (!nombre.trim()) {
+      setNombreError('El nombre es obligatorio');
+      valid = false;
     }
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
-      return;
+
+    const emailErr = validarEmail(email);
+    if (emailErr) { setEmailError(emailErr); valid = false; }
+
+    const pwdErr = validarPassword(password);
+    if (pwdErr) { setPasswordError(pwdErr); valid = false; }
+
+    if (!confirmPassword) {
+      setConfirmError('Confirma tu contraseña');
+      valid = false;
+    } else if (password !== confirmPassword) {
+      setConfirmError('Las contraseñas no coinciden');
+      valid = false;
     }
+
+    if (!valid) return;
 
     try {
       setLoading(true);
 
-      // Verificar si viene de modo invitado antes de registrar
       const wasGuest = await isGuestMode();
+      const guestCompletedProfile = wasGuest ? await hasGuestCompletedProfile() : false;
 
-      // Registrar usuario
       await registerUser(nombre, email, password);
 
-      // Si era invitado, migrar sus datos al backend
       if (wasGuest) {
         try {
           await migrateGuestToUser();
+          await clearGuestData();
           console.log('✅ Datos de invitado migrados correctamente');
-        } catch {
-          // Si falla la migración, los datos locales siguen en AsyncStorage
-          // El usuario puede intentar migrar después
+        } catch (err) {
           console.log('⚠️ Migración pendiente, datos locales preservados');
         }
       }
 
-      navigation.navigate('Story');
+      if (guestCompletedProfile) {
+        navigation.replace('Home');
+      } else {
+        navigation.navigate('VerifyEmail', { email, password });
+      }
+
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al registrarse. Intenta de nuevo.');
+      if (!err.response) {
+        showToast('Sin conexión o servidor no disponible', 'error');
+        return;
+      }
+      const status = err.response.status;
+      const msg = typeof err.response.data?.message === 'string'
+        ? err.response.data.message : '';
+      showToast(parsearErrorServidor(msg, status), 'error');
     } finally {
       setLoading(false);
     }
@@ -69,7 +129,7 @@ export default function RegisterScreen({ navigation }: any) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.replace('Welcome')}>
           <Icon name="chevron-left" size={24} color={colors.text} />
         </TouchableOpacity>
 
@@ -77,58 +137,68 @@ export default function RegisterScreen({ navigation }: any) {
 
         <View style={styles.inputsContainer}>
 
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre completo"
-              placeholderTextColor={colors.border}
-              autoCapitalize="words"
-              value={nombre}
-              onChangeText={setNombre}
-            />
+          <View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre completo"
+                placeholderTextColor={colors.border}
+                autoCapitalize="words"
+                value={nombre}
+                onChangeText={(t) => { setNombre(t); if (nombreError) setNombreError(''); }}
+              />
+            </View>
+            <FieldError message={nombreError} />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Correo"
-              placeholderTextColor={colors.border}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
+          <View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Correo"
+                placeholderTextColor={colors.border}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(''); }}
+              />
+            </View>
+            <FieldError message={emailError} />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Contraseña"
-              placeholderTextColor={colors.border}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-              <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+          <View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Contraseña"
+                placeholderTextColor={colors.border}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(''); }}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+                <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <FieldError message={passwordError} />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirmar contraseña"
-              placeholderTextColor={colors.border}
-              secureTextEntry={!showConfirm}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-            <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeButton}>
-              <Icon name={showConfirm ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+          <View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Confirmar contraseña"
+                placeholderTextColor={colors.border}
+                secureTextEntry={!showConfirm}
+                value={confirmPassword}
+                onChangeText={(t) => { setConfirmPassword(t); if (confirmError) setConfirmError(''); }}
+              />
+              <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeButton}>
+                <Icon name={showConfirm ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <FieldError message={confirmError} />
           </View>
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         </View>
 
@@ -164,7 +234,6 @@ const styles = StyleSheet.create({
   inputWrapper: { height: INPUT_HEIGHT, backgroundColor: colors.inputBackground, borderRadius: borderRadius.full, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center' },
   input: { flex: 1, height: INPUT_HEIGHT, fontSize: fontSizes.md, color: colors.text },
   eyeButton: { padding: 4 },
-  errorText: { color: 'red', fontSize: fontSizes.sm, textAlign: 'center', marginTop: spacing.xs },
   buttonPrimary: { backgroundColor: colors.primary, paddingVertical: spacing.md, borderRadius: borderRadius.full, alignItems: 'center', marginBottom: spacing.lg },
   buttonPrimaryText: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
   loginContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 'auto', paddingTop: spacing.xl },

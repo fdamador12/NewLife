@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 7;
 
 type Props = {
     currentStep: number;
@@ -18,6 +18,7 @@ type Props = {
     continueLabel?: string;
     showButton?: boolean;
     characterImage: any;
+    disabled?: boolean;
 };
 
 export default function StepLayout({
@@ -29,13 +30,13 @@ export default function StepLayout({
     continueLabel = 'Continuar',
     showButton = true,
     characterImage,
+    disabled = false,
 }: Props) {
     const progress = (currentStep / TOTAL_STEPS) * 100;
 
     return (
         <View style={styles.container}>
 
-            {/* Header con back y progress bar */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={onBack} style={styles.backButton}>
                     <Icon name="chevron-left" size={24} color={colors.text} />
@@ -45,7 +46,6 @@ export default function StepLayout({
                 </View>
             </View>
 
-            {/* Personaje + burbuja */}
             <View style={styles.characterRow}>
                 <Image
                     source={characterImage}
@@ -57,16 +57,22 @@ export default function StepLayout({
                 </View>
             </View>
 
-            {/* Contenido del paso */}
             <View style={styles.content}>
                 {children}
             </View>
 
-            {/* Botón continuar */}
             {showButton && (
-                <TouchableOpacity style={styles.button} onPress={onContinue}>
-                    <Text style={styles.buttonText}>{continueLabel}</Text>
-                </TouchableOpacity>
+                disabled ? (
+                    <View style={[styles.button, styles.buttonDisabled]}>
+                        <Text style={[styles.buttonText, styles.buttonTextDisabled]}>
+                            {continueLabel}
+                        </Text>
+                    </View>
+                ) : (
+                    <TouchableOpacity style={styles.button} onPress={onContinue}>
+                        <Text style={styles.buttonText}>{continueLabel}</Text>
+                    </TouchableOpacity>
+                )
             )}
 
         </View>
@@ -135,9 +141,15 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
         alignItems: 'center',
     },
+    buttonDisabled: {
+        opacity: 0.35,
+    },
     buttonText: {
         color: colors.text,
         fontSize: fontSizes.lg,
         fontWeight: '600',
+    },
+    buttonTextDisabled: {
+        color: colors.textMuted,
     },
 });

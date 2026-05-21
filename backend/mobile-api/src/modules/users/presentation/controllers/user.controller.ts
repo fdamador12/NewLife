@@ -9,7 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  Param,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,7 +18,9 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
+  ApiBody,
 } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
 import { CompleteProfileUseCase } from '../../application/use-cases/complete-profile.use-case';
 import { GetProfileUseCase } from '../../application/use-cases/get-profile.use-case';
@@ -26,11 +28,25 @@ import { UpdateProfileUseCase } from '../../application/use-cases/update-profile
 import { DeleteAccountUseCase } from '../../application/use-cases/delete-account.use-case';
 import { InitialRegisterDto } from '../dtos/initial-register.dto';
 import { UpdateProfileDto } from '../dtos/update-profile.dto';
-import { GetUserPostsUseCase } from '../../../communities/application/use-cases/get-user-posts.use-case';
-import { GetUserPostsByIdUseCase } from '../../../communities/application/use-cases/get-user-posts-by-id.use-case';
-import { GetProfileByIdUseCase } from '../../application/use-cases/get-profile-by-id.use-case';
-import { GetSobrietyTimeByIdUseCase } from '../../application/use-cases/get-sobriety-time-by-id.use-case';
-import { GetCaminoByIdUseCase } from '../../application/use-cases/get-camino-by-id.use-case';
+import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-data.use-case';
+
+/**
+ * DTO para el body del endpoint DELETE /user/all-data.
+ *
+ * El motivo es OPCIONAL: si el usuario decide compartir por que se va, lo
+ * guardamos en `usuarios.delete_motivo` para retroalimentacion del producto.
+ * Movil envia este motivo desde el modal de confirmacion de eliminacion.
+ *
+ * Los decoradores @IsOptional/@IsString son CRITICOS: sin ellos, el
+ * ValidationPipe global de NestJS rechaza el body con 400 Bad Request
+ * cuando llegan propiedades que no estan declaradas (whitelist mode).
+ */
+class DeleteAllDataDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  motivo?: string;
+}
 
 @ApiTags('Perfil de Usuario')
 @ApiBearerAuth()
@@ -42,11 +58,7 @@ export class UserController {
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly deleteAccountUseCase: DeleteAccountUseCase,
-    private readonly getUserPostsUseCase: GetUserPostsUseCase,
-    private readonly getUserPostsByIdUseCase: GetUserPostsByIdUseCase,
-    private readonly getProfileByIdUseCase: GetProfileByIdUseCase,
-    private readonly getSobrietyTimeByIdUseCase: GetSobrietyTimeByIdUseCase,
-    private readonly getCaminoByIdUseCase: GetCaminoByIdUseCase,
+    private readonly deleteAllDataUseCase: DeleteAllDataUseCase,
   ) { }
 
   @Post('complete-profile')
@@ -86,36 +98,44 @@ export class UserController {
     return this.deleteAccountUseCase.execute(req.user.uid);
   }
 
-  @Get('posts')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Obtener posts del usuario autenticado' })
-  async getUserPosts(@Request() req: any) {
-    return this.getUserPostsUseCase.execute(req.user.uid);
-  }
-
-  @Get(':id/posts')
-    @ApiOperation({ summary: 'Obtener posts de cualquier usuario por su _id de Roble' })
-  async getUserPostsById(@Param('id') id: string, @Request() req: any) {
-    return this.getUserPostsByIdUseCase.execute(id, req.user.uid);
-  }
-
-  @Get(':id/profile')
-  @ApiOperation({ summary: 'Obtener perfil público de cualquier usuario por su _id de Roble' })
-  @ApiOkResponse({ description: 'Perfil del usuario.' })
-  @ApiNotFoundResponse({ description: 'Usuario no encontrado.' })
-  async getProfileById(@Param('id') id: string) {
-    return this.getProfileByIdUseCase.execute(id);
-  }
-
-  @Get(':id/sobriety-time-by-id')
-  @ApiOperation({ summary: 'Obtener tiempo de sobriedad de cualquier usuario por su _id de Roble' })
-  async getSobrietyById(@Param('id') robleId: string) {
-    return this.getSobrietyTimeByIdUseCase.execute(robleId);
-  }
-
-  @Get('by-id/:id/camino')
-  @ApiOperation({ summary: 'Obtener el camino de cualquier usuario por su _id de Roble' })
-  async getCaminoById(@Param('id') robleId: string) {
-    return this.getCaminoByIdUseCase.execute(robleId);
+  /**
+   * DELETE /user/all-data
+   *
+   * Borra todos los datos del usuario y hace soft delete del registro
+   * principal (estado='ELIMINADO', nombre anonimizado, deleted_at).
+   *
+   * Body opcional: { motivo?: string }
+   * - Si se provee, se guarda en delete_motivo para feedback del equipo.
+   * - Si no se provee, el campo queda sin actualizar (no se guarda string vacio).
+   *
+   * Es el mismo use case que usa la landing /eliminar-cuenta, lo que garantiza
+   * comportamiento consistente entre canales.
+   */
+  @Delete('all-data')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Eliminar cuenta y TODOS los datos del usuario (soft delete)',
+  })
+  @ApiBody({
+    description: 'Motivo opcional de la eliminacion',
+    required: false,
+    schema: {
+      type: 'object',
+      properties: {
+        motivo: { type: 'string', maxLength: 500, nullable: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Datos eliminados y cuenta anonimizada.' })
+  async deleteAllData(
+    @Req() req: any,
+    @Body() body: DeleteAllDataDto = {},
+  ) {
+    const motivo = body?.motivo?.trim();
+    await this.deleteAllDataUseCase.execute(
+      req.user.uid,
+      motivo && motivo.length > 0 ? motivo : undefined,
+    );
+    return { message: 'Todos tus datos han sido eliminados.' };
   }
 }

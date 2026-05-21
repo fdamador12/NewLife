@@ -23,4 +23,14 @@ backend/admin-api/tsconfig.tsbuildinfo
 
 .vscode/
 
+<<<<<<< HEAD
 .claude/
+=======
+media-data/
+
+.idea/
+
+android/
+
+.claude/
+>>>>>>> main

@@ -1,84 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, Dimensions,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { Animated } from 'react-native';
-import { getProfile, getSobrietyTime } from '../../../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import api, { authEventEmitter } from '../../../services/api';
+import { getProfile, getSobrietyTime, getHomeSummary, logoutUser } from '../../../services/authService';
+import { useCacheQuery } from '../../../hooks/useCacheQuery';
+import { CACHE_KEYS } from '../../../services/cacheKeys';
+import { authEventEmitter } from '../../../services/api';
 import {
   isGuestMode,
   clearGuestData,
   getGuestProfile,
   getGuestSobrietyTime,
 } from '../../../services/guestService';
-
-const { width } = Dimensions.get('window');
-const RING_SIZE = 72;
-
-type RingProps = {
-  value: number;
-  label: string;
-  max: number;
-};
-
-function Ring({ value, label, max }: RingProps) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const progress = value / max;
-
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: progress,
-      duration: 1200,
-      useNativeDriver: false,
-    }).start();
-  }, [value]);
-
-  const size = RING_SIZE;
-  const strokeWidth = 5;
-
-  return (
-    <View style={styles.ringWrapper}>
-      <View style={{ width: size, height: size }}>
-        <View style={[styles.ringTrack, { width: size, height: size, borderRadius: size / 2 }]} />
-        <Animated.View
-          style={[
-            styles.ringFill,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderWidth: strokeWidth,
-              borderColor: '#00BCD4',
-              transform: [
-                {
-                  rotate: animatedValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['-90deg', '270deg'],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-        <View style={styles.ringCenter}>
-          <Text style={styles.ringValue}>{value}</Text>
-        </View>
-      </View>
-      <Text style={styles.ringLabel}>{label}</Text>
-    </View>
-  );
-}
+import SobrietyCard from './components/SobrietyCard';
+import SavingsCard from './components/SavingsCard';
+import GuestBanner from './components/GuestBanner';
+import PetWidget from '../../pet/components/PetWidget';
+import { usePet } from '../../pet/hooks/usePet';
+import { getAhorro } from '../../../services/progressService';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function HomeScreen({ navigation }: any) {
-  const [apodo, setApodo] = useState('');
   const [sobriety, setSobriety] = useState({ dias: 0, horas: 0, minutos: 0 });
-  const [isGuest, setIsGuest] = useState(false);
+  const [ahorro, setAhorro] = useState({ ahorro_total: 0, dias_limpios: 0 });
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [guestApodo, setGuestApodo] = useState('');
+  const { resetPet, fetchPet } = usePet();
 
-  // Detectar si es invitado
+  // Profile via SWR — only active for authenticated users.
+  // getSync() returns cached data instantly if warmUp() was called at startup.
+  const { data: userProfile } = useCacheQuery(
+    CACHE_KEYS.PROFILE,
+    30,
+    getProfile,
+    { enabled: isGuest === false },
+  );
+
+  const apodo = isGuest === true ? guestApodo : (userProfile?.apodo ?? '');
+
+  useEffect(() => {
+    fetchPet();
+  }, []);
+
   useEffect(() => {
     const checkGuest = async () => {
       const guest = await isGuestMode();
@@ -87,7 +52,6 @@ export default function HomeScreen({ navigation }: any) {
     checkGuest();
   }, []);
 
-  // Escuchar sesión expirada desde el interceptor
   useEffect(() => {
     const unsubscribe = authEventEmitter.on(() => {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -95,26 +59,25 @@ export default function HomeScreen({ navigation }: any) {
     return () => { unsubscribe(); };
   }, []);
 
-  // Cargar perfil
+  // Determine guest mode; load guest apodo if needed.
   useEffect(() => {
-    const fetchProfile = async () => {
+    let cancelled = false;
+    (async () => {
       try {
         const guest = await isGuestMode();
+        if (cancelled) return;
+        setIsGuest(guest);
         if (guest) {
           const profile = await getGuestProfile();
-          setApodo(profile.apodo || '');
-        } else {
-          const profile = await getProfile();
-          setApodo(profile.apodo);
+          if (!cancelled) setGuestApodo(profile.apodo || '');
         }
       } catch (e) {
-        console.log('Error obteniendo perfil:', e);
+        console.log('Error verificando modo invitado:', e);
       }
-    };
-    fetchProfile();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  // Cargar sobriedad
   useEffect(() => {
     const fetchSobriety = async () => {
       try {
@@ -146,143 +109,291 @@ export default function HomeScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const fetchAhorro = async () => {
+      try {
+        const guest = await isGuestMode();
+        if (!guest) {
+          const data = await getAhorro();
+          setAhorro({
+            ahorro_total: data.ahorro_total ?? 0,
+            dias_limpios: data.dias_limpios ?? 0,
+          });
+        }
+      } catch (e) {
+        console.log('Error obteniendo ahorro:', e);
+      }
+    };
+    fetchAhorro();
+  }, []);
+
   const handleLogout = async () => {
     try {
+      // 📊 Analytics: AWAITEAMOS el track antes de borrar el token.
+      // Si no lo awaitamos, multiRemove borraría el token mientras el track
+      // está leyéndolo y el evento se perdería silenciosamente.
+      // El track NUNCA rechaza la Promise (todos los errores son atrapados internamente),
+      // así que es seguro awaitarlo sin riesgo.
+      if (!isGuest) {
+        await analytics.track(EVENT_TYPES.USER_LOGGED_OUT);
+      }
+
+      resetPet();
       if (isGuest) {
         await clearGuestData();
       } else {
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
+        await logoutUser();
       }
+
+      // 📊 Analytics: limpiar la sesión para que el próximo usuario tenga session_id nuevo
+      analytics.reset();
+
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (e) {
-      console.log('Error cerrando sesión:', e);
+      console.log('Error cerrando sesion:', e);
     }
   };
 
-  const handleCreateAccount = () => {
-    navigation.navigate('Register');
+  const getGreetingTime = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Buenos dias,';
+    if (hour < 19) return 'Buenas tardes,';
+    return 'Buenas noches,';
+  };
+
+  // 📊 Analytics: trackear el SOS y luego navegar
+  const handleSosPress = () => {
+    analytics.track(EVENT_TYPES.SOS_TRIGGERED, { source: 'home_button' });
+    navigation.navigate('SOS');
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.bubbleWrapper}>
-          <View style={styles.bubble}>
-            <Text style={styles.bubbleTitle}>¡Hola {apodo ? apodo : '...'}!</Text>
-            <Text style={styles.bubbleSubtitle}>¡Haz clic en mi!</Text>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header mejorado */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greetingTime}>{getGreetingTime()}</Text>
+            <Text style={styles.greeting}>
+              {apodo ? apodo : 'Amig@'}
+            </Text>
           </View>
-          <View style={styles.bubbleTail} />
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Feather name="settings" size={22} color={colors.text} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Plant')} activeOpacity={0.8}>
-          <Image
-            source={require('../../../assets/images/character_home.png')}
-            style={styles.character}
-            resizeMode="contain"
+
+        {/* Pet Widget */}
+        <PetWidget onPress={() => navigation.navigate('PetScreen')} />
+
+        {/* Seccion de logros */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Tu progreso</Text>
+          </View>
+          <SobrietyCard
+            dias={sobriety.dias}
+            horas={sobriety.horas}
+            minutos={sobriety.minutos}
           />
-        </TouchableOpacity>
-      </View>
-
-      {/* Lo que has logrado */}
-      <Text style={styles.sectionTitle}>Lo que has logrado</Text>
-      <View style={styles.card}>
-        <Text style={styles.cardSubtitle}>Has estado sobrio:</Text>
-        <View style={styles.ringsRow}>
-          <Ring value={sobriety.dias} label="Días" max={30} />
-          <Ring value={sobriety.horas} label="Horas" max={24} />
-          <Ring value={sobriety.minutos} label="Mins" max={60} />
         </View>
-      </View>
 
-      {/* Dinero ahorrado */}
-      <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
-      <View style={styles.card}>
-        <View style={styles.moneyRow}>
-          <View style={styles.moneyIcon}>
-            <Icon name="dollar-sign" size={22} color="#F5A623" />
+        {/* Seccion de ahorro */}
+        {!isGuest && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
+            </View>
+            <SavingsCard
+              ahorroTotal={ahorro.ahorro_total}
+              diasLimpios={ahorro.dias_limpios}
+              onPress={() => navigation.navigate('SavingsScreen')}
+            />
           </View>
-          <View>
-            <Text style={styles.moneyAmount}>$200,000</Text>
-            <Text style={styles.moneySub}>Ya vas por el 20%</Text>
-          </View>
-        </View>
-      </View>
+        )}
 
-      {/* Botón crear cuenta — solo invitados */}
-      {isGuest && (
+        {/* Banner de invitado o logout */}
+        {isGuest && (
+          <GuestBanner
+            onCreateAccount={() => navigation.navigate('Register')}
+            onLogout={handleLogout}
+          />
+        )}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Boton SOS flotante mejorado */}
+      <View style={styles.sosWrapper}>
         <TouchableOpacity
-          style={{ backgroundColor: colors.primary, padding: 12, borderRadius: 8, marginBottom: 12, alignItems: 'center' }}
-          onPress={handleCreateAccount}
+          style={styles.sosButton}
+          onPress={handleSosPress}
+          activeOpacity={0.85}
         >
-          <Text style={{ color: 'white', fontWeight: '700', fontSize: fontSizes.md }}>
-            Crear cuenta y guardar progreso
-          </Text>
+          <View style={styles.sosInner}>
+            <View style={styles.sosIconContainer}>
+              <Feather name="phone" size={20} color={colors.white} />
+            </View>
+            <View style={styles.sosTextContainer}>
+              <Text style={styles.sosTitle}>SOS</Text>
+            </View>
+          </View>
+          <View style={styles.sosArrow}>
+            <Feather name="chevron-right" size={24} color="rgba(255,255,255,0.8)" />
+          </View>
         </TouchableOpacity>
-      )}
-
-      {/* Cerrar sesión */}
-      <TouchableOpacity
-        style={{ backgroundColor: '#FF6B6B', padding: 12, borderRadius: 8, marginBottom: 20, alignItems: 'center' }}
-        onPress={handleLogout}
-      >
-        <Text style={{ color: 'white', fontWeight: '700', fontSize: fontSizes.md }}>
-          {isGuest ? 'Salir' : 'Cerrar sesión'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Ayuda rápida */}
-      <Text style={styles.sectionTitle}>Ayuda rápida</Text>
-      <TouchableOpacity
-        style={styles.sosButton}
-        onPress={() => navigation.navigate('SOS')}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.sosText}>SOS</Text>
-      </TouchableOpacity>
-
-    </ScrollView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.xxl, paddingTop: spacing.xl * 2, paddingBottom: spacing.xl * 2 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl },
-  bubbleWrapper: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-  bubble: { backgroundColor: '#D38A58', borderRadius: 16, borderWidth: 2, borderColor: '#D38A58', paddingVertical: 16, paddingHorizontal: 24, alignItems: 'center' },
-  bubbleTitle: { fontSize: 22, fontWeight: '700', color: '#ffffff', marginBottom: 4 },
-  bubbleSubtitle: { fontSize: 16, fontWeight: '400', color: '#ffffff' },
-  bubbleTail: { width: 16, height: 16, backgroundColor: '#D38A58', borderTopWidth: 2, borderRightWidth: 2, borderColor: '#D38A58', transform: [{ rotate: '45deg' }], marginLeft: -10 },
-  character: { width: 140, height: 140 },
-  sectionTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text, marginBottom: spacing.sm, marginTop: spacing.sm },
-  card: { backgroundColor: colors.white, borderRadius: borderRadius.md, padding: spacing.lg, marginBottom: spacing.md, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
-  cardSubtitle: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.text, textAlign: 'center', marginBottom: spacing.md },
-  ringsRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  ringWrapper: { alignItems: 'center', gap: spacing.xs },
-  ringTrack: { position: 'absolute', borderWidth: 5, borderColor: '#E8F4F8' },
-  ringFill: { position: 'absolute', borderRightColor: 'transparent', borderBottomColor: 'transparent' },
-  ringCenter: { position: 'absolute', width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
-  ringValue: { fontSize: fontSizes.xl, fontWeight: '700', color: colors.text },
-  ringLabel: { fontSize: fontSizes.sm, color: colors.textMuted },
-  ring: { width: RING_SIZE, height: RING_SIZE, borderRadius: RING_SIZE / 2, borderWidth: 4, borderColor: '#00BCD4', alignItems: 'center', justifyContent: 'center' },
-  moneyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  moneyIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF3E0', alignItems: 'center', justifyContent: 'center' },
-  moneyAmount: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
-  moneySub: { fontSize: fontSizes.sm, color: colors.textMuted },
-  sosButton: { backgroundColor: '#FF6B6B', borderRadius: borderRadius.full, paddingVertical: spacing.lg, alignItems: 'center', elevation: 120, shadowColor: '#FF9AA2', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.9, shadowRadius: 20 },
-  sosText: { fontSize: fontSizes.xl, fontWeight: '800', color: colors.white, letterSpacing: 3 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: colors.white, borderTopLeftRadius: borderRadius.md * 2, borderTopRightRadius: borderRadius.md * 2, padding: spacing.xl, gap: spacing.md },
-  modalTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: spacing.sm },
-  modalOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.md },
-  modalIconWrapper: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#00BCD4', alignItems: 'center', justifyContent: 'center' },
-  modalOptionText: { flex: 1 },
-  modalOptionTitle: { fontSize: fontSizes.md, fontWeight: '600', color: colors.text },
-  modalOptionSub: { fontSize: fontSizes.sm, color: colors.textMuted },
-  modalCancel: { alignItems: 'center', paddingVertical: spacing.md },
-  modalCancelText: { fontSize: fontSizes.md, color: colors.textMuted, fontWeight: '600' },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: spacing.xl,
+    paddingTop: 60,
+    gap: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  headerLeft: {
+    gap: 2,
+  },
+  greetingTime: {
+    fontSize: fontSizes.lg,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  wave: {
+    fontSize: 26,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sectionIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: {
+    fontSize: fontSizes.md,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#fdfdfd',
+    padding: spacing.md,
+    borderRadius: 12,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#a5a2a2',
+  },
+  logoutText: {
+    color: '#443e3e',
+    fontWeight: '600',
+    fontSize: fontSizes.md,
+  },
+  sosWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.lg,
+    backgroundColor: 'transparent',
+  },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FF6B6B',
+    borderRadius: 20,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    elevation: 8,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  sosInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  sosIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosTextContainer: {
+    gap: 2,
+  },
+  sosTitle: {
+    fontSize: fontSizes.lg,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: 1,
+  },
+  sosSubtitle: {
+    fontSize: fontSizes.sm,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  sosArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

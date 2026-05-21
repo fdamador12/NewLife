@@ -1,32 +1,48 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Share,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-
-const DAILY_PHRASE = {
-  text: 'No necesitas alcohol para calmarte, tu fuerza está contigo.',
-  image: require('../../../assets/images/phrase1.png'),
-};
-
-const CURRENT_CHALLENGE_FULL = {
-  id: '1',
-  title: 'Primera semana sin alcohol',
-  description: 'Completa 7 días seguidos sin consumir alcohol y registra tu progreso.',
-  difficulty: 'Intensa',
-  progress: 2,
-  total: 7,
-  unit: 'días cumplidos',
-  status: 'active',
-};
+import { useMotivation } from '../hooks/useMotivation';
+import { PhraseCard } from '../components/PhraseCard';
+import { ChallengeCard } from '../components/ChallengeCard';
 
 export default function MotivationScreen({ navigation }: any) {
-  const handleShare = async () => {
-    await Share.share({ message: DAILY_PHRASE.text });
+  const {
+    fraseDia,
+    misChallenges,
+    loading,
+    fetchFraseDia,
+    fetchMisChallenges,
+  } = useMotivation();
+
+  useEffect(() => {
+    fetchFraseDia();
+    fetchMisChallenges();
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchFraseDia();
+      fetchMisChallenges();
+    });
+
+    return unsubscribe;
+  }, [navigation, fetchFraseDia, fetchMisChallenges]);
+
+  const handleFavoriteChange = () => {
+    fetchFraseDia();
   };
 
-  const percent = Math.round((CURRENT_CHALLENGE_FULL.progress / CURRENT_CHALLENGE_FULL.total) * 100);
+  // ✅ Mostrar el reto activo con más progreso porcentual en lugar del último
+  const retoMasAvanzado = misChallenges.activos && misChallenges.activos.length > 0
+    ? misChallenges.activos.reduce((prev, curr) => {
+        const prevPercent = prev.porcentaje ?? (prev.target > 0 ? Math.round(((prev.progreso_actual || 0) / prev.target) * 100) : 0);
+        const currPercent = curr.porcentaje ?? (curr.target > 0 ? Math.round(((curr.progreso_actual || 0) / curr.target) * 100) : 0);
+        return currPercent > prevPercent ? curr : prev;
+      })
+    : null;
+
+  const tieneRetosActivos = misChallenges.activos && misChallenges.activos.length > 0;
 
   return (
     <View style={styles.container}>
@@ -45,33 +61,46 @@ export default function MotivationScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Frase del día */}
+        {/* Frase del Día */}
         <TouchableOpacity
           style={styles.sectionHeader}
           onPress={() => navigation.navigate('DailyPhrase')}
         >
-          <Text style={styles.sectionTitle}>Frase del día</Text>
+          <Text style={styles.sectionTitle}>Frase del Día</Text>
           <Feather name="chevron-right" size={18} color={colors.text} />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.phraseCard}
-          onPress={() => navigation.navigate('DailyPhrase')}
-          activeOpacity={0.9}
-        >
-          <Image source={DAILY_PHRASE.image} style={styles.phraseImage} resizeMode="cover" />
-          <View style={styles.phraseOverlay}>
-            <Text style={styles.phraseText}>{DAILY_PHRASE.text}</Text>
-            <View style={styles.phraseActions}>
-              <TouchableOpacity onPress={handleShare}>
-                <Feather name="share" size={20} color={colors.white} />
-              </TouchableOpacity>
-              <TouchableOpacity>
-                <Feather name="heart" size={20} color={colors.white} />
-              </TouchableOpacity>
-            </View>
+        {loading ? (
+          <View style={styles.phraseCardLoading}>
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
-        </TouchableOpacity>
+        ) : fraseDia ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('DailyPhrase')}
+            activeOpacity={0.9}
+          >
+            <PhraseCard
+              fraseId={fraseDia.frase_id}
+              texto={fraseDia.frase}
+              isFavorite={fraseDia.isFavorite || false}
+              onFavoriteChange={handleFavoriteChange}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.emptyPhraseContainer}>
+            <Feather name="inbox" size={48} color={colors.textMuted} />
+            <Text style={styles.emptyPhraseTitle}>No hay frase del día</Text>
+            <Text style={styles.emptyPhraseSubtext}>
+              Aún no se ha publicado una frase inspiradora para hoy. ¡Intenta más tarde!
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyPhraseButton}
+              onPress={() => navigation.navigate('DailyPhrase')}
+            >
+              <Text style={styles.emptyPhraseButtonText}>Ver frases guardadas</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Retos */}
         <TouchableOpacity
@@ -82,30 +111,36 @@ export default function MotivationScreen({ navigation }: any) {
           <Feather name="chevron-right" size={18} color={colors.text} />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.challengeCard}
-          onPress={() => navigation.navigate('ChallengeDetail', { challenge: CURRENT_CHALLENGE_FULL })}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.challengeTitle}>{CURRENT_CHALLENGE_FULL.title}</Text>
-          <Text style={styles.challengeDescription}>{CURRENT_CHALLENGE_FULL.description}</Text>
-          <View style={styles.difficultyRow}>
-            <View style={styles.difficultyDot} />
-            <Text style={styles.difficultyText}>Dificultad: {CURRENT_CHALLENGE_FULL.difficulty}</Text>
+        {loading ? (
+          <View style={styles.challengeCardLoading}>
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${percent}%` }]} />
+        ) : tieneRetosActivos && retoMasAvanzado ? (
+          <ChallengeCard
+            titulo={retoMasAvanzado.titulo}
+            descripcion={retoMasAvanzado.descripcion}
+            dificultad={retoMasAvanzado.dificultad}
+            progreso_actual={retoMasAvanzado.progreso_actual || 0}
+            target={retoMasAvanzado.target}
+            porcentaje={retoMasAvanzado.porcentaje}
+            texto_progreso={retoMasAvanzado.texto_progreso}
+            onPress={() =>
+              navigation.navigate('ChallengeDetail', { challenge: retoMasAvanzado })
+            }
+          />
+        ) : (
+          <View style={styles.emptyChallenge}>
+            <Feather name="award" size={48} color={colors.textMuted} />
+            <Text style={styles.emptyText}>Aún no estás en ningún reto</Text>
+            <Text style={styles.emptySubtext}>¡Únete a uno y comienza tu desafío!</Text>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => navigation.navigate('Challenges')}
+            >
+              <Text style={styles.emptyButtonText}>Ver retos disponibles</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.progressLabel}>
-            {percent}% completado — {CURRENT_CHALLENGE_FULL.progress}/{CURRENT_CHALLENGE_FULL.total} {CURRENT_CHALLENGE_FULL.unit}
-          </Text>
-          <TouchableOpacity
-            style={styles.challengeButton}
-            onPress={() => navigation.navigate('ChallengeDetail', { challenge: CURRENT_CHALLENGE_FULL })}
-          >
-            <Text style={styles.challengeButtonText}>Ver mas...</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
+        )}
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
@@ -154,7 +189,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  phraseCard: {
+  phraseCardLoading: {
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     marginBottom: spacing.lg,
@@ -163,90 +198,93 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-  },
-  phraseImage: {
-    width: '100%',
-    height: 180,
-  },
-  phraseOverlay: {
-    backgroundColor: colors.primary,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  phraseText: {
-    fontSize: fontSizes.sm,
-    color: colors.white,
-    textAlign: 'center',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  phraseActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    height: 220,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.white,
   },
-  challengeCard: {
+  emptyPhraseContainer: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
-  challengeTitle: {
-    fontSize: fontSizes.lg,
-    fontWeight: '800',
-    color: colors.text,
+  emptyPhraseTitle: {
+    fontSize: fontSizes.md,
+    fontWeight: '700',
+    color: colors.textMuted,
   },
-  challengeDescription: {
+  emptyPhraseSubtext: {
     fontSize: fontSizes.sm,
     color: colors.textMuted,
+    textAlign: 'center',
     lineHeight: 20,
   },
-  difficultyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  difficultyDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF6B6B',
-  },
-  difficultyText: {
-    fontSize: fontSizes.sm,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-  },
-  progressLabel: {
-    fontSize: fontSizes.xs,
-    color: colors.textMuted,
-  },
-  challengeButton: {
+  emptyPhraseButton: {
     backgroundColor: colors.accent,
     borderRadius: borderRadius.full,
     paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
   },
-  challengeButtonText: {
+  emptyPhraseButtonText: {
     color: colors.white,
+    fontSize: fontSizes.sm,
+    fontWeight: '700',
+  },
+  challengeCardLoading: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.lg,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    height: 260,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+  },
+  emptyChallenge: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.md,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  emptyText: {
     fontSize: fontSizes.md,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  emptySubtext: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    backgroundColor: colors.accent,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  emptyButtonText: {
+    color: colors.white,
+    fontSize: fontSizes.sm,
     fontWeight: '700',
   },
 });

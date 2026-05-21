@@ -97,25 +97,24 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
     return (
         <StepLayout
             currentStep={3}
-            question={hasDate ? 'Listo, desde ahí empiezo a crecer' : '¿Cuándo fue tu último consumo de alcohol?'}
+            question={hasDate ? 'Listo, desde ahí empiezo a crecer' : '¿Cuándo fue tu último consumo?'}
             characterImage={
                 hasDate
                     ? require('../../../../assets/images/character4.png')
                     : require('../../../../assets/images/character3.png')
             }
             onBack={() => navigation.goBack()}
-
             onContinue={() => {
                 if (selectedDate) {
                     setField('ult_fecha_consumo', selectedDate.toISOString());
                 }
                 navigation.navigate('Step4');
             }}
-                            showButton={hasDate}
+            showButton={true}
+            disabled={!hasDate}
         >
             <View style={styles.container}>
 
-                {/* Input fecha seleccionada */}
                 <View style={styles.dateInput}>
                     <Icon name="calendar" size={16} color={colors.textMuted} />
                     <Text style={[styles.dateText, !hasDate && styles.datePlaceholder]}>
@@ -128,9 +127,7 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
                     )}
                 </View>
 
-                {/* Calendario */}
                 <View style={styles.calendar}>
-                    {/* Header mes */}
                     <View style={styles.calendarHeader}>
                         <TouchableOpacity onPress={prevMonth}>
                             <Text style={styles.navArrow}>«</Text>
@@ -143,14 +140,12 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Días de la semana */}
                     <View style={styles.weekDays}>
                         {DAYS.map((d, i) => (
                             <Text key={i} style={styles.weekDay}>{d}</Text>
                         ))}
                     </View>
 
-                    {/* Días del mes */}
                     <View style={styles.daysGrid}>
                         {renderCalendarDays()}
                     </View>
@@ -173,9 +168,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.sm,
-    },
-    calendarIcon: {
-        fontSize: 16,
     },
     dateText: {
         flex: 1,

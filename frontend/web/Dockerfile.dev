@@ -1,0 +1,14 @@
+# frontend/web/Dockerfile.dev
+# USO LOCAL ÚNICAMENTE — hot reload con npm run dev
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

@@ -35,28 +35,63 @@ export class ProgressSummaryUseCase {
         @Inject('IProgressProviderPort')
         private readonly progressProvider: IProgressProviderPort,
         private readonly systemAuth: SystemAuthService,
-    ) { }
+    ) {}
 
     async execute(uid: string, userToken: string) {
         const allRecords = await this.progressProvider.getAllCheckins(uid, userToken);
         const rows: any[] = Array.isArray(allRecords) ? allRecords : ((allRecords as any)?.rows ?? []);
+
+        // Agrupar todos los registros por día — si hay consumo ese día es malo
+        const allDays = this.groupByDay(rows);
 
         const now = new Date();
         const startOfThisWeek = this.getStartOfWeek(now, 0);
         const startOfLastWeek = this.getStartOfWeek(now, 1);
         const endOfLastWeek = new Date(startOfThisWeek.getTime() - 1);
 
-        const thisWeek = rows.filter((r: any) => new Date(r.fecha) >= startOfThisWeek);
-        const lastWeek = rows.filter((r: any) => {
-            const f = new Date(r.fecha);
+        const thisWeekDays = allDays.filter((d) => new Date(d.fecha) >= startOfThisWeek);
+        const lastWeekDays = allDays.filter((d) => {
+            const f = new Date(d.fecha);
             return f >= startOfLastWeek && f <= endOfLastWeek;
         });
 
         return {
-            animo: this.buildAnimoFrase(thisWeek, lastWeek),
-            sobriedad: this.buildSobriedadFrase(thisWeek, lastWeek),
+            animo: this.buildAnimoFrase(thisWeekDays, lastWeekDays),
+            sobriedad: this.buildSobriedadFrase(thisWeekDays, lastWeekDays),
             detonantes: this.buildDetonantesFrase(rows),
         };
+    }
+
+    // Agrupa registros por día — si hay aunque sea un consumo:true ese día es malo
+    private groupByDay(rows: any[]): Array<{ fecha: string; consumo: boolean; emocion: string }> {
+        const dayMap = new Map<string, { consumo: boolean; emocion: string; lastFecha: string }>();
+
+        rows.forEach((r: any) => {
+            const fecha = new Date(r.fecha);
+            const dia = fecha.toISOString().split('T')[0];
+            const consumo = r.consumo === true || r.consumo === 'true';
+
+            if (dayMap.has(dia)) {
+                const existing = dayMap.get(dia)!;
+                // Si hay aunque sea un consumo ese día es malo — no se puede revertir
+                if (consumo) existing.consumo = true;
+                // Para emoción tomamos el último registro del día
+                existing.emocion = r.emocion;
+                existing.lastFecha = r.fecha;
+            } else {
+                dayMap.set(dia, {
+                    consumo,
+                    emocion: r.emocion,
+                    lastFecha: r.fecha,
+                });
+            }
+        });
+
+        return Array.from(dayMap.entries()).map(([dia, data]) => ({
+            fecha: data.lastFecha,
+            consumo: data.consumo,
+            emocion: data.emocion,
+        }));
     }
 
     private getStartOfWeek(date: Date, weeksAgo: number): Date {
@@ -108,16 +143,17 @@ export class ProgressSummaryUseCase {
         if (!thisWeek.length) return 'No tienes registros esta semana aún.';
 
         const sobriosThis = thisWeek.filter((r) => r.consumo === false).length;
+        const totalThis = thisWeek.length;
 
         if (!lastWeek.length) {
-            if (sobriosThis === thisWeek.length) return '¡Llevas toda la semana sin consumir, excelente!';
+            if (sobriosThis === totalThis) return '¡Llevas toda la semana sin consumir, excelente!';
             if (sobriosThis === 0) return 'No tuviste días sobrios esta semana, ¡sigue intentando!';
             return `Llevas ${sobriosThis} día(s) sobrio(s) esta semana.`;
         }
 
         const sobriosLast = lastWeek.filter((r) => r.consumo === false).length;
 
-        if (sobriosThis === thisWeek.length) return '¡Llevas toda la semana sin consumir, excelente!';
+        if (sobriosThis === totalThis) return '¡Llevas toda la semana sin consumir, excelente!';
         if (sobriosThis === 0 && sobriosLast === 0) return 'No tuviste días sobrios esta semana, ¡sigue intentando!';
         if (sobriosThis === 0) return 'Esta semana no tuviste días sobrios, la semana pasada sí. ¡No te rindas!';
         if (sobriosLast === 0) return `Llevas ${sobriosThis} día(s) sobrio(s) esta semana.`;
@@ -130,6 +166,8 @@ export class ProgressSummaryUseCase {
     }
 
     private buildDetonantesFrase(allRows: any[]): string {
+        // Detonantes sí usan registros individuales — queremos saber
+        // en qué contextos específicos ocurrió el consumo
         const conConsumo = allRows.filter((r) => r.consumo === true);
         if (!conConsumo.length) return 'No tienes detonantes registrados, ¡sigue así!';
 

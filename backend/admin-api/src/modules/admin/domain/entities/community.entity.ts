@@ -5,12 +5,12 @@ export enum TipoAcceso {
 }
 
 export class Community {
-  _id: string;
-  nombre: string;
+  _id!: string;
+  nombre!: string;
   descripcion?: string | null;
-  creado_por: string;
+  creado_por!: string;
   created_at?: string;
-  activa: boolean;
+  activa!: boolean;
 
   constructor(partial: Partial<Community>) {
     Object.assign(this, partial);
@@ -18,11 +18,11 @@ export class Community {
 }
 
 export class ComunidadUsuario {
-  _id: string;
-  comunidad_id: string;
-  usuario_id: string;
-  tipo_acceso: TipoAcceso;
-  es_moderador: boolean;
+  _id!: string;
+  comunidad_id!: string;
+  usuario_id!: string;
+  tipo_acceso!: TipoAcceso;
+  es_moderador!: boolean;
   joined_at?: string;
 
   constructor(partial: Partial<ComunidadUsuario>) {

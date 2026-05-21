@@ -3,7 +3,36 @@
   "expo": {
     "name": "NewLife",
     "slug": "newlife",
-    "version": "1.0.0",
-    "platforms": ["ios", "android"]
+    "version": "1.1.0",
+    "icon": "./src/assets/images/logo.png",
+    "platforms": [
+      "android"
+    ],
+    "android": {
+      "package": "com.uninorte.newlife",
+      "icon": "./src/assets/images/logo.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/logo.png",
+        "backgroundColor": "#c97b3f"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "plugins": [
+      "expo-font",
+      "expo-audio",
+      "@react-native-community/datetimepicker",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "64fdcf7a-630e-4e81-8a0b-bba713204457"
+      }
+    },
+    "owner": "newlifeteam2026"
   }
 }

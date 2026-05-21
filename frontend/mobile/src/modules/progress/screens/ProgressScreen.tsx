@@ -1,17 +1,73 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { getGratitudeHistory } from '../../../services/progressService';
+import { LEVELS } from './PathScreen';
+import { useLevelProgress } from '../../../hooks/useLevelProgress';
 
-const GRATITUDE_ENTRIES = [
-    { id: '1', date: '5 oct 2025', text: 'Agradezco que salí con mis amigos sin tomar.' },
-    { id: '2', date: '4 oct 2025', text: 'Agradezco haber dormido bien y despertado tranquilo.' },
-    { id: '3', date: '3 oct 2025', text: 'Agradezco el apoyo de mi familia hoy.' },
-];
+interface GratitudeEntry {
+    dia: string;
+    gratitud: string;
+    hora: string;
+}
 
 export default function ProgressScreen({ navigation }: any) {
+    const [latestGratitude, setLatestGratitude] = useState<GratitudeEntry | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { progress, loading: progressLoading } = useLevelProgress();
+
+    const currentLevel = LEVELS.find(l => l.id === progress.nivel) || LEVELS[0];
+
+    // ✅ Solo mostrar cuando AMBOS han cargado
+    const isReady = !loading && !progressLoading;
+
+    useEffect(() => {
+        fetchLatestGratitude();
+    }, []);
+
+    const fetchLatestGratitude = async () => {
+        try {
+            setLoading(true);
+            const response = await getGratitudeHistory();
+            const records = response?.data || [];
+
+            if (records.length > 0) {
+                // Ordenar por fecha + hora más reciente primero
+                const sorted = records.sort((a: GratitudeEntry, b: GratitudeEntry) => {
+                    const dateTimeA = `${a.dia}T${a.hora}`;
+                    const dateTimeB = `${b.dia}T${b.hora}`;
+                    const timestampA = new Date(dateTimeA).getTime();
+                    const timestampB = new Date(dateTimeB).getTime();
+                    return timestampB - timestampA;
+                });
+
+                // Tomar el más reciente
+                const latest = sorted[0];
+
+                // Formatear fecha
+                const date = new Date(latest.dia);
+                const formatted_date = date.toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                });
+
+                setLatestGratitude({
+                    dia: formatted_date,
+                    gratitud: latest.gratitud,
+                    hora: latest.hora,
+                });
+            }
+        } catch (err) {
+            console.log('Error obteniendo última gratitud:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <View style={styles.container}>
             <ScrollView
@@ -28,30 +84,45 @@ export default function ProgressScreen({ navigation }: any) {
                     <Feather name="chevron-right" size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                <View style={styles.caminoWrapper}>
-                    {/* Personaje fuera a la izquierda */}
-                    <View style={styles.caminoLeft}>
-                        <Image
-                            source={require('../../../assets/images/character_progreso.png')}
-                            style={styles.characterImage}
-                            resizeMode="contain"
-                        />
-                        <Text style={styles.moduleLabel}>Modulo 2*</Text>
-                    </View>
-
-                    {/* Cuadro de texto con badge encima */}
-                    <View style={styles.caminoCard}>
-                        <View style={styles.nivelBadgeWrapper}>
-                            <View style={styles.nivelBadge}>
-                                <Text style={styles.nivelBadgeText}>Nivel 1</Text>
-                            </View>
+                {/* ✅ Mostrar solo cuando está listo */}
+                {isReady ? (
+                    <TouchableOpacity style={styles.caminoWrapper} onPress={() => navigation.navigate('Path')}>
+                        {/* Personaje */}
+                        <View style={styles.caminoLeft}>
+                            <Image
+                                source={require('../../../assets/images/character_progreso.png')}
+                                style={styles.characterImage}
+                                resizeMode="contain"
+                            />
+                            <Text style={styles.moduleLabel}>Módulo {progress.subnivel}</Text>
                         </View>
-                        <Text style={styles.caminoTitle}>Reconocer</Text>
-                        <Text style={styles.caminoDescription}>
-                            Reconocí que mi consumo me superó y afectó mi vida.
-                        </Text>
+
+                        {/* Cuadro con datos reales */}
+                        <View style={styles.caminoCard}>
+                            <View style={styles.nivelBadgeWrapper}>
+                                <View style={styles.nivelBadge}>
+                                    <Text style={styles.nivelBadgeText}>Nivel {progress.nivel}</Text>
+                                </View>
+                            </View>
+                            <Text style={styles.caminoTitle}>{currentLevel.title}</Text>
+                            <Text style={styles.caminoDescription}>
+                                {currentLevel.shortDescription}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+                ) : (
+                    // ✅ Skeleton mientras carga
+                    <View style={styles.caminoWrapper}>
+                        <View style={styles.caminoLeft}>
+                            <View style={[styles.characterImage, styles.skeletonPlaceholder]} />
+                        </View>
+                        <View style={styles.caminoCard}>
+                            <View style={[styles.skeletonLine, { width: '40%', height: 20, marginBottom: 12 }]} />
+                            <View style={[styles.skeletonLine, { width: '60%', height: 24, marginBottom: 8 }]} />
+                            <View style={[styles.skeletonLine, { width: '100%', height: 16 }]} />
+                        </View>
                     </View>
-                </View>
+                )}
 
                 {/* Historial de gratitud */}
                 <TouchableOpacity style={styles.sectionHeader} onPress={() => navigation.navigate('GratitudeHistory')}>
@@ -59,12 +130,33 @@ export default function ProgressScreen({ navigation }: any) {
                     <Feather name="chevron-right" size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                {GRATITUDE_ENTRIES.slice(0, 1).map((entry) => (
-                    <View key={entry.id} style={styles.gratitudeCard}>
-                        <Text style={styles.gratitudeDate}>{entry.date}</Text>
-                        <Text style={styles.gratitudeText}>{entry.text}</Text>
-                    </View>
-                ))}
+                {/* ✅ Mostrar último registro o mensaje vacío */}
+                {!loading && (
+                    <TouchableOpacity
+                        style={styles.gratitudeCard}
+                        onPress={() => navigation.navigate('GratitudeHistory')}
+                    >
+                        {latestGratitude ? (
+                            <>
+                                <Text style={styles.gratitudeDate}>
+                                    {latestGratitude.dia}
+                                </Text>
+                                <Text style={styles.gratitudeText}>
+                                    {latestGratitude.gratitud}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.gratitudeDate}>
+                                    Aún no hay registros 🌱
+                                </Text>
+                                <Text style={styles.gratitudeText}>
+                                    Empieza tu registro de gratitud haciendo un registro diario.
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                )}
 
                 {/* Mi análisis */}
                 <TouchableOpacity style={styles.sectionHeader} onPress={() => navigation.navigate('Analysis')}>
@@ -72,11 +164,11 @@ export default function ProgressScreen({ navigation }: any) {
                     <Feather name="chevron-right" size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                <View style={styles.analysisCard}>
+                <TouchableOpacity style={styles.analysisCard} onPress={() => navigation.navigate('Analysis')}>
                     <Text style={styles.analysisText}>
                         💪 Tu ánimo ha mejorado un 25% esta semana.
                     </Text>
-                </View>
+                </TouchableOpacity>
 
                 <View style={styles.bottomPadding} />
             </ScrollView>
@@ -242,5 +334,13 @@ const styles = StyleSheet.create({
         color: colors.white,
         fontSize: fontSizes.lg,
         fontWeight: '700',
+    },
+    skeletonPlaceholder: {
+        backgroundColor: '#E0E0E0',
+        borderRadius: borderRadius.md,
+    },
+    skeletonLine: {
+        backgroundColor: '#E0E0E0',
+        borderRadius: borderRadius.md,
     },
 });

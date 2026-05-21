@@ -31,13 +31,17 @@ export class AuthService {
   async refreshToken(token: string) {
     return await this.authProvider.refreshToken(token);
   }
-
+  
   async logout(token: string) {
     return await this.authProvider.logout(token);
   }
 
   async forgotPassword(email: string) {
     return await this.authProvider.forgotPassword(email);
+  }
+
+  async verifyEmail(email: string, code: string) {
+    return await this.authProvider.verifyEmail(email, code);
   }
 
   async resetPassword(token: string, pass: string) {

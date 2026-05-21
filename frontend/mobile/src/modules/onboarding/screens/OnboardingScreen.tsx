@@ -6,6 +6,7 @@ import {
 import { useSharedValue, withRepeat, withTiming, Easing, useAnimatedStyle } from 'react-native-reanimated';
 import Reanimated from 'react-native-reanimated';
 import { colors, fontSizes, spacing } from '../../../constants/theme';
+import { markOnboardingSlidesCompleted } from '../../../services/onboarding-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -88,17 +89,21 @@ export default function OnboardingScreen({ navigation }: any) {
     });
   };
 
-  const handlePress = () => {
+
+    const handlePress = async () => {
     if (currentIndex < slides.length - 1) {
+      // Avanzar al siguiente slide
       const nextIndex = currentIndex + 1;
       flatListRef.current?.scrollToIndex({ index: nextIndex, animated: false });
       animateTransition(nextIndex);
     } else {
+      // ✅ ÚLTIMO SLIDE: guardar y navegar
+      await markOnboardingSlidesCompleted();
       navigation.replace('Welcome');
     }
   };
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
       const newIndex = viewableItems[0].index;
       if (newIndex !== currentIndex) {

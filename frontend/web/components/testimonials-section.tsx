@@ -9,7 +9,7 @@ const testimonials = [
   {
     id: 1,
     quote:
-      '"No me siento solo en este proceso de dejar el alcohol. Me ayuda a seguir adelante un día a la vez."',
+      '"No me siento solo en este proceso. Me ayuda a seguir adelante un día a la vez."',
     author: "PatoLoco",
     avatar: "/images/avatar1.jpg",
   },
@@ -30,7 +30,7 @@ const testimonials = [
   {
     id: 4,
     quote:
-      '"Llevo 90 días sin alcohol gracias a esta app. Las reflexiones diarias cambiaron mi perspectiva."',
+      '"Llevo 90 días en sobriedad gracias a esta app. Las reflexiones diarias cambiaron mi perspectiva."',
     author: "LuzEsperanza",
     avatar: "/images/avatar2.jpg",
   },

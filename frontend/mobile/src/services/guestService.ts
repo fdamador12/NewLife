@@ -44,7 +44,6 @@ export const saveGuestSobrietyStart = async (lastConsumeDate?: string): Promise<
   const guestId = await getGuestId();
   const existing = await AsyncStorage.getItem(`guestSobriety_${guestId}`);
   if (!existing) {
-    // Usar la fecha de último consumo si existe, si no usar ahora
     const startDate = lastConsumeDate ? new Date(lastConsumeDate).toISOString() : new Date().toISOString();
     await AsyncStorage.setItem(
       `guestSobriety_${guestId}`,
@@ -59,16 +58,12 @@ export const getGuestSobrietyTime = async (): Promise<any> => {
   if (!raw) return { contador: { dias: 0, horas: 0, minutos: 0 } };
 
   const { startDate } = JSON.parse(raw);
-
   const fechaUltimoConsumo = new Date(startDate);
   const ahora = new Date();
   const ahoraCol = new Date(ahora.getTime() - (5 * 60 * 60 * 1000));
-
   const diffMs = Math.max(0, ahoraCol.getTime() - fechaUltimoConsumo.getTime());
-
   const totalMinutos = Math.floor(diffMs / (1000 * 60));
   const totalHoras = Math.floor(totalMinutos / 60);
-
   const dias = Math.floor(totalHoras / 24);
   const horas = totalHoras % 24;
   const minutos = totalMinutos % 60;
@@ -114,7 +109,7 @@ export const getGuestOnboardingStatus = async (): Promise<{ completed: boolean }
   const guestId = await getGuestId();
   const raw = await AsyncStorage.getItem(`guestProfile_${guestId}`);
   const profile = raw ? JSON.parse(raw) : {};
-  return { completed: !!profile.moment_motiv }; // último campo del step 10
+  return { completed: !!profile.moment_motiv };
 };
 
 // ─── Tour ─────────────────────────────────────────────────────────────────────
@@ -151,4 +146,15 @@ export const clearGuestData = async (): Promise<void> => {
   const keys = await AsyncStorage.getAllKeys();
   const guestKeys = keys.filter(k => k.includes(guestId!) || k === 'isGuest' || k === 'guestId');
   await AsyncStorage.multiRemove(guestKeys);
+};
+
+export const markGuestProfileCompleted = async (): Promise<void> => {
+  const guestId = await getGuestId();
+  await AsyncStorage.setItem(`guestProfileCompleted_${guestId}`, 'true');
+};
+
+export const hasGuestCompletedProfile = async (): Promise<boolean> => {
+  const guestId = await getGuestId();
+  const val = await AsyncStorage.getItem(`guestProfileCompleted_${guestId}`);
+  return val === 'true';
 };

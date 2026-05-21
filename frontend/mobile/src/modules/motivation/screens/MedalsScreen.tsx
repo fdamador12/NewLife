@@ -1,20 +1,42 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Share,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Share,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-
-const MEDALS = [
-  { id: '1', title: 'Primera semana sin alcohol', emoji: '🏅' },
-  { id: '2', title: 'Primera semana sin alcohol', emoji: '🏅' },
-  { id: '3', title: 'Primera semana sin alcohol', emoji: '🏅' },
-  { id: '4', title: 'Primera semana sin alcohol', emoji: '🏅' },
-];
+import { useMotivation } from '../hooks/useMotivation';
+import { analytics, EVENT_TYPES } from '../../../services/analytics';
 
 export default function MedalsScreen({ navigation }: any) {
-  const handleShare = async () => {
-    await Share.share({ message: '¡He logrado mis primeras medallas en New Life! 🏅' });
+  const { misMedallas, loading, fetchMisMedallas } = useMotivation();
+
+  // Ref para evitar duplicar el track en re-renders del componente.
+  const trackedRef = useRef(false);
+
+  useEffect(() => {
+    fetchMisMedallas();
+  }, [fetchMisMedallas]);
+
+  // Analytics: trackear vista de la pantalla de medallas al montar.
+  // Solo trackea que entro, sin properties adicionales.
+  useEffect(() => {
+    if (!trackedRef.current) {
+      trackedRef.current = true;
+      analytics.track(EVENT_TYPES.MEDALS_VIEWED);
+    }
+  }, []);
+
+  const handleShare = async (titulo: string) => {
+    await Share.share({
+      message: `¡He logrado la medalla "${titulo}" en NewLife! 🏅`,
+    });
+  };
+
+  const handleShareAll = async () => {
+    const count = misMedallas?.length || 0;
+    await Share.share({
+      message: `¡He ganado ${count} medalla${count > 1 ? 's' : ''} en NewLife! 🏅`,
+    });
   };
 
   return (
@@ -25,22 +47,80 @@ export default function MedalsScreen({ navigation }: any) {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Tus medallas</Text>
-          <Text style={styles.headerSubtitle}>Mira como haz avanzado</Text>
+          <Text style={styles.headerSubtitle}>
+            {misMedallas && misMedallas.length > 0
+              ? `${misMedallas.length} logro${misMedallas.length > 1 ? 's' : ''}`
+              : 'Aún no tienes medallas'}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-          <Feather name="share" size={18} color={colors.white} />
-        </TouchableOpacity>
+        {misMedallas && misMedallas.length > 0 && (
+          <TouchableOpacity style={styles.shareButton} onPress={handleShareAll}>
+            <Feather name="share" size={18} color={colors.white} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {MEDALS.map((medal) => (
-          <View key={medal.id} style={styles.medalCard}>
-            <Text style={styles.medalEmoji}>{medal.emoji}</Text>
-            <Text style={styles.medalTitle}>{medal.title}</Text>
-          </View>
-        ))}
-        <View style={{ height: spacing.xl }} />
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      ) : misMedallas && misMedallas.length > 0 ? (
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {misMedallas.map((medal) => (
+            <View key={medal.user_reto_id} style={styles.medalCard}>
+              <Text style={styles.medalEmoji}>🏅</Text>
+              <Text style={styles.medalTitle}>{medal.titulo}</Text>
+              {/* ✅ Manejo de fecha_completado null */}
+              <Text style={styles.medalDate}>
+                {medal.fecha_completado
+                  ? new Date(medal.fecha_completado).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  : 'Fecha no disponible'}
+              </Text>
+              <View
+                style={[
+                  styles.difficultyBadge,
+                  {
+                    backgroundColor:
+                      medal.dificultad === 'SUAVE'
+                        ? '#4CAF50'
+                        : medal.dificultad === 'MODERADA'
+                          ? '#FFC107'
+                          : '#FF6B6B',
+                  },
+                ]}
+              >
+                <Text style={styles.difficultyText}>{medal.dificultad}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.shareButtonMedal}
+                onPress={() => handleShare(medal.titulo)}
+              >
+                <Feather name="share-2" size={16} color={colors.white} />
+                <Text style={styles.shareText}>Compartir</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={{ height: spacing.xl }} />
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}>🎯</Text>
+          <Text style={styles.emptyText}>Aún no tienes medallas</Text>
+          <Text style={styles.emptySubtext}>
+            Completa retos para desbloquear tus primeras medallas
+          </Text>
+          <TouchableOpacity
+            style={styles.ctaButton}
+            onPress={() => navigation.navigate('Challenges')}
+          >
+            <Text style={styles.ctaButtonText}>Ver retos</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -93,12 +173,79 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   medalEmoji: {
-    fontSize: 48,
+    fontSize: 56,
   },
   medalTitle: {
     fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.text,
     textAlign: 'center',
+  },
+  medalDate: {
+    fontSize: fontSizes.xs,
+    color: colors.textMuted,
+  },
+  difficultyBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.xs,
+  },
+  difficultyText: {
+    fontSize: fontSizes.xs,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  shareButtonMedal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.sm,
+  },
+  shareText: {
+    color: colors.white,
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  emptyEmoji: {
+    fontSize: 56,
+  },
+  emptyText: {
+    fontSize: fontSizes.md,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  emptySubtext: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  ctaButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.lg,
+  },
+  ctaButtonText: {
+    color: colors.white,
+    fontSize: fontSizes.sm,
+    fontWeight: '700',
   },
 });
