@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { CommunitiesController } from './presentation/controllers/communities.controller';
-import { ResolveUserIdHelper } from './application/helpers/resolve-user-id.helper';
 import { GetMyCommunitiesUseCase } from './application/use-cases/get-my-communities.use-case';
 import { GetCommunityDetailUseCase } from './application/use-cases/get-community-detail.use-case';
 import { GetPostsUseCase } from './application/use-cases/get-posts.use-case';
@@ -12,6 +11,9 @@ import { GetCommentsUseCase } from './application/use-cases/get-comments.use-cas
 import { CreateCommentUseCase } from './application/use-cases/create-comment.use-case';
 import { DeleteCommentUseCase } from './application/use-cases/delete-comment.use-case';
 import { ReactToPostUseCase } from './application/use-cases/react-to-post.use-case';
+import { GetForumsUseCase } from './application/use-cases/get-forums.use-case';
+import { GetForumDetailUseCase } from './application/use-cases/get-forum-detail.use-case';
+import { ReplyForumUseCase } from './application/use-cases/reply-forum.use-case';
 import { ModGetMembersUseCase } from './application/use-cases/moderator/get-members.use-case';
 import { ModChangeAccessUseCase } from './application/use-cases/moderator/change-access.use-case';
 import { ModSuspendMemberUseCase } from './application/use-cases/moderator/suspend-member.use-case';
@@ -33,7 +35,6 @@ import { DeleteReplyUseCase } from './application/use-cases/delete-reply.use-cas
   imports: [AuthModule, DatabaseModule],
   controllers: [CommunitiesController],
   providers: [
-    ResolveUserIdHelper,
     GetMyCommunitiesUseCase,
     GetCommunityDetailUseCase,
     GetPostsUseCase,
@@ -43,6 +44,9 @@ import { DeleteReplyUseCase } from './application/use-cases/delete-reply.use-cas
     CreateCommentUseCase,
     DeleteCommentUseCase,
     ReactToPostUseCase,
+    GetForumsUseCase,
+    GetForumDetailUseCase,
+    ReplyForumUseCase,
     ModGetMembersUseCase,
     ModChangeAccessUseCase,
     ModSuspendMemberUseCase,
@@ -60,6 +64,5 @@ import { DeleteReplyUseCase } from './application/use-cases/delete-reply.use-cas
     LikeCommentReplyUseCase,
     DeleteReplyUseCase,
   ],
-  exports: [ResolveUserIdHelper]
 })
-export class CommunitiesModule { }
+export class CommunitiesModule {}
