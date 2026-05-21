@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Modal, Pressable,
+  ActivityIndicator, RefreshControl, Modal, Pressable, Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,20 @@ import { getMyCommunities, getPosts, getDailyForum, reactToPost, deletePost } fr
 import { communityCache, CK, TTL } from '../../../services/communityCache';
 import { apiError } from '../../../utils/apiError';
 import ModerationActionsModal from '../components/ModerationActionsModal';
+
+type Post = {
+  id: string;
+  titulo?: string;
+  autor: { id: string; nombre: string };
+  comunidad_id: string;
+  comunidad_nombre?: string;
+  created_at: string;
+  contenido: string;
+  total_comentarios: number;
+  total_reacciones: number;
+  mis_reacciones: string[];
+  es_mio: boolean;
+};
 
 const COLORS = {
   background: '#F7F7F7',

@@ -29,6 +29,7 @@ type Post = {
   titulo?: string;
   autor: { id: string; nombre: string };
   comunidad_id: string;
+  comunidad_nombre?: string;
   created_at: string;
   contenido: string;
   total_comentarios: number;

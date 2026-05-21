@@ -7,12 +7,9 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../constants/the
 import {
   getProfile,
   getSobrietyTime,
-  getSobrietyTimeById,
-  getCamino,
-  getCaminoById,
 } from '../../../services/authService';
+import { getCamino } from '../../../services/progressService';
 import { getUserPosts, getUserPostsById } from '../../../services/communityService';
-import { getProfileById } from '../../../services/userService';
 
 const COLORS = {
   background: '#F7F7F7',
@@ -130,12 +127,12 @@ export default function SocialProfileScreen({ navigation, route }: any) {
           setDaysClean(sobriety?.contador?.dias ?? 0);
           setNivel(camino?.nivel ?? 0);
         } else if (robleId) {
-          const [profile, postsRes, sobriety, camino] = await Promise.all([
-            getProfileById(robleId).catch(() => null),
+          const [postsRes, sobriety, camino] = await Promise.all([
             getUserPostsById(robleId).catch(() => []),
-            getSobrietyTimeById(robleId).catch(() => null),
-            getCaminoById(robleId).catch(() => null),
+            getSobrietyTime().catch(() => null),
+            getCamino().catch(() => null),
           ]);
+          const profile = null;
           setProfileData({ ...(profile || {}), publications: postsRes.length });
           setPosts(postsRes);
           setDaysClean(sobriety?.contador?.dias ?? 0);
