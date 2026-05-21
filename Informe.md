@@ -629,91 +629,727 @@ Los requerimientos no funcionales definen los **atributos de calidad**, restricc
 * **RNF-23.** El panel administrativo debe contar con un diseño responsivo optimizado para pantallas de **13 pulgadas o superiores**.
 
 
-## 7. Diseño y arquitectura
+## 7. Diseño y Arquitectura
 
-Explica cómo se estructurará la solución a nivel conceptual y técnico, justificando decisiones clave.
+### 7.1 Descripción General de la Arquitectura
 
-### 7.1 Evaluación de alternativas
+NewLife adopta una **arquitectura monolítica modular** distribuida en cuatro grandes componentes que se comunican a través de APIs REST y conexiones en tiempo real mediante WebSockets. Esta decisión arquitectónica se tomó conscientemente para balancear la mantenibilidad del código con la viabilidad de un equipo de desarrollo pequeño, sin sacrificar la capacidad de crecer hacia una arquitectura de microservicios en versiones futuras.
 
-Antes de definir cómo se construirá el sistema, es necesario analizar diferentes formas posibles de implementarlo.
+El principio rector de diseño es la **separación de responsabilidades por contexto de negocio**: la aplicación móvil destinada a los usuarios finales (jóvenes de 18–24 años en proceso de recuperación) opera de forma totalmente independiente del panel de administración web utilizado por profesionales de salud. Esta separación se refleja en la existencia de dos backends especializados que comparten la misma base de datos pero exponen contratos API diferenciados.
 
-La evaluación de alternativas consiste en:
+Los cuatro principios arquitectónicos que guían el diseño son:
 
-- identificar múltiples opciones tecnológicas o arquitectónicas;
-- compararlas usando criterios de ingeniería;
-- justificar la selección de la opción más adecuada.
+1. **Cohesión alta, acoplamiento bajo**: cada módulo encapsula su propia lógica de negocio, repositorio de datos y capa de presentación (controladores). Los módulos se comunican mediante inyección de dependencias gestionada por el contenedor IoC de NestJS, evitando dependencias circulares.
 
-En esta sección deben presentarse las alternativas consideradas, los criterios utilizados para compararlas y la justificación de la decisión tomada. La selección final debe estar alineada con los requerimientos, restricciones y objetivos del proyecto.
+2. **Contrato API como frontera**: las interfaces entre el frontend y el backend son contratos HTTP/REST versionados y documentados con OpenAPI (Swagger). Esto permite evolucionar cada capa de forma independiente.
 
+3. **Estado centralizado en el cliente**: la aplicación móvil gestiona su estado global con Zustand, reduciendo solicitudes redundantes al servidor mediante una capa de caché local que persiste entre sesiones.
 
-### 7.2 Arquitectura
+4. **Seguridad por capas**: la autenticación se maneja con JWT firmados con secretos distintos para la API móvil y la API de administración, garantizando que los tokens de usuarios finales no puedan utilizarse en los endpoints administrativos.
 
-La arquitectura describe la estructura fundamental del sistema, incluyendo sus componentes, las relaciones entre ellos y la forma en que interactúan para cumplir con los requerimientos planteados.
+---
 
-#### 7.2.1 Descripción general de la arquitectura
+### 7.2 Componentes del Sistema
 
-Su objetivo es permitir que el lector entienda cómo está pensado el sistema antes de ver cualquier representación visual.
+El sistema está compuesto por cuatro componentes principales, cada uno con responsabilidades bien delimitadas:
 
-Debe incluir:
+#### Componente 1: Aplicación Móvil (`frontend/mobile`)
 
-- tipo de arquitectura, por ejemplo cliente-servidor, basada en Backend as a Service u otra;
-- enfoque general de la solución;
-- relación con la alternativa seleccionada previamente.
+| Atributo | Detalle |
+|---|---|
+| **Tecnología** | React Native 0.83.6 + Expo ~55.0.24 |
+| **Lenguaje** | TypeScript |
+| **Plataforma objetivo** | Android (iOS preparado) |
+| **Versión de la app** | 1.1.0 |
 
-#### 7.2.2 Componentes del sistema e interacción
+**Responsabilidades**: Es el punto de contacto principal con los usuarios finales. Provee todas las funcionalidades de seguimiento de sobriedad, progreso en el programa de 12 pasos, herramientas de crisis SOS, mascotas virtuales, comunidades de pares y meditaciones guiadas. Gestiona la autenticación del usuario y mantiene su sesión activa entre usos. Implementa lógica de caché local para funcionar con conectividad intermitente.
 
-##### 7.2.2.1 Descripción de componentes
+**Relación con requerimientos**: Cubre el 100% de los requerimientos funcionales orientados al usuario final. La arquitectura modular por funcionalidad (`modules/auth`, `modules/progress`, `modules/home`, etc.) garantiza una navegación intuitiva y facilita la extensión de características sin impacto en módulos no relacionados.
 
-Deben identificarse y explicarse:
+---
 
-- los componentes principales del sistema, por ejemplo frontend, backend, base de datos y servicios externos;
-- la responsabilidad de cada componente;
-- la relación de cada componente con los requerimientos del sistema.
+#### Componente 2: Panel de Administración Web (`frontend/web`)
 
-Esta parte debe terminar con el **diagrama de arquitectura del sistema**.
+| Atributo | Detalle |
+|---|---|
+| **Tecnología** | Next.js 16.1.6 + React 19.2.4 |
+| **Lenguaje** | TypeScript |
+| **Estilo** | Tailwind CSS + Radix UI |
+| **Rendering** | App Router (SSR + CSR según ruta) |
 
-##### 7.2.2.2 Interacción entre módulos
+**Responsabilidades**: Provee una interfaz para que los profesionales de salud gestionen contenidos (artículos, grupos de apoyo, frases motivacionales, retos), administren cuentas de usuario, y consulten analíticas de uso. También sirve las páginas públicas de política de privacidad y eliminación de cuenta, accesibles desde la app móvil sin autenticación.
 
-Debe explicarse:
+**Relación con requerimientos**: Cubre los requerimientos de administración de contenidos, gestión de usuarios y visualización de métricas de uso definidos para el rol de administrador.
 
-- cómo se comunican los componentes;
-- los flujos de datos;
-- las dependencias;
-- el nivel de acoplamiento.
+---
 
-Esta parte debe terminar con el **diagrama de interacción entre módulos**.
+#### Componente 3: API para Aplicación Móvil (`backend/mobile-api`)
 
-##### 7.2.2.3 Comportamiento
+| Atributo | Detalle |
+|---|---|
+| **Tecnología** | NestJS 10.4.22 + Node.js 20 |
+| **Lenguaje** | TypeScript |
+| **Protocolo** | HTTP/REST + WebSocket (Socket.io) |
+| **Puerto** | 5181 |
+| **Documentación** | Swagger en `/api/docs/mobile` |
 
-Debe explicarse cómo se comportan los componentes, describiendo las principales secuencias de la arquitectura y respondiendo preguntas como:
+**Responsabilidades**: Expone los endpoints consumidos exclusivamente por la aplicación móvil. Gestiona la autenticación con JWT, la lógica de negocio del programa de 12 pasos, el registro de check-ins diarios, la entrega de contenidos de cuidado, la comunicación en tiempo real vía WebSocket (chat entre pares) y el sistema de analíticas de comportamiento anónimas. Se comunica con la base de datos Roble a través de un módulo de base de datos compartido.
 
-- ¿el flujo es eficiente?
-- ¿existen pasos innecesarios?
-- ¿hay problemas de latencia?
-- ¿existen cuellos de botella?
-- ¿la interacción refleja un buen desacoplamiento?
+---
 
-En esta parte se utilizan **diagramas de secuencia**.
+#### Componente 4: API de Administración (`backend/admin-api`)
 
-## 8. Implementación
+| Atributo | Detalle |
+|---|---|
+| **Tecnología** | NestJS 11.0.1 + Node.js 20 |
+| **Lenguaje** | TypeScript |
+| **Protocolo** | HTTP/REST |
+| **Puerto** | 5180 |
+| **Documentación** | Swagger en `/api/docs/admin` |
 
-Documenta lo construido hasta el momento, mostrando el avance funcional y técnico del proyecto.
+**Responsabilidades**: Expone los endpoints del panel de administración. Gestiona la autenticación de administradores con JWT independiente, el CRUD de contenidos (artículos, retos, frases, grupos), el almacenamiento de medios en MinIO, y los endpoints de analíticas para el dashboard administrativo. Actúa como intermediario entre el frontend web y los servicios de almacenamiento de objetos.
 
-### 8.1 Stack tecnológico
+---
 
-Lista y justifica las tecnologías, frameworks, librerías y herramientas utilizadas.
+#### Componente 5: Almacenamiento de Objetos (`MinIO`)
 
-### 8.2 Componentes
+| Atributo | Detalle |
+|---|---|
+| **Tecnología** | MinIO (S3-compatible) |
+| **Puertos** | 5183 (API), 5184 (Consola web) |
+| **Bucket principal** | `newlife-public` (lectura pública) |
+| **Límite de imagen** | 5 MB, 4000×4000 px máximo |
 
-Documenta los componentes o módulos efectivamente implementados, indicando su estado de desarrollo, las funcionalidades que cubren, las decisiones técnicas relevantes tomadas durante su construcción y, cuando aplique, las diferencias entre el diseño propuesto y la implementación realizada.
+**Responsabilidades**: Almacena y sirve los recursos multimedia del sistema (imágenes de artículos, íconos de retos, fotos de perfil, archivos de audio para meditaciones guiadas). Ofrece una URL pública directa para cada objeto, eliminando la necesidad de que la API sea proxy del contenido multimedia.
 
-### 8.3 Integraciones
+---
 
-Explica las conexiones con servicios externos, como APIs, bases de datos, autenticación o terceros, e indica su estado de funcionamiento.
+#### Componente 6: Base de Datos (`Roble — PostgreSQL`)
 
-## 9. Despliegue y operación
+| Atributo | Detalle |
+|---|---|
+| **Motor** | PostgreSQL |
+| **Proveedor** | Roble UN (Universidad del Norte) |
+| **Base de datos** | `New_Life_V0` |
+| **Acceso** | Mediante API REST de Roble |
 
-Describe cómo se ejecuta, configura y opera la solución en su entorno previsto, incluyendo aspectos de instalación, infraestructura, dependencias, puesta en marcha y condiciones de operación, según aplique al proyecto.
+**Responsabilidades**: Persiste todos los datos del sistema — usuarios, progreso, check-ins, contenidos, analíticas, comunidades y configuraciones. Ambas APIs (móvil y admin) leen y escriben en la misma instancia de base de datos, aunque a través de módulos y credenciales diferenciadas.
+
+---
+
+### 7.3 Diagrama de Arquitectura
+
+```mermaid
+flowchart TB
+
+    %% USERS
+    USER["Usuario Final"]
+    ADMINUSER["Administrador"]
+
+    %% CLIENT APPS
+    subgraph CLIENTS["Clientes"]
+        MOBILE["App Móvil\nReact Native + Expo"]
+        WEB["Panel Web\nNext.js + React"]
+    end
+
+    %% BACKEND
+    subgraph BACKEND["Backend Services"]
+        MOBILEAPI["Mobile API\nNestJS · :5181"]
+        ADMINAPI["Admin API\nNestJS · :5180"]
+    end
+
+    %% STORAGE
+    subgraph STORAGE["Persistencia"]
+        DB[("PostgreSQL\nRoble UN")]
+        MINIO[("MinIO Storage\nS3 Compatible")]
+    end
+
+    %% FLOWS
+    USER --> MOBILE
+    ADMINUSER --> WEB
+
+    MOBILE -->|"REST / WebSocket"| MOBILEAPI
+    WEB -->|"REST"| ADMINAPI
+
+    MOBILEAPI --> DB
+    ADMINAPI --> DB
+
+    ADMINAPI -->|"Upload"| MINIO
+    MOBILE -->|"Lectura directa"| MINIO
+```
+
+---
+
+### 7.4 Interacción entre Módulos
+
+La comunicación entre los componentes del sistema sigue patrones bien definidos:
+
+#### Comunicación App Móvil ↔ Mobile API
+
+La aplicación móvil se comunica con el Mobile API exclusivamente mediante:
+
+- **HTTP/REST**: Para todas las operaciones de lectura y escritura de datos (CRUD). Los requests incluyen el token JWT en el header `Authorization: Bearer <token>`. El servicio `api.ts` en la app móvil centraliza la configuración de Axios, incluyendo interceptores para refrescar tokens y manejar errores de red uniformemente.
+
+- **WebSocket (Socket.io)**: Para el módulo de chat en tiempo real entre pares de la comunidad. La conexión se establece al autenticarse y se mantiene activa mientras la app esté en primer plano. El servicio `chatSocketService.ts` gestiona el ciclo de vida de la conexión y los eventos.
+
+**Nivel de acoplamiento**: **Bajo**. Los contratos de la API están documentados en Swagger y el frontend no conoce los detalles de implementación del backend. La capa de servicios del frontend (`progressService.ts`, `motivationService.ts`, etc.) actúa como adaptador, encapsulando los detalles HTTP.
+
+#### Comunicación Panel Web ↔ Admin API
+
+El panel Next.js se comunica con el Admin API únicamente mediante HTTP/REST. Las rutas del App Router (Next.js) que requieren datos del servidor realizan fetch con el token JWT del administrador autenticado. Las llamadas desde el cliente utilizan la biblioteca `lib/` del frontend web como capa de abstracción.
+
+**Nivel de acoplamiento**: **Bajo**. Administradores y API móvil operan con secretos JWT distintos, por lo que un token de administrador no puede utilizarse en endpoints móviles y viceversa.
+
+#### Comunicación APIs ↔ Roble DB
+
+Ambas APIs acceden a la base de datos PostgreSQL a través de la API REST de Roble (servicio institucional de la Universidad del Norte). El módulo `database/` en el Mobile API encapsula toda la lógica de acceso a datos. Esta decisión introduce una dependencia de terceros en la capa de datos, pero fue una restricción del contexto institucional.
+
+**Nivel de acoplamiento**: **Medio**. El acceso está centralizado en módulos de base de datos dedicados en cada API, lo que facilita un eventual cambio de proveedor sin impactar los módulos de negocio.
+
+#### Comunicación Admin API ↔ MinIO
+
+El Admin API es el único componente que **escribe** en MinIO. Los uploads de imágenes y audios pasan por el módulo `media/` del Admin API, que valida el archivo (tipo, tamaño, dimensiones), lo procesa con Sharp (redimensionado/compresión) y lo sube al bucket `newlife-public`. Una vez almacenado, devuelve la URL pública del objeto.
+
+La App Móvil **lee directamente** de MinIO usando las URLs públicas obtenidas de la API (sin pasar por el backend como proxy), reduciendo la carga en los servidores de aplicación.
+
+---
+
+### 7.5 Diagrama de Interacción entre Módulos
+
+```mermaid
+flowchart LR
+
+    %% =====================
+    %% MOBILE APP
+    %% =====================
+
+    subgraph MOBILE["App Móvil"]
+        LOGIN["LoginScreen"]
+        CHECKIN["DailyCheck"]
+        SOCIAL["SocialScreen"]
+        CARE["ContentScreen"]
+    end
+
+    %% =====================
+    %% MOBILE API
+    %% =====================
+
+    subgraph API["Mobile API"]
+        AUTH["AuthModule"]
+        PROGRESS["ProgressModule"]
+        CHAT["ChatModule\n(Socket.io)"]
+        CAREMOD["CareModule"]
+    end
+
+    %% =====================
+    %% ADMIN PANEL
+    %% =====================
+
+    subgraph WEB["Panel Web"]
+        DASH["Dashboard"]
+        CONTENT["ContentManager"]
+        ANALYTICSVIEW["Analytics"]
+    end
+
+    %% =====================
+    %% ADMIN API
+    %% =====================
+
+    subgraph ADMINAPI["Admin API"]
+        ADMINMOD["AdminModule"]
+        MEDIA["MediaModule"]
+        ANALYTICS["AnalyticsModule"]
+    end
+
+    %% =====================
+    %% STORAGE
+    %% =====================
+
+    DB[("Roble DB")]
+    MINIO[("MinIO Storage")]
+
+    %% =====================
+    %% FLOWS
+    %% =====================
+
+    LOGIN -->|"POST /auth/login"| AUTH
+    AUTH -->|"JWT"| LOGIN
+
+    CHECKIN -->|"GET /progress/checkin"| PROGRESS
+    PROGRESS --> DB
+
+    SOCIAL <-->|"WebSocket"| CHAT
+
+    CARE -->|"GET /care/content"| CAREMOD
+    CAREMOD --> DB
+    CARE -->|"Lectura directa"| MINIO
+
+    DASH -->|"POST /admin/auth"| ADMINMOD
+
+    CONTENT -->|"POST /media/upload"| MEDIA
+    MEDIA --> MINIO
+
+    ANALYTICSVIEW -->|"GET /analytics"| ANALYTICS
+    ANALYTICS --> DB
+```
+
+---
+
+### 7.6 Comportamiento y Flujos de Secuencia
+
+#### Flujo 1: Registro y Onboarding de Usuario
+
+Este es el flujo de incorporación de un nuevo usuario al sistema. Involucra la pantalla de registro, múltiples pasos de onboarding y la creación del perfil completo en el backend.
+
+```mermaid
+sequenceDiagram
+
+    actor Usuario
+    participant App as App Móvil
+    participant API as Mobile API
+    participant DB as Roble DB
+
+    Usuario->>App: Completa formulario de registro
+
+    App->>API: POST /auth/register
+    API->>DB: INSERT user
+    DB-->>API: user_id
+    API-->>App: JWT + userId
+
+    Usuario->>App: Configura perfil
+
+    App->>API: POST /users/profile/nickname
+    API->>DB: UPDATE nickname
+
+    App->>API: POST /users/profile/pronouns
+    API->>DB: UPDATE pronouns
+
+    App->>API: POST /users/profile/last-use
+    API->>DB: UPDATE last_use
+
+    App->>API: POST /users/profile/motivation
+    API->>DB: UPDATE motivation
+
+    App->>API: POST /users/profile/money
+    API->>DB: UPDATE savings
+
+    App->>API: POST /users/profile/phone
+    API->>DB: UPDATE phone
+
+    App->>API: POST /users/profile/schedule
+    API->>DB: UPDATE schedule
+
+    API-->>App: Perfil completo
+    App-->>Usuario: Congratulations Screen
+```
+
+**Análisis del flujo**: El onboarding está dividido en 7 pasos independientes, cada uno con su propio endpoint. Esto facilita la recuperación ante fallos de red (se puede reintentar cada paso) y permite al usuario interrumpir y continuar el proceso. Sin embargo, introduce 7 requests separados donde podría usarse 1 solo con todos los datos. Para el contexto de uso (configuración única al registrarse), esta latencia adicional es aceptable.
+
+**Calidad del desacoplamiento**: Alta. Cada paso de onboarding es un recurso REST independiente, lo que permite modificar o agregar pasos sin afectar los anteriores.
+
+---
+
+#### Flujo 2: Check-in Diario de Sobriedad
+
+El check-in diario es la acción más frecuente del usuario y su correcto funcionamiento es crítico para la retención.
+
+```mermaid
+sequenceDiagram
+
+    actor Usuario
+    participant App as App Móvil
+    participant Cache as Cache Local
+    participant API as Mobile API
+    participant DB as Roble DB
+
+    Usuario->>App: Abre aplicación
+
+    App->>Cache: Verificar check-in del día
+
+    alt No existe check-in
+        App-->>Usuario: Mostrar modal de check-in
+
+        Usuario->>App: Responder preguntas
+
+        App->>API: POST /progress/checkin
+        Note right of App: mood, notes, soberDays
+
+        API->>DB: INSERT check-in
+        DB-->>API: checkInId
+
+        API-->>App: success + streak + medals
+
+        App->>Cache: Actualizar cache local
+
+        App-->>Usuario: Check-in Success Screen
+        Note right of App: Animación + días sobrio
+
+    else Check-in ya realizado
+        App-->>Usuario: Continuar al Home
+    end
+```
+
+**Análisis del flujo**: La capa de caché local (`cacheService.ts`) previene check-ins duplicados sin necesidad de consultar el servidor, mejorando la experiencia de usuario con conectividad lenta. La respuesta incluye datos derivados (`streak`, `newMedals`) calculados por el servidor, evitando una segunda solicitud para mostrar logros. **No hay pasos innecesarios** en este flujo; la latencia principal es la red hasta Roble.
+
+**Cuello de botella identificado**: La dependencia de la API de Roble como intermediario introduce latencia adicional respecto a una conexión directa PostgreSQL. Este es un trade-off de la restricción institucional.
+
+---
+
+#### Flujo 3: Subida de Contenido por Administrador
+
+```mermaid
+sequenceDiagram
+
+    actor Admin
+    participant Web as Panel Web
+    participant API as Admin API
+    participant MinIO
+    participant DB as Roble DB
+
+    %% Upload imagen
+
+    Admin->>Web: Seleccionar imagen y metadata
+
+    Web->>API: POST /media/upload
+
+    Note right of API: multipart/form-data<br/>Validación de tipo<br/>Resize con Sharp
+
+    API->>MinIO: Upload image
+    MinIO-->>API: URL pública
+
+    API-->>Web: Retornar imageUrl
+
+    %% Crear contenido
+
+    Admin->>Web: Confirmar contenido
+
+    Web->>API: POST /care/content
+
+    Note right of Web: title<br/>body<br/>imageUrl
+
+    API->>DB: INSERT content
+    DB-->>API: contentId
+
+    API-->>Web: Content created
+
+    Web-->>Admin: Mostrar confirmación
+```
+
+**Análisis del flujo**: La separación entre upload de media y creación del contenido permite reutilizar imágenes ya subidas. El procesamiento con Sharp en el servidor garantiza consistencia en las dimensiones y peso de las imágenes servidas a la app móvil, sin depender del cliente. El flujo es eficiente: la URL pública de MinIO se incluye directamente en el objeto de contenido, evitando resolución posterior.
+
+---
+
+## 8. Implementación Actual
+
+### 8.1 Stack Tecnológico
+
+| Capa | Tecnología | Versión | Justificación |
+|---|---|---|---|
+| **App Móvil** | React Native | 0.83.6 | Desarrollo multiplataforma (Android/iOS) con un solo codebase en TypeScript |
+| **App Móvil** | Expo | ~55.0.24 | Simplifica build, OTA updates y acceso a APIs nativas (audio, notificaciones) |
+| **App Móvil** | Zustand | Latest | State management ligero, sin boilerplate de Redux; ideal para equipo pequeño |
+| **App Móvil** | React Navigation | Latest | Estándar de facto para navegación en React Native; soporte activo y gran comunidad |
+| **Web Admin** | Next.js | 16.1.6 | SSR para SEO en páginas públicas (privacidad), CSR para el dashboard; routing basado en archivos |
+| **Web Admin** | Radix UI | Latest | Componentes accesibles y sin estilos predefinidos; integración perfecta con Tailwind |
+| **Web Admin** | Tailwind CSS | Latest | Velocidad de desarrollo UI sin CSS personalizado; consistencia de diseño |
+| **Backend** | NestJS | 10 / 11 | Framework estructurado para TypeScript; módulos, pipes, guards y decoradores facilitan escalar |
+| **Backend** | Socket.io | Latest | WebSockets con fallback automático; soporte de salas para chat entre pares |
+| **Backend** | Passport.js + JWT | Latest | Estándar de autenticación; integración nativa con NestJS Guards |
+| **Base de datos** | PostgreSQL (Roble) | Latest | Base de datos relacional institucional; restricción del contexto universitario |
+| **Storage** | MinIO | Latest | S3-compatible, self-hosted; sin costo adicional y compatibilidad con AWS SDK |
+| **Contenedores** | Docker + Compose | Latest | Reproducibilidad del entorno; facilita el despliegue en cualquier servidor Linux |
+| **CI/CD** | GitHub Actions | N/A | Integración nativa con el repositorio; despliegue automático en `release` |
+| **Validación** | class-validator + class-transformer | Latest | Validación declarativa de DTOs en NestJS; reducción de código boilerplate |
+| **Documentación API** | Swagger (OpenAPI) | Latest | Generación automática desde decoradores NestJS; facilita integración de nuevos desarrolladores |
+
+---
+
+### 8.2 Componentes Implementados
+
+#### Módulo de Autenticación
+
+**Estado**: ✅ Implementado y funcional
+
+Cubre registro de usuario, inicio de sesión, verificación de email, recuperación de contraseña y cierre de sesión. Implementa JWT con expiración configurable. La app móvil persiste el token en almacenamiento seguro del dispositivo. Los guards de NestJS protegen todos los endpoints que requieren autenticación.
+
+**Diferencia respecto al diseño propuesto**: Se implementó un sistema de verificación de email como paso obligatorio del registro, añadiendo un capa de validación no prevista inicialmente pero necesaria para la integridad de la comunidad.
+
+---
+
+#### Programa de 12 Pasos (`modules/progress`)
+
+**Estado**: ✅ Implementado y funcional
+
+Implementa los 12 niveles del programa, cada uno con 3 módulos de contenido. El usuario avanza secuencialmente. Se registran fechas de inicio y completación por módulo. El screen `PathScreen` visualiza el progreso completo. Los check-ins diarios alimentan una racha (`streak`) visible en el home.
+
+**Decisión técnica relevante**: El estado del progreso se sincroniza al servidor inmediatamente y también se persiste en caché local, permitiendo visualización offline del estado actual aunque no se puedan registrar nuevos avances.
+
+---
+
+#### Sistema SOS y Herramientas de Crisis (`modules/home` — SOS)
+
+**Estado**: ✅ Implementado y funcional
+
+Incluye `SOSScreen` como punto de entrada a `CrisisModeScreen` (protocolo guiado de crisis), `BreathingScreen` (ejercicio de respiración 4-7-8), contactos de emergencia personalizables, y acceso rápido a meditaciones guiadas de audio. Las guías de audio se consumen directamente desde las URLs de MinIO.
+
+**Decisión técnica relevante**: Las herramientas de crisis deben ser accesibles sin conexión. Los ejercicios de respiración y algunos contenidos SOS están embebidos en el cliente móvil para garantizar disponibilidad incluso offline.
+
+---
+
+#### Mascota Virtual (`modules/pet`)
+
+**Estado**: ✅ Implementado y funcional
+
+Sistema de mascota que evoluciona con base en la actividad del usuario (check-ins, módulos completados). Incluye `PetScreen` para interacción diaria, `PetEvolution` para ver el árbol evolutivo, `PetInfo` con estadísticas y `PetCollection` para mascotas desbloqueadas. El backend calcula el estado evolutivo en función de métricas de progreso.
+
+---
+
+#### Chat en Tiempo Real (`modules/chat` + `social`)
+
+**Estado**: ✅ Implementado y funcional
+
+Comunicación WebSocket bidireccional a través de Socket.io. El `chatSocketService.ts` gestiona conexión, desconexión, envío y recepción de mensajes. Los mensajes se persisten en Roble DB para historial. El módulo social integra el chat dentro de las comunidades de pares.
+
+---
+
+#### Sistema de Analíticas (`modules/analytics` + `services/analytics`)
+
+**Estado**: ✅ Implementado con privacidad diferencial
+
+El sistema registra eventos de uso (pantallas visitadas, acciones clave) con un identificador anonimizado mediante hashing con salt (`ANALYTICS_SALT`). Nunca se almacenan datos identificables. El `ANALYTICS_ENABLED` flag permite desactivar el sistema sin modificar código. El Admin API expone endpoints de agregación para el dashboard de analíticas.
+
+---
+
+#### Panel de Administración
+
+**Estado**: ✅ Implementado y funcional
+
+CRUD completo para: artículos de cuidado (con categorías), grupos de apoyo, contactos de profesionales, frases motivacionales diarias, retos de bienestar y zonas de riesgo geográficas. El módulo `media/` soporta upload con validación automática de tipo, tamaño y dimensiones usando Sharp.
+
+---
+
+### 8.3 Integraciones Externas
+
+#### Roble UN — Base de Datos PostgreSQL
+
+| Atributo | Detalle |
+|---|---|
+| **Propósito** | Persistencia de todos los datos del sistema |
+| **Protocolo** | REST (Roble API) sobre HTTPS |
+| **Proveedor** | Universidad del Norte — OpenLab |
+| **URL base** | `https://roble-api.openlab.uninorte.edu.co` |
+| **Estado** | ✅ Activo y en producción |
+| **Manejo de errores** | Reintentos automáticos configurados en los servicios NestJS; errores de conexión propagados con HTTP 503 al cliente |
+
+⚠️ **Advertencia**: La disponibilidad de Roble depende de la infraestructura de la Universidad. En períodos de mantenimiento universitario, el sistema puede experimentar interrupciones. Se recomienda implementar un mecanismo de caché agresivo en el backend para mitigar este riesgo.
+
+---
+
+#### MinIO — Almacenamiento de Objetos
+
+| Atributo | Detalle |
+|---|---|
+| **Propósito** | Almacenamiento y entrega de imágenes y audios |
+| **Protocolo** | S3 API (AWS SDK compatible) |
+| **Self-hosted** | Sí, en el mismo servidor de producción |
+| **Bucket** | `newlife-public` (ACL: lectura pública anónima) |
+| **Estado** | ✅ Activo — inicializado por el servicio `minio-init` en el primer arranque |
+| **Manejo de errores** | Upload falla si MinIO no está disponible; el Admin API devuelve HTTP 503. Las URLs de imágenes existentes siguen funcionando si el bucket está disponible (los datos no se pierden) |
+
+---
+
+#### Expo — Build y Distribución Móvil
+
+| Atributo | Detalle |
+|---|---|
+| **Propósito** | Gestión de builds nativos Android/iOS y OTA updates |
+| **Estado** | ✅ Configurado (app.json con permisos Android para audio) |
+| **Limitación actual** | Builds manuales; no hay integración con EAS Build en CI/CD |
+
+---
+
+## 9. Despliegue y Operación
+
+### 9.1 Entornos de Despliegue
+
+El sistema opera en dos ambientes claramente diferenciados:
+
+#### Ambiente de Desarrollo (Local)
+
+Utiliza `docker-compose.dev.yml`. Los servicios de aplicación montan volúmenes del código fuente local, habilitando hot-reload para desarrollo iterativo. Las APIs arrancan en modo watch (`nest start --watch`). El frontend Next.js ejecuta con `next dev`. MinIO es idéntico al de producción.
+
+**Variables clave**: Las URLs de API apuntan a `localhost` con los puertos locales (5180, 5181). El `CORS_ORIGIN` permite `http://localhost:5182`.
+
+---
+
+#### Ambiente de Producción (Servidor VPS)
+
+**URLs de producción**:
+
+| Servicio | URL |
+|---|---|
+| Panel web admin | https://newlife.openlab.uninorte.edu.co |
+| Mobile API (Swagger) | https://newlife-mobile-api.openlab.uninorte.edu.co/api/docs/mobile |
+| Admin API (Swagger) | https://newlife-admin-api.openlab.uninorte.edu.co/api/docs/web |
+| MinIO consola | https://newlife-media-admin.openlab.uninorte.edu.co |
+
+Utiliza `docker-compose.yml`. Las imágenes se construyen con multi-stage Docker builds (builder → producción), resultando en imágenes Alpine livianas sin herramientas de desarrollo. No hay hot-reload ni volúmenes de código fuente. Las variables de entorno se proveen mediante el archivo `.env` en el servidor.
+
+**Diferencias clave respecto a desarrollo**:
+
+| Aspecto | Desarrollo | Producción |
+|---|---|---|
+| Build | `nest start --watch` | `node dist/main.js` |
+| Volúmenes | Código fuente montado | Solo datos persistentes (media-data) |
+| Logging | Verbose (debug) | Info/Error |
+| CORS | localhost | Dominio de producción |
+| JWT Expiry | Configurable | Según `.env` de producción |
+
+---
+
+### 9.2 Infraestructura de Despliegue
+
+La infraestructura de producción está alojada en un único servidor Linux con Docker instalado. El `docker-compose.yml` orquesta 5 contenedores:
+
+```
+Servidor Linux (VPS)
+└── Docker Daemon
+    ├── admin-api          [NestJS]  :5180
+    ├── api                [NestJS]  :5181
+    ├── frontend-web       [Next.js] :5182
+    ├── minio              [MinIO]   :5183 (API), :5184 (Console)
+    └── minio-init         [mc]      (ephemeral — creación de buckets)
+```
+
+Todos los contenedores se comunican en la red interna de Docker Compose. Solo los puertos necesarios se exponen al host. Se asume un reverse proxy (Nginx) externo que enruta el tráfico HTTPS al puerto correspondiente.
+
+**Consideraciones de escalabilidad**: La arquitectura actual soporta escalado vertical (más recursos al servidor). Para escalado horizontal se requeriría: (1) un balanceador de carga delante de las APIs, (2) sesiones sin estado (ya implementado con JWT), y (3) MinIO en modo distribuido. La base de datos Roble está fuera del control directo del equipo.
+
+---
+
+### 9.3 Proceso de Despliegue
+
+El despliegue se automatiza mediante GitHub Actions (`.github/workflows/main.yml`), disparado en cada push a la rama `release`:
+
+```
+Push a 'release'
+      │
+      ▼
+GitHub Actions Runner (ubuntu-latest)
+      │
+      ├── 1. Ejecución de la suite de pruebas (en el runner)
+      │       npm test          # 406 tests deben pasar al 100%
+      │
+      ├── 2. SSH al servidor de producción
+      │       ssh [usuario]@[ip-servidor]
+      │
+      ├── 3. Pull del código actualizado
+      │       cd /home/proyecto/NewLife && git pull origin release
+      │
+      ├── 4. Build de imágenes (con caché BuildKit)
+      │       COMPOSE_BAKE=true docker compose build
+      │
+      ├── 5. Detención de contenedores actuales
+      │       docker compose down
+      │
+      └── 6. Inicio de nuevos contenedores
+              docker compose up -d
+```
+
+**Downtime**: El proceso tiene un período de downtime entre los pasos 4 y 5 (típicamente 5–30 segundos). Para eliminar el downtime sería necesario implementar blue-green deployment, lo cual no está implementado en la versión actual.
+
+**Rollback manual**: Si el despliegue falla, se debe hacer SSH al servidor, ejecutar `git checkout <tag-anterior>` y repetir los pasos 3–5.
+
+---
+
+### 9.4 Operación y Monitoreo
+
+#### Logs
+
+Cada contenedor escribe logs a stdout/stderr, accesibles mediante:
+
+```bash
+docker compose logs -f api           # API móvil en tiempo real
+docker compose logs -f admin-api     # API admin en tiempo real
+docker compose logs -f frontend-web  # Panel web
+docker compose logs -f minio         # Almacenamiento de objetos
+```
+
+Los logs incluyen timestamps, nivel de severidad (NestJS usa `[INFO]`, `[WARN]`, `[ERROR]`) y el módulo que genera el evento.
+
+#### Health Checks
+
+El `docker-compose.yml` configura health checks para MinIO antes de iniciar el `minio-init`. Las APIs no tienen health checks declarados en Docker Compose; se recomienda agregar endpoints `/health` en NestJS y configurarlos para monitoreo externo.
+
+#### Métricas Clave
+
+| Métrica | Fuente | Frecuencia Recomendada |
+|---|---|---|
+| Usuarios activos (DAU/WAU) | Analytics DB | Diaria |
+| Check-ins registrados | Progress DB | Diaria |
+| Eventos SOS activados | Home DB | Inmediata (alertas) |
+| Tiempo de respuesta API | Logs NestJS | Continua |
+| Espacio en MinIO | `mc du` | Semanal |
+| Errores HTTP 5xx | Logs NestJS | Continua (alertas) |
+
+⚠️ **Advertencia**: Actualmente no existe un sistema de monitoreo externo (ej. Datadog, UptimeRobot, Prometheus). Se recomienda configurar al menos alertas de uptime para los puertos principales.
+
+---
+
+### 9.5 Gestión de Cambios
+
+#### Actualizaciones de Aplicación
+
+1. Crear rama de feature en Git
+2. Implementar y probar localmente con `docker-compose.dev.yml`
+3. Ejecutar la suite de pruebas (`npm test`) — deben pasar los 406 tests
+4. Abrir Pull Request hacia `release`
+5. Revisión por al menos un desarrollador del equipo
+6. Merge → GitHub Actions despliega automáticamente
+
+#### Rollback
+
+En caso de fallo post-despliegue:
+
+```bash
+# En el servidor de producción
+cd /home/proyecto/NewLife
+git log --oneline -5        # Identificar commit estable
+git checkout <commit-hash>  # Revertir código
+COMPOSE_BAKE=true docker compose build
+docker compose down && docker compose up -d
+```
+
+#### Cambios en Base de Datos
+
+Dado que el acceso a Roble es a través de API (no migraciones directas), los cambios de esquema deben coordinarse con el administrador de Roble UN. Se recomienda documentar cada cambio en los ADR (Architecture Decision Records) del directorio `diseno/docs/adr/`.
+
+---
+
+### 9.6 Disponibilidad y Recuperación
+
+#### SLA Esperado
+
+El sistema apunta a una disponibilidad del **99% mensual** (~7 horas de downtime/mes), limitada principalmente por la disponibilidad de la infraestructura Roble y la capacidad de respuesta manual ante fallos. El SLA de Roble UN no está documentado públicamente.
+
+#### Plan de Recuperación ante Fallos
+
+| Escenario | Tiempo de Recuperación | Procedimiento |
+|---|---|---|
+| Contenedor caído | < 2 min | `docker compose up -d <servicio>` |
+| Servidor reiniciado | < 5 min | Docker Compose con `restart: unless-stopped` (recomendado agregar) |
+| Fallo de MinIO | < 5 min | Reiniciar contenedor; datos persisten en `./media-data/` |
+| Roble DB no disponible | Externo | Esperar restauración por parte de Universidad del Norte |
+| Despliegue fallido | < 15 min | Rollback manual descrito en §9.5 |
+
+#### Estrategia de Backups
+
+| Dato | Estrategia | Frecuencia |
+|---|---|---|
+| **Base de datos** | Backup gestionado por Roble UN (verificar política) | Según política de Roble |
+| **Archivos media (MinIO)** | Backup del directorio `./media-data/` en el servidor | Semanal recomendado |
+| **Código fuente** | Git en GitHub | Continuo (cada commit) |
+| **Variables de entorno** | Almacenadas de forma segura fuera del repositorio | Manual ante cambios |
 
 ## 10. Validación
 
