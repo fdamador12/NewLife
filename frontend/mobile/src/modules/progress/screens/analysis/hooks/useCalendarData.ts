@@ -127,7 +127,7 @@ export const useCalendarData = () => {
           setProcessedDays(processed);
         }
       } catch (err: any) {
-        setError(err.message || 'Error cargando calendario');
+          setError('No se pudo cargar el calendario. Intenta de nuevo.');
         setProcessedDays([]);
       } finally {
         setLoading(false);
