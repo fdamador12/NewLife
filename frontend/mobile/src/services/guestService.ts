@@ -71,6 +71,16 @@ export const getGuestSobrietyTime = async (): Promise<any> => {
   return { contador: { dias, horas, minutos } };
 };
 
+export const updateGuestSobrietyDate = async (): Promise<void> => {
+  const guestId = await getGuestId();
+  const ahora = new Date();
+  const ahoraCol = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  await AsyncStorage.setItem(
+    `guestSobriety_${guestId}`,
+    JSON.stringify({ startDate: ahoraCol.toISOString() })
+  );
+};
+
 // ─── Contactos ────────────────────────────────────────────────────────────────
 
 export const getGuestContacts = async (): Promise<any[]> => {
@@ -280,4 +290,19 @@ export const getGuestAhorro = async (): Promise<{
     gasto_diario: Math.round(gasto_diario),
     gasto_semanal,
   };
+};
+
+// ─── Migración pendiente ──────────────────────────────────────────────────────
+
+export const setPendingMigration = async (): Promise<void> => {
+  await AsyncStorage.setItem('pendingMigration', 'true');
+};
+
+export const getPendingMigration = async (): Promise<boolean> => {
+  const val = await AsyncStorage.getItem('pendingMigration');
+  return val === 'true';
+};
+
+export const clearPendingMigration = async (): Promise<void> => {
+  await AsyncStorage.removeItem('pendingMigration');
 };

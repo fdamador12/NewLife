@@ -5,7 +5,7 @@ import BlobCard from './BlobCard';
 import { FormData } from '../../checkin/types';
 import { saveDailyCheckin } from '../../../../../services/progressService';
 import { usePet } from '../../../../pet/hooks/usePet';
-import { isGuestMode, saveGuestCheckin } from '../../../../../services/guestService';
+import { isGuestMode, saveGuestCheckin, updateGuestSobrietyDate } from '../../../../../services/guestService';
 
 type Props = {
   formData: FormData;
@@ -41,6 +41,10 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 
       if (guest) {
         await saveGuestCheckin(checkinPayload);
+        // ✅ Si hubo consumo, resetear timer de sobriedad
+        if (checkinPayload.consumo) {
+          await updateGuestSobrietyDate();
+        }
         console.log('✅ Registro diario guardado en AsyncStorage (guest)');
       } else {
         console.log('📤 Preparando envío de daily-checkin:', JSON.stringify(checkinPayload, null, 2));

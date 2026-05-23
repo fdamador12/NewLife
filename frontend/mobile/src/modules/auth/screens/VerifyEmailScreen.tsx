@@ -8,7 +8,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useToast } from '../../../feedback/ToastContext';
 import { verifyEmail, loginUser, migrateGuestToUser } from '../../../services/authService';
-import { clearGuestData } from '../../../services/guestService';
+import { clearGuestData, setPendingMigration } from '../../../services/guestService';
 
 const CODE_LENGTH = 6;
 
@@ -21,6 +21,7 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
   const { showToast } = useToast();
 
@@ -57,21 +58,23 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
       // 2. Login automático
       await loginUser(email, password);
 
-      // 3. ✅ Si venía de guest — migrar datos y limpiar
+      // 3. Si venía de guest — intentar migrar
       if (fromGuest) {
+        setMigrating(true);
         try {
           await migrateGuestToUser();
-          await clearGuestData();
-          console.log('✅ Datos de invitado migrados correctamente');
+          console.log('✅ Migración completada');
         } catch (err) {
-          console.log('⚠️ Error en migración — datos locales preservados:', err);
+          // ✅ Error en migrate — flag ya guardado en migrateGuestToUser
+          // El usuario va al Home y puede reintentar desde Settings
+          showToast('Tus datos se sincronizarán cuando tengas conexión', 'info');
+        } finally {
+          setMigrating(false);
         }
-        // ✅ Guest con perfil completo → Home directo sin las 10 preguntas
         navigation.replace('Home');
         return;
       }
 
-      // 4. Usuario normal → Story (10 preguntas)
       navigation.replace('Story');
 
     } catch (err: any) {
@@ -82,11 +85,13 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
         try {
           await loginUser(email, password);
           if (fromGuest) {
+            setMigrating(true);
             try {
               await migrateGuestToUser();
-              await clearGuestData();
             } catch {
-              console.log('⚠️ Error en migración');
+              showToast('Tus datos se sincronizarán cuando tengas conexión', 'info');
+            } finally {
+              setMigrating(false);
             }
             navigation.replace('Home');
           } else {
@@ -137,16 +142,23 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.buttonPrimary, (loading || fullCode.length < CODE_LENGTH) && { opacity: 0.6 }]}
-          onPress={handleVerify}
-          disabled={loading || fullCode.length < CODE_LENGTH}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.white} />
-            : <Text style={styles.buttonPrimaryText}>Verificar</Text>
-          }
-        </TouchableOpacity>
+        {migrating ? (
+          <View style={styles.migratingContainer}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.migratingText}>Sincronizando tus datos...</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.buttonPrimary, (loading || fullCode.length < CODE_LENGTH) && { opacity: 0.6 }]}
+            onPress={handleVerify}
+            disabled={loading || fullCode.length < CODE_LENGTH}
+          >
+            {loading
+              ? <ActivityIndicator color={colors.white} />
+              : <Text style={styles.buttonPrimaryText}>Verificar</Text>
+            }
+          </TouchableOpacity>
+        )}
 
         <View style={styles.resendContainer}>
           <Text style={styles.resendText}>¿No llegó el correo? </Text>
@@ -183,4 +195,9 @@ const styles = StyleSheet.create({
   resendContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 'auto', paddingTop: spacing.xl },
   resendText: { color: colors.textMuted, fontSize: fontSizes.sm },
   resendLink: { color: colors.accent, fontSize: fontSizes.sm, fontWeight: '600' },
+  migratingContainer: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.lg,
+  },
+  migratingText: { color: colors.textMuted, fontSize: fontSizes.md },
 });

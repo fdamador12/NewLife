@@ -24,7 +24,6 @@ export interface AnalysisData {
   todayCheckin: any | null;
 }
 
-// ✅ Calcula riskCharts desde checkins locales
 function calcularRiskChartsDesdeCheckins(checkins: any[]) {
   const conConsumo = checkins.filter(c => c.consumo === true);
 
@@ -59,8 +58,10 @@ function calcularRiskChartsDesdeCheckins(checkins: any[]) {
   // Vínculos de riesgo
   const socialCount: Record<string, number> = {};
   conConsumo.forEach(c => {
+    console.log('🔍 social value:', JSON.stringify(c.social));
     if (c.social) socialCount[c.social] = (socialCount[c.social] || 0) + 1;
   });
+  console.log('📊 socialCount:', JSON.stringify(socialCount));
   const totalSocial = Object.values(socialCount).reduce((a, b) => a + b, 0);
   const vinculos_riesgo = {
     total_personas: totalSocial,
@@ -74,7 +75,6 @@ function calcularRiskChartsDesdeCheckins(checkins: any[]) {
   return { vinculos_riesgo, zonas_riesgo, emociones_detonantes };
 }
 
-// ✅ Calcula calendario del mes desde checkins locales
 function calcularCalendarioDesdeCheckins(checkins: any[], month: number, year: number) {
   const filtered = checkins.filter(c => {
     const fecha = new Date(c.fecha);
@@ -118,15 +118,13 @@ export function useAnalysisData() {
       if (guest) {
         console.log('🔄 Cargando análisis desde AsyncStorage (guest)...');
         const checkins = await getGuestCheckins();
+        console.log('📊 CHECKINS ANÁLISIS:', JSON.stringify(checkins, null, 2));
 
-        // ✅ Sin summary de IA en guest mode
         setSummary(null);
 
-        // ✅ Calcular charts desde checkins locales
         const charts = calcularRiskChartsDesdeCheckins(checkins);
         setRiskCharts(charts);
 
-        // ✅ Calendario del mes actual
         const now = new Date();
         const cal = calcularCalendarioDesdeCheckins(
           checkins,
@@ -135,7 +133,6 @@ export function useAnalysisData() {
         );
         setCalendar(cal);
 
-        // ✅ Checkin de hoy
         const hoy = now.toISOString().slice(0, 10);
         const todayC = checkins.find(c => c.dia === hoy) ?? null;
         setTodayCheckin(todayC);
@@ -150,10 +147,6 @@ export function useAnalysisData() {
           progressService.getTodayCheckin(),
         ]);
 
-        console.log('✅ Summary:', summaryData);
-        console.log('✅ Charts:', chartsData);
-        console.log('✅ Today:', todayData);
-
         setSummary(summaryData);
         setRiskCharts(chartsData);
         setTodayCheckin(todayData);
@@ -163,8 +156,6 @@ export function useAnalysisData() {
           now.getMonth() + 1,
           now.getFullYear(),
         );
-
-        console.log('✅ Calendar:', calendarData);
         setCalendar(calendarData);
       }
     } catch (err: any) {

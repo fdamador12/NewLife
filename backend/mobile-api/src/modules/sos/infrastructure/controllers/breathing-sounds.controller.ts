@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
 import { GetBreathingSoundsUseCase } from '../../application/use-cases/get-breathing-sounds.use-case';
 import { SyncFreesoundSoundsUseCase } from '../../application/use-cases/sync-freesound-sounds.use-case';
 import { BreathingSoundEntity } from '../../domain/entities/breathing-sound.entity';
+import { SystemAuthService } from '../../../auth/infrastructure/services/system-auth.service';
 
 @ApiTags('🎵 Breathing Sounds - Sonidos Ambientales')
 @ApiBearerAuth()
@@ -18,25 +19,26 @@ export class BreathingSoundsController {
 
   constructor(
     private getSoundsUseCase: GetBreathingSoundsUseCase,
-    private syncSoundsUseCase: SyncFreesoundSoundsUseCase
+    private syncSoundsUseCase: SyncFreesoundSoundsUseCase,
+    private systemAuth: SystemAuthService,
   ) {}
 
+  private async resolveToken(req: any): Promise<string> {
+    const authHeader = req.headers.authorization;
+    if (authHeader) return authHeader.split(' ')[1];
+    return this.systemAuth.getMasterToken();
+  }
+
+  // ✅ Sin guard — funciona para guest y usuarios logueados
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Obtener todos los sonidos ambientales',
-    description:
-      'Retorna lista de sonidos (lluvia, olas, viento, fuego, pájaros) para meditación guiada',
+    description: 'Retorna lista de sonidos para meditación guiada',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de sonidos obtenida exitosamente',
-  })
+  @ApiResponse({ status: 200, description: 'Lista de sonidos obtenida exitosamente' })
   async getAllSounds(@Req() req: any): Promise<BreathingSoundEntity[]> {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      const user = req.user;
-      this.logger.log(`🔊 Usuario ${user?.email || 'desconocido'} solicitó todos los sonidos`);
+      const token = await this.resolveToken(req);
       return await this.getSoundsUseCase.getAllSounds(token);
     } catch (error) {
       this.logger.error(`❌ Error obteniendo sonidos: ${error}`);
@@ -44,27 +46,15 @@ export class BreathingSoundsController {
     }
   }
 
+  // ✅ Sin guard — funciona para guest y usuarios logueados
   @Get('nombre/:nombre')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Obtener sonido por nombre',
-    description:
-      'Retorna un sonido específico: Lluvia, Olas, Viento, Fuego o Pajaros',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Sonido obtenido exitosamente',
-  })
+  @ApiOperation({ summary: 'Obtener sonido por nombre' })
   async getSoundByNombre(
     @Param('nombre') nombre: string,
     @Req() req: any
   ): Promise<BreathingSoundEntity | null> {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      const user = req.user;
-      this.logger.log(
-        `🔊 Usuario ${user?.email || 'desconocido'} solicitó sonido: ${nombre}`
-      );
+      const token = await this.resolveToken(req);
       return await this.getSoundsUseCase.getSoundByNombre(nombre, token);
     } catch (error) {
       this.logger.error(`❌ Error obteniendo sonido: ${error}`);
@@ -72,20 +62,15 @@ export class BreathingSoundsController {
     }
   }
 
+  // ✅ Sin guard — funciona para guest y usuarios logueados
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Obtener sonido por ID',
-    description: 'Retorna un sonido específico usando su ID (_id)',
-  })
+  @ApiOperation({ summary: 'Obtener sonido por ID' })
   async getSoundById(
     @Param('id') id: string,
     @Req() req: any
   ): Promise<BreathingSoundEntity | null> {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      const user = req.user;
-      this.logger.log(`🔊 Usuario ${user?.email || 'desconocido'} solicitó sonido ID: ${id}`);
+      const token = await this.resolveToken(req);
       return await this.getSoundsUseCase.getSoundById(id, token);
     } catch (error) {
       this.logger.error(`❌ Error obteniendo sonido: ${error}`);
@@ -93,24 +78,13 @@ export class BreathingSoundsController {
     }
   }
 
+  // ✅ Con guard — solo admins pueden sincronizar
   @Post('sync')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Sincronizar sonidos preseleccionados',
-    description:
-      'Sincroniza 5 sonidos ambientales preseleccionados en la BD. Los URLs de Freesound ya están en las constantes.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Sincronización completada exitosamente',
-  })
-  async syncFreesoundSounds(@Req() req: any): Promise<{
-    message: string;
-  }> {
+  @ApiOperation({ summary: 'Sincronizar sonidos preseleccionados' })
+  async syncFreesoundSounds(@Req() req: any): Promise<{ message: string }> {
     try {
       const token = req.headers.authorization?.split(' ')[1];
-      const user = req.user;
-      this.logger.log(`🔄 Usuario ${user?.email || 'desconocido'} disparó sincronización`);
       await this.syncSoundsUseCase.execute(token);
       return { message: '✅ Sonidos sincronizados exitosamente' };
     } catch (error) {

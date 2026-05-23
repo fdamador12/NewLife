@@ -91,7 +91,9 @@ export default function HomeScreen({ navigation }: any) {
       }
     };
 
+    // ✅ Recargar al montar y cuando el home recibe foco
     fetchSobriety();
+    const unsubscribeFocus = navigation.addListener('focus', fetchSobriety);
 
     const interval = setInterval(() => {
       setSobriety(prev => {
@@ -103,15 +105,17 @@ export default function HomeScreen({ navigation }: any) {
       });
     }, 60000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      unsubscribeFocus();
+    };
+  }, [navigation]);
 
   useEffect(() => {
     const fetchAhorro = async () => {
       try {
         const guest = await isGuestMode();
         if (guest) {
-          // ✅ Guest — calcular desde AsyncStorage
           const data = await getGuestAhorro();
           setAhorro({
             ahorro_total: data.ahorro_total ?? 0,
@@ -128,8 +132,15 @@ export default function HomeScreen({ navigation }: any) {
         console.log('Error obteniendo ahorro:', e);
       }
     };
+
+    // ✅ Recargar al montar y cuando el home recibe foco
     fetchAhorro();
-  }, []);
+    const unsubscribeFocus = navigation.addListener('focus', fetchAhorro);
+
+    return () => {
+      unsubscribeFocus();
+    };
+  }, [navigation]);
 
   const getGreetingTime = () => {
     const hour = new Date().getHours();

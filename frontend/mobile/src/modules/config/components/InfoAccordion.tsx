@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { updateProfile } from '../../../services/authService';
 import { useToast } from '../../../feedback/ToastContext';
+import { isGuestMode, getGuestProfile, saveGuestProfile } from '../../../services/guestService';
 
 type Props = {
   apodo: string;
@@ -42,13 +43,28 @@ export default function InfoAccordion({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updates: any = {};
-      if (apodo.trim()) updates.apodo = apodo.trim();
-      if (pronombre.trim()) updates.pronombre = pronombre.trim();
-      if (motivoSobrio.trim()) updates.motivo_sobrio = motivoSobrio.trim();
-      if (gastoSemanal.trim()) updates.gasto_semanal = Number(gastoSemanal.trim());
+      const guest = await isGuestMode();
 
-      await updateProfile(updates);
+      if (guest) {
+        // ✅ Guest — guardar en AsyncStorage
+        const currentProfile = await getGuestProfile();
+        await saveGuestProfile({
+          ...currentProfile,
+          apodo: apodo.trim() || currentProfile.apodo,
+          pronombre: pronombre.trim() || currentProfile.pronombre,
+          motivo_sobrio: motivoSobrio.trim() || currentProfile.motivo_sobrio,
+          gasto_semana: gastoSemanal.trim() ? Number(gastoSemanal.trim()) : currentProfile.gasto_semana,
+        });
+      } else {
+        // ✅ Usuario normal — llamada al backend
+        const updates: any = {};
+        if (apodo.trim()) updates.apodo = apodo.trim();
+        if (pronombre.trim()) updates.pronombre = pronombre.trim();
+        if (motivoSobrio.trim()) updates.motivo_sobrio = motivoSobrio.trim();
+        if (gastoSemanal.trim()) updates.gasto_semanal = Number(gastoSemanal.trim());
+        await updateProfile(updates);
+      }
+
       onUpdated({ apodo, pronombre, motivoSobrio, gastoSemanal });
       setEditing(false);
       showToast('Perfil actualizado correctamente', 'success');
@@ -129,26 +145,23 @@ export default function InfoAccordion({
 
           <View style={styles.divider} />
 
-          {/* ✅ Solo mostrar botón editar si no es readOnly */}
-          {!readOnly && (
-            editing ? (
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
-                  <Text style={styles.cancelText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-                  {saving
-                    ? <ActivityIndicator size="small" color={colors.white} />
-                    : <Text style={styles.saveText}>Guardar cambios</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
-                <Feather name="edit-2" size={16} color={colors.primary} />
-                <Text style={styles.editText}>Editar</Text>
+          {editing ? (
+            <View style={styles.actions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
+                <Text style={styles.cancelText}>Cancelar</Text>
               </TouchableOpacity>
-            )
+              <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+                {saving
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={styles.saveText}>Guardar cambios</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
+              <Feather name="edit-2" size={16} color={colors.primary} />
+              <Text style={styles.editText}>Editar</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}

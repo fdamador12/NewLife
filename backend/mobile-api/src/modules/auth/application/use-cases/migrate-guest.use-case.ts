@@ -114,21 +114,38 @@ export class MigrateGuestUseCase {
       this.logger.log(`⏭️  [4/6] registros diarios OMITIDO (lista vacía)`);
     }
 
-    // ─── 5. PROGRESO CAMINO ───────────────────────────────────────────────────
+    // ─── 5. PROGRESO CAMINO — upsert ─────────────────────────────────────────
     if (data.progress) {
       try {
-        this.logger.log(`📤 [5/6] Insertando progreso camino...`);
-        const caminoData = {
-          usuario_id: usuarioId,
-          nivel: data.progress.nivel,
-          subnivel: data.progress.subnivel,
-          updated_at: now,
-        };
-        const caminoResult = await this.db.insert('camino', [caminoData], token);
-        if (caminoResult.inserted?.length > 0) {
-          this.logger.log(`✅ [5/6] camino INSERTADO — nivel ${data.progress.nivel}, subnivel ${data.progress.subnivel}`);
+        this.logger.log(`📤 [5/6] Upsert progreso camino...`);
+
+        // ✅ Verificar si ya existe un registro de camino
+        const existing = await this.db.find('camino', { usuario_id: usuarioId }, token);
+        const rows = Array.isArray(existing) ? existing : (existing?.rows ?? []);
+
+        if (rows.length > 0) {
+          // ✅ Ya existe — actualizar con el progreso del guest
+          await this.db.update(
+            'camino',
+            'usuario_id',
+            usuarioId,
+            {
+              nivel: data.progress.nivel,
+              subnivel: data.progress.subnivel,
+              updated_at: now,
+            },
+            token,
+          );
+          this.logger.log(`✅ [5/6] camino ACTUALIZADO — nivel ${data.progress.nivel}, subnivel ${data.progress.subnivel}`);
         } else {
-          this.logger.warn(`⚠️ [5/6] camino NO insertado:`, caminoResult.skipped?.[0]?.reason);
+          // ✅ No existe — insertar
+          const caminoResult = await this.db.insert('camino', [{
+            usuario_id: usuarioId,
+            nivel: data.progress.nivel,
+            subnivel: data.progress.subnivel,
+            updated_at: now,
+          }], token);
+          this.logger.log(`✅ [5/6] camino INSERTADO — nivel ${data.progress.nivel}, subnivel ${data.progress.subnivel}`);
         }
       } catch (error) {
         this.logger.error(`❌ [5/6] ERROR camino:`, (error as any).message);
@@ -137,23 +154,41 @@ export class MigrateGuestUseCase {
       this.logger.log(`⏭️  [5/6] camino OMITIDO (sin progreso)`);
     }
 
-    // ─── 6. MASCOTA ───────────────────────────────────────────────────────────
+    // ─── 6. MASCOTA — upsert ─────────────────────────────────────────────────
     if (data.pet) {
       try {
-        this.logger.log(`📤 [6/6] Insertando mascota...`);
-        const petData = {
-          usuario_id: usuarioId,
-          xp: data.pet.xp ?? 0,
-          selected_form: data.pet.selected_form ?? 'seed',
-          unlocked_forms: JSON.stringify(data.pet.unlocked_forms ?? ['seed']),
-          last_actions: JSON.stringify(data.pet.last_actions ?? {}),
-          updated_at: now,
-        };
-        const petResult = await this.db.insert('user_pet', [petData], token);
-        if (petResult.inserted?.length > 0) {
-          this.logger.log(`✅ [6/6] mascota INSERTADA — xp: ${data.pet.xp}`);
+        this.logger.log(`📤 [6/6] Upsert mascota...`);
+
+        const existing = await this.db.find('user_pet', { usuario_id: usuarioId }, token);
+        const rows = Array.isArray(existing) ? existing : (existing?.rows ?? []);
+
+        if (rows.length > 0) {
+          // ✅ Ya existe — actualizar con datos del guest
+          await this.db.update(
+            'user_pet',
+            'usuario_id',
+            usuarioId,
+            {
+              xp: data.pet.xp ?? 0,
+              selected_form: data.pet.selected_form ?? 'seed',
+              unlocked_forms: JSON.stringify(data.pet.unlocked_forms ?? ['seed']),
+              last_actions: JSON.stringify(data.pet.last_actions ?? {}),
+              updated_at: now,
+            },
+            token,
+          );
+          this.logger.log(`✅ [6/6] mascota ACTUALIZADA — xp: ${data.pet.xp}`);
         } else {
-          this.logger.warn(`⚠️ [6/6] mascota NO insertada:`, petResult.skipped?.[0]?.reason);
+          // ✅ No existe — insertar
+          await this.db.insert('user_pet', [{
+            usuario_id: usuarioId,
+            xp: data.pet.xp ?? 0,
+            selected_form: data.pet.selected_form ?? 'seed',
+            unlocked_forms: JSON.stringify(data.pet.unlocked_forms ?? ['seed']),
+            last_actions: JSON.stringify(data.pet.last_actions ?? {}),
+            updated_at: now,
+          }], token);
+          this.logger.log(`✅ [6/6] mascota INSERTADA — xp: ${data.pet.xp}`);
         }
       } catch (error) {
         this.logger.error(`❌ [6/6] ERROR mascota:`, (error as any).message);

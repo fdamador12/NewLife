@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,21 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/
 import { useMotivationalPhrases } from '../../../care/hooks/useMotivationalPhrases';
 import MotivationalCard from '../../../care/screens/motivational/components/MotivationalCard';
 import { analytics, EVENT_TYPES } from '../../../../services/analytics';
+import { isGuestMode } from '../../../../services/guestService';
 
 export default function MotivationalPhrasesScreen({ navigation }: any) {
   const { frases, loading, toggleFavorito, fetchFrasesPorFecha } = useMotivationalPhrases();
   const hasFetched = useRef(false);
   const lastTrackedPhraseRef = useRef<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    const checkGuest = async () => {
+      const guest = await isGuestMode();
+      setIsGuest(guest);
+    };
+    checkGuest();
+  }, []);
 
   useEffect(() => {
     if (!hasFetched.current) {
@@ -34,12 +44,6 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, fetchFrasesPorFecha]);
 
-  // Analytics: trackear la frase de HOY (la primera = index 0) cada vez que
-  // se carga. Sin dedup global pero sin trackear duplicados consecutivos del
-  // mismo render: lastTrackedPhraseRef evita que un rerender con la misma
-  // frase ya cargada (sin cambios) dispare el evento de nuevo.
-  // Si el usuario sale y vuelve a la pantalla, sí se trackea de nuevo (es lo
-  // que queremos: refleja engagement real con esa frase).
   useEffect(() => {
     if (frases.length > 0) {
       const fraseHoy = frases[0];
@@ -87,7 +91,6 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header  */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.text} />
@@ -97,11 +100,9 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Hero section */}
       <Text style={styles.title}>Motívate</Text>
       <Text style={styles.subtitle}>Sigue adelante</Text>
 
-      {/* Contenido */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -125,7 +126,6 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
         >
           {frases.map((item, index) => (
             <View key={item.frase_id} style={styles.cardContainer}>
-              {/* Indicador de timeline */}
               <View style={styles.timelineIndicator}>
                 <View style={[
                   styles.timelineDot,
@@ -136,9 +136,7 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
                 )}
               </View>
 
-              {/* Card content */}
               <View style={styles.cardContent}>
-                {/* Badge de fecha */}
                 <View style={styles.dateBadgeContainer}>
                   <View style={[
                     styles.dateBadge,
@@ -158,19 +156,19 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
                   </View>
                 </View>
 
-                {/* Motivational Card */}
+                {/* ✅ isGuest oculta el corazón */}
                 <MotivationalCard
                   id={item.frase_id}
                   text={item.frase}
                   image={require('../../../../assets/images/phrase.jpg')}
                   isFavorite={item.isFavorite || false}
                   onToggleFavorite={handleToggleFavorito}
+                  isGuest={isGuest}
                 />
               </View>
             </View>
           ))}
 
-          {/* Seccion de practica guiada */}
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => navigation.navigate('GuidedMeditationScreen')}

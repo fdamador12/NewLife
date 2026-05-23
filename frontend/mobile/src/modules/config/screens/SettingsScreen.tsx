@@ -4,13 +4,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
-import { getProfile, logoutUser, requestPasswordChange } from '../../../services/authService';
+import { getProfile, logoutUser, requestPasswordChange, migrateGuestToUser } from '../../../services/authService';
 import { usePet } from '../../pet/hooks/usePet';
 import { useToast } from '../../../feedback/ToastContext';
 import InfoAccordion from '../components/InfoAccordion';
 import SettingsRow from '../components/SettingsRow';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
-import { isGuestMode, clearGuestData, getGuestProfile } from '../../../services/guestService';
+import { isGuestMode, clearGuestData, getGuestProfile, getPendingMigration } from '../../../services/guestService';
 import { useConfirm } from '../../../feedback/ConfirmContext';
 
 export default function SettingsScreen({ navigation }: any) {
@@ -19,11 +19,11 @@ export default function SettingsScreen({ navigation }: any) {
   const { showConfirm } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [isPendingMigration, setIsPendingMigration] = useState(false);
   const [apodo, setApodo] = useState('');
   const [pronombre, setPronombre] = useState('');
   const [motivoSobrio, setMotivoSobrio] = useState('');
   const [gastoSemanal, setGastoSemanal] = useState('');
-  
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -32,7 +32,6 @@ export default function SettingsScreen({ navigation }: any) {
         setIsGuest(guest);
 
         if (guest) {
-          // ✅ Guest — leer de AsyncStorage
           const data = await getGuestProfile();
           setApodo(data?.apodo || '');
           setPronombre(data?.pronombre || '');
@@ -43,7 +42,10 @@ export default function SettingsScreen({ navigation }: any) {
             ''
           );
         } else {
-          // ✅ Usuario normal — llamada al backend
+          // ✅ Usuario logueado — verificar migración pendiente
+          const pending = await getPendingMigration();
+          setIsPendingMigration(pending);
+
           const data = await getProfile();
           setApodo(data?.apodo || '');
           setPronombre(data?.pronombre || '');
@@ -99,6 +101,17 @@ export default function SettingsScreen({ navigation }: any) {
     });
   };
 
+  const handleRetryMigration = async () => {
+    try {
+      showToast('Sincronizando tus datos...', 'info');
+      await migrateGuestToUser();
+      setIsPendingMigration(false);
+      showToast('¡Datos sincronizados correctamente!', 'success');
+    } catch (e) {
+      showToast('No se pudo sincronizar. Intenta de nuevo más tarde.', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -121,13 +134,12 @@ export default function SettingsScreen({ navigation }: any) {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ✅ Info personal — solo lectura en guest, editable en usuario normal */}
         <InfoAccordion
           apodo={apodo}
           pronombre={pronombre}
           motivoSobrio={motivoSobrio}
           gastoSemanal={gastoSemanal}
-          readOnly={isGuest}
+          readOnly={false}
           onUpdated={(data) => {
             setApodo(data.apodo);
             setPronombre(data.pronombre);
@@ -147,11 +159,18 @@ export default function SettingsScreen({ navigation }: any) {
         <View style={styles.gap} />
 
         {isGuest ? (
-          // ✅ Guest — botón migrar
+          // ✅ Guest — crear cuenta y migrar
           <SettingsRow
             icon="upload"
             label="Crear cuenta y guardar progreso"
             onPress={() => navigation.navigate('Register')}
+          />
+        ) : isPendingMigration ? (
+          // ✅ Usuario logueado con migración pendiente
+          <SettingsRow
+            icon="refresh-cw"
+            label="Sincronizar datos pendientes"
+            onPress={handleRetryMigration}
           />
         ) : (
           // ✅ Usuario normal — cambiar contraseña y eliminar cuenta
@@ -181,7 +200,7 @@ export default function SettingsScreen({ navigation }: any) {
         <View style={styles.gap} />
 
         {isGuest ? (
-          // ✅ Guest — borrar todos los datos con confirmación fuerte
+          // ✅ Guest — borrar todos los datos
           <TouchableOpacity
             style={styles.deleteGuestButton}
             onPress={handleDeleteGuestData}
