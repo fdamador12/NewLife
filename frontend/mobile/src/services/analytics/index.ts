@@ -18,7 +18,7 @@ import { getSessionId, resetSession } from './session';
  * - **DRY con backend**: los EVENT_TYPES son idénticos a los del backend.
  */
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const ANALYTICS_ENABLED = true;
 
 interface TrackPayload {
