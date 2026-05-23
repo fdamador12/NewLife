@@ -27,8 +27,8 @@ El proyecto fue desarrollado bajo metodologías ágiles, con un enfoque centrado
 | Nombre | GitHub |
 |---|---|
 | Zharick Oviedo Redondo | [@zoviedo](https://github.com/zoviedo) |
-| Vanessa Diaz De La Hoz | [@fdamador12](https://github.com/vanediazdelahoz) |
-| Franklin Amador Velasco | [@vanediazdelahoz](https://github.com/fdamador12) |
+| Vanessa Diaz De La Hoz | [@vanediazdelahoz](https://github.com/vanediazdelahoz) |
+| Franklin Amador Velasco | [@fdamador12](https://github.com/fdamador12) |
 
 ## Tutores
 

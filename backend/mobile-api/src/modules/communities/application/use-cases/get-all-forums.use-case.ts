@@ -23,8 +23,7 @@ export class GetAllForumsUseCase {
     if (membresias.length === 0) return { foros: [], comunidades: [] };
 
     // Traer todos los foros del día
-    const forosRes = await this.dbService.findAll('foro_del_dia', masterToken);
-    const allForos = Array.isArray(forosRes) ? forosRes : (forosRes.rows || []);
+    const allForos = await this.dbService.findAll('foro_del_dia', masterToken);
 
     const today = new Date().toISOString().split('T')[0];
 
