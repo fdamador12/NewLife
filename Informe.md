@@ -264,15 +264,15 @@ Atención clínica, psicológica o médica de cualquier tipo. Diagnóstico difer
 
 ### 4.2 Objetivos Específicos
 
-- **OE1.** Diseñar e implementar la **arquitectura técnica del sistema** bajo el patrón de monolito modular, definiendo los módulos de dominio (autenticación, usuarios, progreso, cuidado, motivación, comunidad y administración), y el esquema de base de datos relacional para los **tres modos de acceso**.
+- **OE1.** Diseñar e implementar la **arquitectura backend del sistema** bajo el patrón de monolito modular, definiendo la lógica de negocio, los servicios de dominio y el esquema de base de datos relacional para los módulos de autenticación, usuarios, progreso, cuidado, motivación, comunidad y administración.
 
-- **OE2.** Desarrollar los módulos frontend de la aplicación móvil (Bienvenida y Onboarding, Registro y Login, Inicio, Mi Progreso, Cuidado, Motivación y Social) siguiendo el **prototipo de alta fidelidad en Figma**, garantizando coherencia visual con la identidad gráfica de *NewLife* y una **experiencia fluida en Android**.
+- **OE2.** Desarrollar la **interfaz frontend de la aplicación móvil Android**, implementando las pantallas y flujos definidos en el prototipo de alta fidelidad en Figma, garantizando coherencia visual con la identidad gráfica de *NewLife* y una experiencia de usuario fluida.
 
 - **OE3.** Implementar el módulo Social con un sistema de **comunidades cerradas por invitación**, incluyendo el panel de administración web en Next.js que permita a gestores de fundaciones y grupos de apoyo crear comunidades, gestionar miembros, moderar contenido y administrar recursos educativos aplicables a diversas adicciones, sin requerir intervención técnica del equipo de desarrollo.
 
-- **OE4.** Ejecutar un proceso de **aseguramiento de calidad** con pruebas unitarias por módulo, pruebas de integración end-to-end y **dos rondas de pruebas de usabilidad con usuarios reales** en coordinación con una fundación local, documentando los hallazgos e incorporando iteraciones antes del despliegue en producción.
+- **OE4.** Implementar un proceso de aseguramiento de calidad que incluya pruebas unitarias por módulo, pruebas de integración y pruebas de usabilidad junto a la fundación Shalom, documentando los resultados obtenidos y aplicando las correcciones necesarias para optimizar el funcionamiento del sistema.
 
-- **OE5.** Desplegar todos los componentes del sistema en producción (aplicación móvil en Google Play, backend en servidor, panel web y landing page en entorno web) y realizar el **monitoreo post-lanzamiento** para corregir errores críticos y asegurar la estabilidad del sistema al cierre del semestre.
+- **OE5.** Desplegar todos los componentes del sistema en producción (aplicación móvil en Google Play, backend en servidor, panel web y landing page en entorno web), asegurando su correcto funcionamiento y disponibilidad al cierre del semestre.
 
 ## 5. Estado del arte / Soluciones relacionadas
 
