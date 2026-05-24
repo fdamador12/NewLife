@@ -140,7 +140,7 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: 80,
     paddingTop: spacing.lg,
   },
   cardQuestion: {

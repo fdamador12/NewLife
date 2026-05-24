@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { analytics, EVENT_TYPES } from './src/services/analytics';
 import { cacheService } from './src/services/cacheService';
@@ -10,5 +11,9 @@ export default function App() {
     analytics.track(EVENT_TYPES.APP_OPENED);
   }, []);
 
-  return <RootNavigator />;
+  return (
+    <SafeAreaProvider>
+      <RootNavigator />
+    </SafeAreaProvider>
+  );
 }

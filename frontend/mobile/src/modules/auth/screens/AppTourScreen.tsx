@@ -4,10 +4,9 @@ import {
 } from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import BottomTabNavigator from '../../../navigation/BottomTabNavigator';
-// Agrega este import arriba
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Agrega estos imports arriba
 import { isGuestMode, markGuestTourCompleted } from '../../../services/guestService';
+import { useBottomInset } from '../../../hooks/useBottomInset';
 
 const { width, height } = Dimensions.get('window');
 
@@ -83,8 +82,8 @@ const renderDescription = (text: string) => {
 export default function AppTourScreen({ navigation }: any) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const current = slides[currentIndex];
+  const bottomInset = useBottomInset(48);
 
-    // Reemplaza solo handleContinue
   const handleContinue = async () => {
     if (currentIndex < slides.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -111,7 +110,10 @@ export default function AppTourScreen({ navigation }: any) {
         <View style={styles.introBubble}>
           {renderDescription(current.description)}
         </View>
-        <TouchableOpacity style={styles.introButton} onPress={handleContinue}>
+        <TouchableOpacity
+          style={[styles.introButton, { bottom: bottomInset }]}
+          onPress={handleContinue}
+        >
           <Text style={styles.buttonText}>{current.button}</Text>
         </TouchableOpacity>
       </View>
@@ -123,7 +125,6 @@ export default function AppTourScreen({ navigation }: any) {
 
       <View style={styles.grayBackground} />
 
-      {/* Burbuja central */}
       <View style={styles.cardWrapper}>
         <View style={styles.card}>
           <Text style={styles.title}>{current.title}</Text>
@@ -140,7 +141,6 @@ export default function AppTourScreen({ navigation }: any) {
         <View style={styles.tail} />
       </View>
 
-      {/* Bottom tab real */}
       <View style={styles.tabBarWrapper}>
         <BottomTabNavigator
           activeTab={current.tab as string}
@@ -178,7 +178,6 @@ const styles = StyleSheet.create({
   },
   introButton: {
     position: 'absolute',
-    bottom: 48,
     left: spacing.xl,
     right: spacing.xl,
     backgroundColor: colors.primary,

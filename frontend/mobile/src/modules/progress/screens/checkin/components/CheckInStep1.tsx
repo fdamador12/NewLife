@@ -83,7 +83,7 @@ export default function CheckInStep1({ onNo, onYes, formData, setFormData }: Pro
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: 80,
     paddingTop: spacing.lg,
   },
   cardQuestion: {

@@ -8,6 +8,7 @@ import { getGratitudeHistory } from '../../../services/progressService';
 import { LEVELS } from './PathScreen';
 import { useLevelProgress } from '../../../hooks/useLevelProgress';
 import { isGuestMode, getGuestCheckins } from '../../../services/guestService';
+import { useBottomInset } from '../../../hooks/useBottomInset';
 
 interface GratitudeEntry {
     dia: string;
@@ -19,6 +20,7 @@ export default function ProgressScreen({ navigation }: any) {
     const [latestGratitude, setLatestGratitude] = useState<GratitudeEntry | null>(null);
     const [loading, setLoading] = useState(true);
     const { progress, loading: progressLoading } = useLevelProgress();
+    const bottomInset = useBottomInset(50);
 
     const currentLevel = LEVELS.find(l => l.id === progress.nivel) || LEVELS[0];
 
@@ -188,7 +190,7 @@ export default function ProgressScreen({ navigation }: any) {
                 <View style={styles.bottomPadding} />
             </ScrollView>
 
-            <TouchableOpacity style={styles.dailyButton} onPress={() => navigation.navigate('DailyCheckIn')}>
+            <TouchableOpacity style={[styles.dailyButton, { bottom: bottomInset }]} onPress={() => navigation.navigate('DailyCheckIn')}>
                 <Text style={styles.dailyButtonText}>Hacer registro diario</Text>
             </TouchableOpacity>
         </View>
@@ -331,7 +333,6 @@ const styles = StyleSheet.create({
     },
     dailyButton: {
         position: 'absolute',
-        bottom: 50,
         left: spacing.xl,
         right: spacing.xl,
         backgroundColor: colors.accent,

@@ -12,6 +12,7 @@ import { useToast } from '../../../../feedback/ToastContext';
 import { AgendaEventFrontend } from '../../services/agendaService';
 import EventForm from './components/EventForm';
 import { analytics, EVENT_TYPES } from '../../../../services/analytics';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 const COLORS = {
   primary: '#D38A58',
@@ -46,6 +47,7 @@ export default function AddEventScreen({ navigation, route }: any) {
   const { showToast } = useToast();
   const refetch = route.params?.refetch;
   const [isSaving, setIsSaving] = useState(false);
+  const bottomInset = useBottomInset(32);
 
   const existing = route.params?.event as AgendaEvent | undefined;
   const defaultDateStr = route.params?.defaultDate as string | undefined;
@@ -100,9 +102,6 @@ export default function AddEventScreen({ navigation, route }: any) {
         await updateAgenda(existing.id, eventData);
       } else {
         await createAgenda(eventData);
-
-        // 📊 Analytics: trackear creación de evento (solo cuando es NUEVO, no edición).
-        // No guardamos el título ni hora — solo el hecho de que se creó y la categoría.
         analytics.track(EVENT_TYPES.AGENDA_EVENT_CREATED, {
           category: category,
           has_reminder: reminder,
@@ -179,7 +178,7 @@ export default function AddEventScreen({ navigation, route }: any) {
       />
 
       <TouchableOpacity
-        style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        style={[styles.saveButton, { bottom: bottomInset }, isSaving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={isSaving}
       >
@@ -224,7 +223,6 @@ const styles = StyleSheet.create({
   saveBtnDisabled: { opacity: 0.5 },
   saveButton: {
     position: 'absolute',
-    bottom: 32,
     left: 20,
     right: 20,
     backgroundColor: COLORS.primary,

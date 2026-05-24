@@ -5,6 +5,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { PetForm } from '../../pet/types/pet.types';
+import { useBottomInset } from '../../../hooks/useBottomInset';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ export default function CheckInSuccessScreen({ navigation, route }: Props) {
     evolved: boolean;
     new_form: PetForm;
   };
+  const bottomInset = useBottomInset(48);
 
   const handleContinue = () => {
     if (evolved && new_form) {
@@ -55,7 +57,7 @@ export default function CheckInSuccessScreen({ navigation, route }: Props) {
       )}
 
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { bottom: bottomInset }]}
         onPress={handleContinue}
         activeOpacity={0.9}
       >
@@ -114,7 +116,6 @@ const styles = StyleSheet.create({
   },
   button: {
     position: 'absolute',
-    bottom: 48,
     width: width - spacing.xl * 2,
     backgroundColor: colors.white,
     borderRadius: borderRadius.full,

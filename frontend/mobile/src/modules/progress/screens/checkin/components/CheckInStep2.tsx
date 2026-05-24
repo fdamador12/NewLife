@@ -101,7 +101,7 @@ export default function CheckInStep2({ onContinue, formData, setFormData }: Prop
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: 80,
     paddingTop: spacing.lg,
   },
   cardQuestion: {

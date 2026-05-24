@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { useBottomInset } from '../../../hooks/useBottomInset';
 
 const { width } = Dimensions.get('window');
 const TOTAL_STEPS = 7;
@@ -33,9 +34,10 @@ export default function StepLayout({
     disabled = false,
 }: Props) {
     const progress = (currentStep / TOTAL_STEPS) * 100;
+    const bottomInset = useBottomInset(40);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingBottom: bottomInset }]}>
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -85,7 +87,6 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
         paddingHorizontal: spacing.xl,
         paddingTop: 60,
-        paddingBottom: 40,
     },
     header: {
         flexDirection: 'row',

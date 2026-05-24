@@ -1,9 +1,10 @@
 import React from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
+  View, Text, Image, StyleSheet, TouchableOpacity, ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 export { default as MascotBubble } from './components/MascotBubble';
 export { default as ReflectivePhrase } from './components/ReflectivePhrase';
@@ -43,11 +44,12 @@ export default function SubLevelScreen({
     advancing = false,
 }: Props) {
     const progress = currentStep / totalSteps;
+    const bottomInset = useBottomInset(32);
 
     const renderButton = () => {
         if (disabled || advancing) {
             return (
-                <View style={[styles.mainButton, styles.mainButtonDisabled]}>
+                <View style={[styles.mainButton, styles.mainButtonDisabled, { bottom: bottomInset }]}>
                     <Text style={styles.mainButtonText}>
                         {advancing ? 'Guardando...' : continueLabel}
                     </Text>
@@ -55,7 +57,7 @@ export default function SubLevelScreen({
             );
         }
         return (
-            <TouchableOpacity style={styles.mainButton} onPress={onContinue}>
+            <TouchableOpacity style={[styles.mainButton, { bottom: bottomInset }]} onPress={onContinue}>
                 <Text style={styles.mainButtonText}>{continueLabel}</Text>
             </TouchableOpacity>
         );
@@ -81,9 +83,9 @@ export default function SubLevelScreen({
                     <Text style={styles.introDescription}>{introDescription}</Text>
                 </View>
 
-                <Image source={mascot} style={styles.mascotIntro} resizeMode="contain" />
+                <Image source={mascot} style={[styles.mascotIntro, { bottom: bottomInset + 120 }]} resizeMode="contain" />
 
-                <TouchableOpacity style={styles.mainButton} onPress={onContinue}>
+                <TouchableOpacity style={[styles.mainButton, { bottom: bottomInset }]} onPress={onContinue}>
                     <Text style={styles.mainButtonText}>{continueLabel}</Text>
                 </TouchableOpacity>
             </View>
@@ -161,7 +163,6 @@ const styles = StyleSheet.create({
         width: 250,
         height: 250,
         position: 'absolute',
-        bottom: 150,
         alignSelf: 'center',
     },
     scroll: {
@@ -170,7 +171,6 @@ const styles = StyleSheet.create({
     },
     mainButton: {
         position: 'absolute',
-        bottom: 32,
         left: spacing.xl,
         right: spacing.xl,
         backgroundColor: colors.primary,
