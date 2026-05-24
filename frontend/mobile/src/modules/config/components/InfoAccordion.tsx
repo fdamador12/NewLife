@@ -23,6 +23,18 @@ type Props = {
   }) => void;
 };
 
+// ✅ Formatea número con comas: 50000 → 50,000
+const formatNumber = (value: string): string => {
+  const numbers = value.replace(/[^0-9]/g, '');
+  if (!numbers) return '';
+  return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+// ✅ Quita comas para guardar: 50,000 → 50000
+const parseNumber = (value: string): string => {
+  return value.replace(/,/g, '');
+};
+
 export default function InfoAccordion({
   apodo: initialApodo,
   pronombre: initialPronombre,
@@ -39,7 +51,20 @@ export default function InfoAccordion({
   const [apodo, setApodo] = useState(initialApodo);
   const [pronombre, setPronombre] = useState(initialPronombre);
   const [motivoSobrio, setMotivoSobrio] = useState(initialMotivo);
+
+  // ✅ gastoSemanal guarda el valor sin comas (número real)
+  // gastoSemanalDisplay es lo que ve el usuario (con comas)
   const [gastoSemanal, setGastoSemanal] = useState(initialGasto);
+  const [gastoSemanalDisplay, setGastoSemanalDisplay] = useState(
+    initialGasto ? formatNumber(initialGasto) : ''
+  );
+
+  const handleGastoChange = (text: string) => {
+    const formatted = formatNumber(text);
+    const raw = parseNumber(formatted);
+    setGastoSemanalDisplay(formatted);
+    setGastoSemanal(raw);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -79,6 +104,7 @@ export default function InfoAccordion({
     setPronombre(initialPronombre);
     setMotivoSobrio(initialMotivo);
     setGastoSemanal(initialGasto);
+    setGastoSemanalDisplay(initialGasto ? formatNumber(initialGasto) : '');
     setEditing(false);
   };
 
@@ -138,8 +164,22 @@ export default function InfoAccordion({
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Gasto semanal estimado</Text>
               {editing && !readOnly
-                ? <TextInput style={styles.fieldInput} value={gastoSemanal} onChangeText={setGastoSemanal} placeholder="0" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
-                : <Text style={styles.fieldValue}>{gastoSemanal ? `$${Number(gastoSemanal).toLocaleString()}` : '—'}</Text>
+                ? (
+                  <View style={styles.gastoRow}>
+                    <Text style={styles.gastoCurrency}>$</Text>
+                    <TextInput
+                      style={[styles.fieldInput, { flex: 1 }]}
+                      value={gastoSemanalDisplay}
+                      onChangeText={handleGastoChange}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )
+                : <Text style={styles.fieldValue}>
+                    {gastoSemanal ? `$${Number(gastoSemanal).toLocaleString()}` : '—'}
+                  </Text>
               }
             </View>
 
@@ -193,6 +233,16 @@ const styles = StyleSheet.create({
   fieldInput: {
     fontSize: fontSizes.md, color: colors.text,
     borderBottomWidth: 1, borderBottomColor: colors.primary, paddingVertical: 4,
+  },
+  gastoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  gastoCurrency: {
+    fontSize: fontSizes.md,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
   editButton: {
     flexDirection: 'row', alignItems: 'center',

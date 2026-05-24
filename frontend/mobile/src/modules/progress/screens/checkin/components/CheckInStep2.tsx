@@ -115,7 +115,7 @@ export default function CheckInStep2({ onContinue, formData, setFormData }: Prop
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 80,
+    paddingBottom: 120, // ✅ aumentado para evitar zona muerta del header
     paddingTop: spacing.lg,
   },
   cardQuestion: {
