@@ -46,7 +46,7 @@ function LockedForGuestScreen({ navigation, moduleName }: { navigation: any; mod
 
       <View style={lockedStyles.content}>
         <Image
-          source={require('../../../assets/images/character5.png')}
+          source={require('../../../assets/images/mascotacorazon.png')}
           style={lockedStyles.image}
           resizeMode="contain"
         />
