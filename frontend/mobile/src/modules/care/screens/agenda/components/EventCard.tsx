@@ -17,7 +17,7 @@ const COLORS = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Reunion': '#D38A58',
-  'Grupo AA': '#7FB77E',
+  'Grupo NA': '#7FB77E',
   'Fundación': '#00ADB5',
   'Otro': '#969696',
   'Lectura': '#406ADF',
@@ -25,7 +25,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const CATEGORY_ICONS: Record<string, string> = {
   'Reunion': 'users',
-  'Grupo AA': 'heart',
+  'Grupo NA': 'heart',
   'Fundación': 'home',
   'Otro': 'grid',
   'Lectura': 'book-open',
@@ -52,7 +52,7 @@ export default function EventCard({
   onDelete,
 }: EventCardProps) {
   return (
-    <View style={styles.eventCard}>
+    <TouchableOpacity style={styles.eventCard} onPress={onEdit} activeOpacity={0.8}>
       <View style={[styles.eventColorBar, { backgroundColor: CATEGORY_COLORS[category] }]} />
       <View style={styles.eventContent}>
         <View style={styles.eventTop}>
@@ -80,7 +80,7 @@ export default function EventCard({
           )}
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

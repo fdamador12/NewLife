@@ -31,7 +31,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Lectura': 'book-open',
 };
 
-const CATEGORIES = ['Reunion', 'Grupo AA', 'Fundación', 'Otro', 'Lectura'];
+const CATEGORIES = ['Reunion', 'Grupo NA', 'Fundación', 'Otro', 'Lectura'];
 
 interface CategorySelectorProps {
   selected: string;

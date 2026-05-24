@@ -33,7 +33,7 @@ const slides = [
     intro: false,
     tab: 'Progress',
     title: 'Progreso',
-    description: 'Gráficas, tu progreso en los 12 pasos de AA, registro diario... y todo lo que muestra lo lejos que has llegado. **Es como tu mapa de evolución.**',
+    description: 'Gráficas, tu progreso en los 12 pasos de NA, registro diario... y todo lo que muestra lo lejos que has llegado. **Es como tu mapa de evolución.**',
     image: require('../../../assets/images/tour_progress.png'),
     button: 'Continuar',
   },

@@ -81,7 +81,7 @@ export default function Step6_Telefono({ navigation }: any) {
           </View>
 
           <Text style={styles.hint}>
-            Puedes modificar este contacto más tarde en Configuración
+            Puedes agregar más contactos y modificarlos después en Configuración
           </Text>
         </View>
       </StepLayout>

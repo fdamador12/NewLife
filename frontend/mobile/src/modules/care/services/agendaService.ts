@@ -38,7 +38,7 @@ export interface AgendaResponse {
 
 const CATEGORY_MAP_TO_BACKEND: Record<string, string> = {
   'Reunion': 'REUNION',
-  'Grupo AA': 'GRUPO_AA',
+  'Grupo NA': 'GRUPO_AA',
   'Fundación': 'FUNDACION',
   'Lectura': 'LECTURA',
   'Otro': 'OTRO',
@@ -46,7 +46,7 @@ const CATEGORY_MAP_TO_BACKEND: Record<string, string> = {
 
 const CATEGORY_MAP_TO_FRONTEND: Record<string, string> = {
   'REUNION': 'Reunion',
-  'GRUPO_AA': 'Grupo AA',
+  'GRUPO_AA': 'Grupo NA',
   'FUNDACION': 'Fundación',
   'LECTURA': 'Lectura',
   'OTRO': 'Otro',
