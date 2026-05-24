@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import BottomTabNavigator from '../../../navigation/BottomTabNavigator';
 import HomeScreen from './HomeScreen';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -10,26 +10,57 @@ import SocialScreen from '../../social/screens/SocialScreen';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
 import { isGuestMode } from '../../../services/guestService';
 
+const { width } = Dimensions.get('window');
+
+const MODULE_CONFIG: Record<string, { title: string; subtitle: string; description: string }> = {
+  Motivación: {
+    title: 'Motivación',
+    subtitle: 'Frases, retos y medallas',
+    description: 'Accede a frases inspiradoras, únete a retos y gana medallas. Crea una cuenta para desbloquear todo tu potencial.',
+  },
+  Cuidado: {
+    title: 'Cuidado',
+    subtitle: 'Tu bienestar integral',
+    description: 'Explora contenido de bienestar, grupos de apoyo y herramientas para cuidarte. Disponible al crear tu cuenta.',
+  },
+  Social: {
+    title: 'Social',
+    subtitle: 'Conecta con otros',
+    description: 'Pronto podrás conectar con la comunidad y compartir tu progreso. Crea una cuenta para acceder.',
+  },
+};
+
 function LockedForGuestScreen({ navigation, moduleName }: { navigation: any; moduleName: string }) {
+  const config = MODULE_CONFIG[moduleName] || {
+    title: moduleName,
+    subtitle: 'Módulo premium',
+    description: `El módulo de ${moduleName} está disponible solo para usuarios registrados. Crea una cuenta para desbloquear todas las funciones.`,
+  };
+
   return (
     <View style={lockedStyles.container}>
-      <Image
-        source={require('../../../assets/images/character5.png')}
-        style={lockedStyles.image}
-        resizeMode="contain"
-      />
-      <Text style={lockedStyles.title}>Módulo bloqueado</Text>
-      <Text style={lockedStyles.description}>
-        El módulo de {moduleName} está disponible solo para usuarios registrados.
-        Crea una cuenta para guardar tu progreso y desbloquear todas las funciones.
-      </Text>
-      <TouchableOpacity
-        style={lockedStyles.button}
-        onPress={() => navigation.navigate('Register')}
-        activeOpacity={0.85}
-      >
-        <Text style={lockedStyles.buttonText}>Crear cuenta</Text>
-      </TouchableOpacity>
+      <View style={lockedStyles.header}>
+        <Text style={lockedStyles.headerTitle}>{config.title}</Text>
+        <Text style={lockedStyles.headerSubtitle}>{config.subtitle}</Text>
+      </View>
+
+      <View style={lockedStyles.content}>
+        <Image
+          source={require('../../../assets/images/character5.png')}
+          style={lockedStyles.image}
+          resizeMode="contain"
+        />
+        <Text style={lockedStyles.mainText}>Contenido exclusivo para miembros</Text>
+        <Text style={lockedStyles.subtitleText}>{config.description}</Text>
+
+        <TouchableOpacity
+          style={lockedStyles.button}
+          onPress={() => navigation.navigate('Register')}
+          activeOpacity={0.85}
+        >
+          <Text style={lockedStyles.buttonText}>Crear cuenta gratis</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -94,27 +125,45 @@ const lockedStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    alignItems: 'center',
+  },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  headerTitle: {
+    fontSize: fontSizes.xxl,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  headerSubtitle: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: spacing.xl,
     gap: spacing.lg,
   },
   image: {
-    width: 180,
-    height: 180,
-    marginBottom: spacing.sm,
+    width: width * 0.5,
+    height: width * 0.5,
+    opacity: 0.6,
   },
-  title: {
-    fontSize: fontSizes.xl,
-    fontWeight: '800',
+  mainText: {
+    fontSize: fontSizes.lg,
+    fontWeight: '700',
     color: colors.text,
     textAlign: 'center',
   },
-  description: {
-    fontSize: fontSizes.md,
+  subtitleText: {
+    fontSize: fontSizes.sm,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   button: {
     backgroundColor: colors.primary,
