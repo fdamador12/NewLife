@@ -268,7 +268,7 @@ Atención clínica, psicológica o médica de cualquier tipo. Diagnóstico difer
 
 - **OE2.** Desarrollar la **interfaz frontend de la aplicación móvil Android**, implementando las pantallas y flujos definidos en el prototipo de alta fidelidad en Figma, garantizando coherencia visual con la identidad gráfica de *NewLife* y una experiencia de usuario fluida.
 
-- **OE3.** Implementar el módulo Social con un sistema de **comunidades cerradas por invitación**, incluyendo el panel de administración web en Next.js que permita a gestores de fundaciones y grupos de apoyo crear comunidades, gestionar miembros, moderar contenido y administrar recursos educativos aplicables a diversas adicciones, sin requerir intervención técnica del equipo de desarrollo.
+- **OE3.** Implementar un **panel de administración web integral** en Next.js que permita a gestores de fundaciones y grupos de apoyo administrar el sistema de forma autónoma, incluyendo la gestión de comunidades cerradas por invitación, la moderación de contenido, la administración de usuarios con roles diferenciados, la carga y categorización de recursos educativos, y la visualización de métricas de uso de la plataforma, sin requerir intervención técnica del equipo de desarrollo.
 
 - **OE4.** Implementar un proceso de aseguramiento de calidad que incluya pruebas unitarias por módulo, pruebas de integración y pruebas de usabilidad junto a la fundación Shalom, documentando los resultados obtenidos y aplicando las correcciones necesarias para optimizar el funcionamiento del sistema.
 
@@ -1805,7 +1805,100 @@ Se validaron todos los endpoints principales del sistema:
 
 ### 10.3 Pruebas de usabilidad
 
-Expone las pruebas de usabilidad aplicadas para evaluar la experiencia del usuario, indicando metodología, criterios de aceptación, hallazgos y nivel de cumplimiento.
+#### Metodología
+
+Se realizaron pruebas de usabilidad con **5 expertos del sector** (directivos de la Fundación Terapéutica Shalom de Puerto Colombia, Atlántico) durante el mes de mayo de 2026. Los participantes evaluaron la aplicación móvil mediante el protocolo **System Usability Scale (SUS)**, un cuestionario estandarizado de 10 preguntas que mide la usabilidad percibida en una escala de 0 a 100.
+
+**Perfil de evaluadores:**
+- 5 profesionales del área de rehabilitación por adicciones a sustancias psicoactivas
+- Experiencia promedio: 8+ años en fundaciones terapéuticas
+- Familiaridad con aplicaciones móviles: Media-Alta
+
+**Protocolo de evaluación:**
+1. Introducción al sistema y sus objetivos (10 min)
+2. Exploración libre de la aplicación (15 min)
+3. Tareas guiadas:
+   - Registro y configuración de perfil
+   - Realizar un check-in diario
+   - Explorar el módulo de 12 pasos
+   - Activar el botón SOS
+4. Aplicación del cuestionario SUS (5 min)
+5. Entrevista abierta sobre hallazgos y sugerencias (15 min)
+
+#### Resultados SUS
+
+| Evaluador | Score SUS | Interpretación |
+|-----------|-----------|----------------|
+| Experto 1 | 100/100   | Excelente      |
+| Experto 2 | 100/100   | Excelente      |
+| Experto 3 | 87.5/100  | Excelente      |
+| Experto 4 | 97.5/100  | Excelente      |
+| Experto 5 | 97.5/100  | Excelente      |
+| **Promedio** | **96.5/100** | **Excelente** |
+
+**Escala de interpretación SUS:**
+- 0-25: Inaceptable
+- 26-50: Pobre  
+- 51-70: Aceptable
+- 71-85: Bueno
+- **86-100: Excelente** ← NewLife
+
+**Interpretación:** 
+El score promedio de **96.5/100** ubica a NewLife en el **rango más alto de usabilidad** según la escala SUS. Este resultado indica que el sistema es percibido por expertos del sector como **muy fácil e intuitivo de usar**, con una experiencia de usuario excepcional.
+
+#### Hallazgos positivos
+
+Los evaluadores destacaron los siguientes aspectos del sistema:
+
+✅ **Interfaz visual clara y amigable:** Los evaluadores describieron la aplicación como "súper buena", destacando que el diseño se acerca efectivamente a los jóvenes de manera intuitiva.
+
+✅ **Mascota evolutiva como elemento motivador:** El sistema de mascota fue valorado positivamente como un elemento diferenciador y motivacional dentro del proceso de recuperación.
+
+✅ **Sistema de comunidades moderadas:** Los expertos reconocieron la importancia crítica del contacto entre personas que están pasando o pasaron por procesos similares. Destacaron que "un adicto solo podrá ser completamente comprendido por otro adicto", y valoraron muy positivamente las funcionalidades de moderación de contenido y gestión de roles dentro de las comunidades. El hecho de que la app ofrezca control y gestión de comunidades (en contraste con grupos de WhatsApp actualmente en uso) fue considerado "una ayuda muy grande".
+
+✅ **Panel de administración integral:** Los gestores destacaron especialmente las métricas de uso como una herramienta valiosa para conocer qué tanto están utilizando la aplicación y qué funcionalidades emplean los pacientes, permitiéndoles tener mayor conocimiento del compromiso con las tareas terapéuticas asignadas.
+
+✅ **Contenidos educativos con multimedia:** La posibilidad de incluir no solo textos sino también videos (como testimonios y experiencias de vida grabados en la fundación) fue valorada como "fenomenal" por los evaluadores.
+
+✅ **Seguridad y privacidad de datos:** Los expertos destacaron las buenas prácticas en el manejo de datos sensibles, reconociendo la importancia de preservar la privacidad de personas en proceso de rehabilitación por adicciones a sustancias psicoactivas.
+
+✅ **Funcionalidades completas y necesarias:** Los evaluadores expresaron que cada funcionalidad implementada "es necesaria y ayudaría muchísimo a todo el proceso de los pacientes", destacando que respeta fielmente el diseño original propuesto.
+
+✅ **Viabilidad con usuarios reales:** Los expertos confirmaron que la aplicación "sí serviría a pacientes" que ya hicieron el acto de conciencia del cambio, reconociendo que complementa herramientas similares que actualmente utilizan (apps que envían recordatorios diarios de tiempo sobrio, por ejemplo).
+
+✅ **Potencial de adopción institucional:** Los evaluadores manifestaron interés en implementar la aplicación en el día a día de la fundación, sugiriendo capacitaciones para su uso generalizado. Expresaron entusiasmo por que el proyecto quede funcional y disponible para mejora continua.
+
+#### Sugerencias de mejora
+
+A continuación se documentan las **sugerencias y comentarios de mejora** identificados durante las pruebas de usabilidad:
+
+**Sistema de notificaciones:**
+- Expandir el sistema de notificaciones push existente para incluir recordatorios adicionales a lo largo del día (no solo los ya implementados), ya que los recordatorios constantes son especialmente importantes para mantener el compromiso de los pacientes en proceso de recuperación.
+
+**Mascota evolutiva:**
+- Agregar interacción con la mascota mediante diálogos o mensajes motivacionales que la mascota "diga" al usuario.
+- Implementar sistema de experiencia adicional para evolucionar la mascota cuando el usuario comparte la app e invita a otras personas a instalarla, incentivando la difusión orgánica de la herramienta.
+
+**Contenido educativo:**
+- Ajustar el enfoque del contenido educativo para que sea menos técnico y más basado en anécdotas y experiencias de vida reales, ya que este tipo de contenido "es lo que realmente le llama la atención a los pacientes".
+- Continuar priorizando la integración de videos de testimonios y experiencias de vida sobre contenido puramente textual.
+
+**Módulo de profesionales:**
+- Desarrollar e integrar completamente el módulo de directorio de profesionales de salud mental especializados en adicciones a sustancias psicoactivas, tanto para beneficio de los pacientes como de los psicólogos y profesionales que deseen ofrecer apoyo.
+
+**Consideraciones sobre el público objetivo:**
+
+Los evaluadores aclararon que la aplicación está dirigida principalmente a usuarios que **ya han realizado el acto de conciencia del cambio** y se encuentran en proceso activo de recuperación o post-rehabilitación. No está diseñada para usuarios en estado de alta vulnerabilidad o internamiento agudo que aún no han reconocido la necesidad de cambio.
+
+---
+
+**NOTA:** Estas sugerencias han sido documentadas y serán priorizadas para incorporación en futuras iteraciones del sistema según su impacto en la experiencia de usuario, viabilidad técnica y recursos disponibles.
+
+#### Conclusión de pruebas de usabilidad
+
+Las pruebas de usabilidad con expertos del sector validaron que NewLife cumple con altos estándares de usabilidad (**SUS: 96.5/100**). Los hallazgos positivos confirman que las decisiones de diseño tomadas durante la fase UX/UI (trabajo previo de Andrea Díaz) fueron acertadas y que la implementación técnica mantuvo la calidad de la experiencia propuesta.
+
+Las sugerencias de mejora identificadas no representan defectos críticos del sistema, sino oportunidades de refinamiento y optimización para versiones futuras. El sistema está validado para iniciar el despliegue piloto con usuarios reales en proceso de recuperación por adicciones a sustancias psicoactivas.
 
 ---
 
@@ -1985,9 +2078,9 @@ El proyecto *NewLife* alcanzó satisfactoriamente los cinco objetivos específic
 
 **OE2 — Desarrollo de módulos frontend:** Los seis módulos de la aplicación móvil fueron desarrollados siguiendo fielmente el prototipo de alta fidelidad en Figma, manteniendo coherencia visual con la identidad gráfica de *NewLife* y garantizando una experiencia fluida en iOS y Android mediante React Native con Expo SDK 55. La migración desde React Native puro a Expo simplificó significativamente el proceso de build y despliegue sin requerir cambios estructurales en los componentes ya implementados. La experiencia de usuario se ve reforzada por la navegación mediante un `BottomTabNavigator` personalizado con indicador circular animado que proporciona retroalimentación visual clara del módulo activo.
 
-**OE3 — Módulo Social con comunidades cerradas:** Se implementó completamente el sistema de comunidades cerradas por invitación, incluyendo el panel de administración web en Next.js que permite a gestores de fundaciones y grupos de apoyo crear comunidades, gestionar miembros con tres niveles de acceso diferenciado (solo ver, postear y comentar, acceso completo con chat), moderar contenido mediante soft delete, y administrar recursos educativos aplicables a diversas adicciones. El sistema de moderación incluye la capacidad de suspender miembros temporalmente y enviar solicitudes de baneo permanente al administrador principal, garantizando entornos seguros para usuarios en etapas tempranas de recuperación.
+**OE3 — Panel de administración web integral:** Se implementó completamente el panel de administración web en Next.js que permite a gestores de fundaciones y grupos de apoyo administrar el sistema de forma autónoma. Esto incluye la gestión de comunidades cerradas por invitación, la moderación de contenido mediante soft delete, la administración de usuarios con roles diferenciados (usuario, moderador, administrador, superadministrador), la carga y categorización de recursos educativos aplicables a múltiples sustancias psicoactivas, y la visualización de métricas de uso de la plataforma. El sistema elimina la necesidad de intervención técnica del equipo de desarrollo para tareas administrativas rutinarias, garantizando autonomía operativa para las fundaciones.
 
-**OE4 — Aseguramiento de calidad:** Se ejecutó un proceso exhaustivo de validación mediante 406 pruebas automatizadas (252 unitarias, 154 de integración) que alcanzaron una tasa de éxito del 100%. Las pruebas cubren los módulos críticos del sistema con cobertura de código superior al 85% en líneas, 93% en funciones y 84% en ramas. Se identificaron y corrigieron 8 bugs durante la ejecución inicial de la suite de pruebas, validando la efectividad del enfoque de aislamiento mediante mocks. Las pruebas de usabilidad con usuarios reales quedan programadas para la fase final de validación en coordinación con la Fundación Terapéutica Shalom.
+**OE4 — Aseguramiento de calidad:** Se ejecutó un proceso exhaustivo de validación mediante 406 pruebas automatizadas (252 unitarias, 154 de integración) que alcanzaron una tasa de éxito del 100%. Las pruebas cubren los módulos críticos del sistema con cobertura de código superior al 85% en líneas, 93% en funciones y 84% en ramas. Adicionalmente, se realizaron pruebas de usabilidad con 5 expertos de la Fundación Terapéutica Shalom, obteniendo un score promedio SUS de **96.5/100** (rango excelente), validando que el sistema es percibido como muy fácil e intuitivo de usar.
 
 **OE5 — Despliegue en producción:** Todos los componentes del sistema fueron desplegados exitosamente. El backend móvil y el backend admin se despliegan mediante contenedores Docker con variables de entorno inyectadas en tiempo de ejecución. El panel de administración web y la landing page se encuentran desplegados en entorno web. La aplicación móvil está lista para despliegue en Google Play Store una vez completada la fase de pruebas de usabilidad. El sistema de monitoreo post-lanzamiento queda establecido mediante los logs de NestJS y la capacidad de rastreo de errores.
 
