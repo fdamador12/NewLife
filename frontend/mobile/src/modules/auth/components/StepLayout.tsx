@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     View, Text, Image, StyleSheet, TouchableOpacity,
-    Dimensions,
+    Dimensions, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -37,47 +37,55 @@ export default function StepLayout({
     const bottomInset = useBottomInset(40);
 
     return (
-        <View style={[styles.container, { paddingBottom: bottomInset }]}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={[styles.container, { paddingBottom: bottomInset }]}>
 
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onBack} style={styles.backButton}>
-                    <Icon name="chevron-left" size={24} color={colors.text} />
-                </TouchableOpacity>
-                <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${progress}%` }]} />
-                </View>
-            </View>
-
-            <View style={styles.characterRow}>
-                <Image
-                    source={characterImage}
-                    style={styles.character}
-                    resizeMode="contain"
-                />
-                <View style={styles.bubble}>
-                    <Text style={styles.bubbleText}>{question}</Text>
-                </View>
-            </View>
-
-            <View style={styles.content}>
-                {children}
-            </View>
-
-            {showButton && (
-                disabled ? (
-                    <View style={[styles.button, styles.buttonDisabled]}>
-                        <Text style={[styles.buttonText, styles.buttonTextDisabled]}>
-                            {continueLabel}
-                        </Text>
-                    </View>
-                ) : (
-                    <TouchableOpacity style={styles.button} onPress={onContinue}>
-                        <Text style={styles.buttonText}>{continueLabel}</Text>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={onBack} style={styles.backButton}>
+                        <Icon name="chevron-left" size={24} color={colors.text} />
                     </TouchableOpacity>
-                )
-            )}
+                    <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                    </View>
+                </View>
 
-        </View>
+                <View style={styles.characterRow}>
+                    <Image
+                        source={characterImage}
+                        style={styles.character}
+                        resizeMode="contain"
+                    />
+                    <View style={styles.bubble}>
+                        <Text style={styles.bubbleText}>{question}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.content}>
+                    {children}
+                </View>
+
+                {showButton && (
+                    disabled ? (
+                        <View style={[styles.button, styles.buttonDisabled]}>
+                            <Text style={[styles.buttonText, styles.buttonTextDisabled]}>
+                                {continueLabel}
+                            </Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.button}
+                            onPress={() => {
+                                Keyboard.dismiss();
+                                onContinue?.();
+                            }}
+                        >
+                            <Text style={styles.buttonText}>{continueLabel}</Text>
+                        </TouchableOpacity>
+                    )
+                )}
+
+            </View>
+        </TouchableWithoutFeedback>
     );
 }
 

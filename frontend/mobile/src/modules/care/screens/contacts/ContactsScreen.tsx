@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator,
+  Modal, TextInput, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
@@ -21,6 +21,9 @@ export default function ContactsScreen({ navigation }: any) {
   const [nameError, setNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const bottomInset = useBottomInset(32);
 
   const { showToast } = useToast();
@@ -43,12 +46,28 @@ export default function ContactsScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, fetchContactos]);
 
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setKeyboardVisible(true);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+      setKeyboardVisible(false);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   const openAdd = () => {
     setNameError('');
     setPhoneError('');
     setEditingContact(null);
     setName('');
     setPhone('');
+    setIsClosing(false);
     setShowModal(true);
   };
 
@@ -58,10 +77,21 @@ export default function ContactsScreen({ navigation }: any) {
     setEditingContact(contact);
     setName(contact.nombre);
     setPhone(String(contact.telefono));
+    setIsClosing(false);
     setShowModal(true);
   };
 
+  const closeModal = () => {
+    Keyboard.dismiss();
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsClosing(false);
+    }, 300);
+  };
+
   const handleSave = async () => {
+    Keyboard.dismiss();
     setNameError('');
     setPhoneError('');
 
@@ -103,7 +133,7 @@ export default function ContactsScreen({ navigation }: any) {
         await addContacto({ nombre: name, telefono: phone });
         showToast('Contacto guardado', 'success');
       }
-      setShowModal(false);
+      closeModal();
     } catch (error: any) {
       console.log('Error guardando contacto:', error);
       showToast(error.message || 'Error al guardar el contacto. Intenta de nuevo.', 'error');
@@ -178,68 +208,87 @@ export default function ContactsScreen({ navigation }: any) {
         </ScrollView>
       )}
 
-      <TouchableOpacity style={[styles.addButton, { bottom: bottomInset }]} onPress={openAdd}>
-        <Text style={styles.addButtonText}>Agregar contacto</Text>
-      </TouchableOpacity>
+      {!showModal && !isClosing && (
+        <TouchableOpacity style={[styles.addButton, { bottom: bottomInset }]} onPress={openAdd}>
+          <Text style={styles.addButtonText}>Agregar contacto</Text>
+        </TouchableOpacity>
+      )}
 
       <Modal visible={showModal} transparent animationType="slide" statusBarTranslucent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
-                <Feather name="chevron-left" size={24} color={colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>
-                {editingContact ? 'Editar contacto' : 'Añadir contacto'}
-              </Text>
-            </View>
 
-            <View style={styles.avatarLarge}>
-              <View style={styles.avatarLargePlaceholder}>
-                <Feather name="user" size={40} color={colors.textMuted} />
-              </View>
-              <View style={styles.avatarEditBadge}>
-                <Feather name="edit-2" size={10} color={colors.white} />
-              </View>
-            </View>
+          {/* ✅ Backdrop — toca para cerrar modal y teclado */}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={closeModal}
+          />
 
-            <Text style={styles.inputLabel}>Nombre</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe un nombre..."
-              placeholderTextColor={colors.border}
-              value={name}
-              onChangeText={(t) => { setName(t); if (nameError) setNameError(''); }}
-              editable={!isSaving}
-            />
-            <FieldError message={nameError} />
+          {/* ✅ Modal sube exactamente la altura del teclado */}
+          <View style={[styles.modal, { marginBottom: keyboardHeight }]}>
 
-            <Text style={styles.inputLabel}>Número</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="10 dígitos..."
-              placeholderTextColor={colors.border}
-              value={phone}
-              onChangeText={(t) => {
-                const cleaned = t.replace(/[^0-9]/g, '');
-                setPhone(cleaned.slice(0, 10));
-                if (phoneError) setPhoneError('');
-              }}
-              keyboardType="phone-pad"
-              editable={!isSaving}
-            />
-            <FieldError message={phoneError} />
-
+            {/* ✅ Toca dentro del modal para cerrar teclado sin cerrar modal */}
             <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={isSaving}
+              activeOpacity={1}
+              onPress={Keyboard.dismiss}
+              style={styles.modalInner}
             >
-              {isSaving ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              )}
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={closeModal}>
+                  <Feather name="chevron-left" size={24} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>
+                  {editingContact ? 'Editar contacto' : 'Añadir contacto'}
+                </Text>
+              </View>
+
+              <View style={styles.avatarLarge}>
+                <View style={styles.avatarLargePlaceholder}>
+                  <Feather name="user" size={40} color={colors.textMuted} />
+                </View>
+                <View style={styles.avatarEditBadge}>
+                  <Feather name="edit-2" size={10} color={colors.white} />
+                </View>
+              </View>
+
+              <Text style={styles.inputLabel}>Nombre</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Escribe un nombre..."
+                placeholderTextColor={colors.border}
+                value={name}
+                onChangeText={(t) => { setName(t); if (nameError) setNameError(''); }}
+                editable={!isSaving}
+              />
+              <FieldError message={nameError} />
+
+              <Text style={styles.inputLabel}>Número</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="10 dígitos..."
+                placeholderTextColor={colors.border}
+                value={phone}
+                onChangeText={(t) => {
+                  const cleaned = t.replace(/[^0-9]/g, '');
+                  setPhone(cleaned.slice(0, 10));
+                  if (phoneError) setPhoneError('');
+                }}
+                keyboardType="phone-pad"
+                editable={!isSaving}
+              />
+              <FieldError message={phoneError} />
+
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
             </TouchableOpacity>
           </View>
         </View>
@@ -300,21 +349,37 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addButtonText: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: colors.background },
-  modal: { flex: 1, paddingTop: 60, paddingHorizontal: spacing.xl },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modal: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  modalInner: {
+    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center',
-    gap: spacing.md, marginBottom: spacing.xl,
+    gap: spacing.md, marginBottom: spacing.lg,
   },
   modalTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.text },
-  avatarLarge: { alignSelf: 'center', marginBottom: spacing.xl, position: 'relative' },
+  avatarLarge: { alignSelf: 'center', marginBottom: spacing.lg, position: 'relative' },
   avatarLargePlaceholder: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 64, height: 64, borderRadius: 32,
     backgroundColor: '#E0E0E0', alignItems: 'center', justifyContent: 'center',
   },
   avatarEditBadge: {
     position: 'absolute', bottom: 0, right: 0,
-    width: 24, height: 24, borderRadius: 12,
+    width: 20, height: 20, borderRadius: 10,
     backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
   },
   inputLabel: {
@@ -328,7 +393,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: colors.primary, borderRadius: borderRadius.full,
-    paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.xl,
+    paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.lg,
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },

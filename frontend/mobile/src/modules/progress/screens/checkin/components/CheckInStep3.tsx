@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Keyboard,
+} from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../../constants/theme';
 import BlobCard from './BlobCard';
 import { FormData } from '../../checkin/types';
@@ -25,6 +27,7 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
   const { addXp } = usePet();
 
   const handleFinish = async () => {
+    Keyboard.dismiss();
     setLoading(true);
     const guest = await isGuestMode();
     try {
@@ -41,7 +44,6 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 
       if (guest) {
         await saveGuestCheckin(checkinPayload);
-        // ✅ Si hubo consumo, resetear timer de sobriedad
         if (checkinPayload.consumo) {
           await updateGuestSobrietyDate();
         }
@@ -103,7 +105,11 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <BlobCard badge="Gratitud">
         <Text style={styles.cardQuestion}>¿Qué agradeces hoy, por pequeño que sea?</Text>
         <TextInput

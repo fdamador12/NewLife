@@ -36,6 +36,11 @@ function timeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+// ✅ Convierte Date a string local YYYY-MM-DD sin timezone
+function toLocalDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export default function AgendaScreen({ navigation }: any) {
   const { eventos, loading, error, deleteAgenda, refetch } = useAgenda();
   const { showToast } = useToast();
@@ -150,7 +155,8 @@ export default function AgendaScreen({ navigation }: any) {
                     timeTo={event.timeTo}
                     reminder={event.reminder}
                     onEdit={() => navigation.navigate('AddEventScreen', {
-                      event: { ...event, date: event.date.toISOString() },
+                      // ✅ Usar fecha local sin timezone
+                      event: { ...event, date: toLocalDateString(event.date) },
                       refetch,
                     })}
                     onDelete={() => handleDelete(event.id)}
@@ -173,7 +179,8 @@ export default function AgendaScreen({ navigation }: any) {
           <TouchableOpacity
             style={[styles.addButton, { bottom: bottomInset }]}
             onPress={() => navigation.navigate('AddEventScreen', {
-              defaultDate: selectedDate.toISOString(),
+              // ✅ Usar fecha local sin timezone
+              defaultDate: toLocalDateString(selectedDate),
               refetch,
             })}
           >

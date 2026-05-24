@@ -3,6 +3,7 @@ import {
     View, Text, TextInput, StyleSheet,
     TouchableOpacity, KeyboardAvoidingView, Platform,
     ScrollView, ActivityIndicator,
+    Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -24,6 +25,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
     };
 
     const handleSubmit = async () => {
+        Keyboard.dismiss();
         const err = validarEmail(email);
         if (err) { setEmailError(err); return; }
 

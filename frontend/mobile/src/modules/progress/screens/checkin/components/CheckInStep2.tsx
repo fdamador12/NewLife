@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Keyboard,
+} from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../../constants/theme';
 import BlobCard from './BlobCard';
 import { FormData } from '../../checkin/types';
@@ -33,7 +35,11 @@ export default function CheckInStep2({ onContinue, formData, setFormData }: Prop
   const isValid = selectedLocation !== '' && selectedSocial !== '' && formData.reflexion.trim() !== '';
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <BlobCard badge="Ubicacion">
         <Text style={styles.cardQuestion}>¿Dónde estabas?</Text>
         {LOCATIONS.map((l) => (
@@ -41,6 +47,7 @@ export default function CheckInStep2({ onContinue, formData, setFormData }: Prop
             key={l.id}
             style={[styles.optionRow, selectedLocation === l.id && styles.optionRowSelected]}
             onPress={() => {
+              Keyboard.dismiss();
               setSelectedLocation(l.id);
               setFormData({ ...formData, ubicacion: l.label });
             }}
@@ -60,6 +67,7 @@ export default function CheckInStep2({ onContinue, formData, setFormData }: Prop
             key={s.id}
             style={[styles.optionRow, selectedSocial === s.id && styles.optionRowSelected]}
             onPress={() => {
+              Keyboard.dismiss();
               setSelectedSocial(s.id);
               setFormData({ ...formData, social: s.label });
             }}
@@ -86,7 +94,13 @@ export default function CheckInStep2({ onContinue, formData, setFormData }: Prop
       </BlobCard>
 
       {isValid ? (
-        <TouchableOpacity style={styles.mainButton} onPress={onContinue}>
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => {
+            Keyboard.dismiss();
+            onContinue();
+          }}
+        >
           <Text style={styles.mainButtonText}>Continuar</Text>
         </TouchableOpacity>
       ) : (

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator,
+  ScrollView, ActivityIndicator, Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -44,6 +44,7 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
   };
 
   const handleVerify = async () => {
+    Keyboard.dismiss();
     if (fullCode.length < CODE_LENGTH) {
       showToast('Ingresa el código de 6 dígitos', 'error');
       return;
@@ -52,21 +53,15 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
     try {
       setLoading(true);
 
-      // 1. Verificar email
       await verifyEmail(email, fullCode);
-
-      // 2. Login automático
       await loginUser(email, password);
 
-      // 3. Si venía de guest — intentar migrar
       if (fromGuest) {
         setMigrating(true);
         try {
           await migrateGuestToUser();
           console.log('✅ Migración completada');
         } catch (err) {
-          // ✅ Error en migrate — flag ya guardado en migrateGuestToUser
-          // El usuario va al Home y puede reintentar desde Settings
           showToast('Tus datos se sincronizarán cuando tengas conexión', 'info');
         } finally {
           setMigrating(false);

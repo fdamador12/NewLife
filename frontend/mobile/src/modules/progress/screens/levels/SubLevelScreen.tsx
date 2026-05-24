@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   View, Text, Image, StyleSheet, TouchableOpacity, ScrollView,
+  TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
@@ -103,13 +104,16 @@ export default function SubLevelScreen({
                 </View>
             </View>
 
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                showsVerticalScrollIndicator={false}
-            >
-                {children}
-                <View style={{ height: 100 }} />
-            </ScrollView>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {children}
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+            </TouchableWithoutFeedback>
 
             {renderButton()}
         </View>

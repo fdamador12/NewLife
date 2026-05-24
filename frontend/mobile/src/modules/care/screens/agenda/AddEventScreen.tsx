@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAgenda } from '../../hooks/useAgenda';
@@ -42,6 +43,12 @@ function timeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+// ✅ Parsea YYYY-MM-DD sin problema de timezone
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 export default function AddEventScreen({ navigation, route }: any) {
   const { createAgenda, updateAgenda } = useAgenda();
   const { showToast } = useToast();
@@ -51,8 +58,12 @@ export default function AddEventScreen({ navigation, route }: any) {
 
   const existing = route.params?.event as AgendaEvent | undefined;
   const defaultDateStr = route.params?.defaultDate as string | undefined;
-  const defaultDate: Date = defaultDateStr ? new Date(defaultDateStr) : new Date();
-  const existingDate = existing?.date ? new Date(existing.date as string) : defaultDate;
+
+  // ✅ Parsear fechas localmente sin timezone
+  const defaultDate: Date = defaultDateStr ? parseLocalDate(defaultDateStr) : new Date();
+  const existingDate = existing?.date
+    ? (typeof existing.date === 'string' ? parseLocalDate(existing.date) : existing.date)
+    : defaultDate;
 
   const [title, setTitle] = useState(existing?.title || '');
   const [selectedDate, setSelectedDate] = useState<Date>(existingDate);
@@ -76,6 +87,7 @@ export default function AddEventScreen({ navigation, route }: any) {
   };
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     if (!title.trim()) {
       showToast('El título del evento es obligatorio.', 'error');
       return;

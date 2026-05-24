@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
   TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -56,6 +57,7 @@ export default function RegisterScreen({ navigation }: any) {
   const { showToast } = useToast();
 
   const handleRegister = async () => {
+    Keyboard.dismiss();
     setNombreError('');
     setEmailError('');
     setPasswordError('');
@@ -92,7 +94,6 @@ export default function RegisterScreen({ navigation }: any) {
 
       await registerUser(nombre, email, password);
 
-      // ✅ Siempre ir a VerifyEmail — el migrate ocurre después de verificar
       navigation.navigate('VerifyEmail', {
         email,
         password,

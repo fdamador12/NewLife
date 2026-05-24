@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator,
+  TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -46,7 +47,6 @@ export default function InfoAccordion({
       const guest = await isGuestMode();
 
       if (guest) {
-        // ✅ Guest — guardar en AsyncStorage
         const currentProfile = await getGuestProfile();
         await saveGuestProfile({
           ...currentProfile,
@@ -56,7 +56,6 @@ export default function InfoAccordion({
           gasto_semana: gastoSemanal.trim() ? Number(gastoSemanal.trim()) : currentProfile.gasto_semana,
         });
       } else {
-        // ✅ Usuario normal — llamada al backend
         const updates: any = {};
         if (apodo.trim()) updates.apodo = apodo.trim();
         if (pronombre.trim()) updates.pronombre = pronombre.trim();
@@ -84,88 +83,90 @@ export default function InfoAccordion({
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.header}
-        onPress={() => setExpanded(prev => !prev)}
-        activeOpacity={0.8}
-      >
-        <View style={styles.headerLeft}>
-          <Feather name="user" size={20} color={colors.text} />
-          <Text style={styles.headerLabel}>Mi información</Text>
-        </View>
-        <Feather
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={colors.textMuted}
-        />
-      </TouchableOpacity>
-
-      {expanded && (
-        <View style={styles.body}>
-          <View style={styles.divider} />
-
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Apodo</Text>
-            {editing && !readOnly
-              ? <TextInput style={styles.fieldInput} value={apodo} onChangeText={setApodo} placeholder="Tu apodo" placeholderTextColor={colors.textMuted} />
-              : <Text style={styles.fieldValue}>{apodo || '—'}</Text>
-            }
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <TouchableOpacity
+          style={styles.header}
+          onPress={() => setExpanded(prev => !prev)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.headerLeft}>
+            <Feather name="user" size={20} color={colors.text} />
+            <Text style={styles.headerLabel}>Mi información</Text>
           </View>
+          <Feather
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={colors.textMuted}
+          />
+        </TouchableOpacity>
 
-          <View style={styles.divider} />
+        {expanded && (
+          <View style={styles.body}>
+            <View style={styles.divider} />
 
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Pronombre</Text>
-            {editing && !readOnly
-              ? <TextInput style={styles.fieldInput} value={pronombre} onChangeText={setPronombre} placeholder="Él, Ella, Elle..." placeholderTextColor={colors.textMuted} />
-              : <Text style={styles.fieldValue}>{pronombre || '—'}</Text>
-            }
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Mi motivación</Text>
-            {editing && !readOnly
-              ? <TextInput style={styles.fieldInput} value={motivoSobrio} onChangeText={setMotivoSobrio} placeholder="¿Por qué quieres mantenerte sobrio?" placeholderTextColor={colors.textMuted} multiline />
-              : <Text style={styles.fieldValue}>{motivoSobrio || '—'}</Text>
-            }
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Gasto semanal estimado</Text>
-            {editing && !readOnly
-              ? <TextInput style={styles.fieldInput} value={gastoSemanal} onChangeText={setGastoSemanal} placeholder="0" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
-              : <Text style={styles.fieldValue}>{gastoSemanal ? `$${Number(gastoSemanal).toLocaleString()}` : '—'}</Text>
-            }
-          </View>
-
-          <View style={styles.divider} />
-
-          {editing ? (
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
-                <Text style={styles.cancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
-                {saving
-                  ? <ActivityIndicator size="small" color={colors.white} />
-                  : <Text style={styles.saveText}>Guardar cambios</Text>
-                }
-              </TouchableOpacity>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Apodo</Text>
+              {editing && !readOnly
+                ? <TextInput style={styles.fieldInput} value={apodo} onChangeText={setApodo} placeholder="Tu apodo" placeholderTextColor={colors.textMuted} />
+                : <Text style={styles.fieldValue}>{apodo || '—'}</Text>
+              }
             </View>
-          ) : (
-            <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
-              <Feather name="edit-2" size={16} color={colors.primary} />
-              <Text style={styles.editText}>Editar</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-    </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Pronombre</Text>
+              {editing && !readOnly
+                ? <TextInput style={styles.fieldInput} value={pronombre} onChangeText={setPronombre} placeholder="Él, Ella, Elle..." placeholderTextColor={colors.textMuted} />
+                : <Text style={styles.fieldValue}>{pronombre || '—'}</Text>
+              }
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Mi motivación</Text>
+              {editing && !readOnly
+                ? <TextInput style={styles.fieldInput} value={motivoSobrio} onChangeText={setMotivoSobrio} placeholder="¿Por qué quieres mantenerte sobrio?" placeholderTextColor={colors.textMuted} multiline />
+                : <Text style={styles.fieldValue}>{motivoSobrio || '—'}</Text>
+              }
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Gasto semanal estimado</Text>
+              {editing && !readOnly
+                ? <TextInput style={styles.fieldInput} value={gastoSemanal} onChangeText={setGastoSemanal} placeholder="0" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
+                : <Text style={styles.fieldValue}>{gastoSemanal ? `$${Number(gastoSemanal).toLocaleString()}` : '—'}</Text>
+              }
+            </View>
+
+            <View style={styles.divider} />
+
+            {editing ? (
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.cancelButton} onPress={handleCancel} disabled={saving}>
+                  <Text style={styles.cancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+                  {saving
+                    ? <ActivityIndicator size="small" color={colors.white} />
+                    : <Text style={styles.saveText}>Guardar cambios</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
+                <Feather name="edit-2" size={16} color={colors.primary} />
+                <Text style={styles.editText}>Editar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
