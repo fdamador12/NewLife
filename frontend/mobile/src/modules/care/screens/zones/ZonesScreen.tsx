@@ -1,8 +1,7 @@
-// src/screens/zones/ZonesScreen.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, TextInput, Alert, Dimensions, ActivityIndicator,
+  Modal, TextInput, Alert, Dimensions, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
@@ -91,6 +90,7 @@ export default function ZonesScreen({ navigation }: any) {
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
@@ -107,6 +107,19 @@ export default function ZonesScreen({ navigation }: any) {
     fetchZones();
   }, []);
 
+  // ✅ Detectar altura exacta del teclado
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const handleWebViewMessage = (event: any) => {
     const data = JSON.parse(event.nativeEvent.data);
@@ -252,55 +265,67 @@ export default function ZonesScreen({ navigation }: any) {
       )}
 
       <Modal visible={showModal} transparent animationType="slide" statusBarTranslucent>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowModal(false)}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Nueva zona</Text>
+        {/* ✅ Backdrop — toca para cerrar modal y teclado */}
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            Keyboard.dismiss();
+            setShowModal(false);
+          }}
+        >
+          {/* ✅ Modal sube con el teclado */}
+          <View style={[styles.modal, { marginBottom: keyboardHeight }]}>
+            {/* ✅ Toca dentro para cerrar teclado sin cerrar modal */}
+            <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss}>
+              <Text style={styles.modalTitle}>Nueva zona</Text>
 
-            <Text style={styles.inputLabel}>Nombre</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: Bar el centro..."
-              placeholderTextColor={colors.border}
-              value={newName}
-              onChangeText={setNewName}
-            />
+              <Text style={styles.inputLabel}>Nombre</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Bar el centro..."
+                placeholderTextColor={colors.border}
+                value={newName}
+                onChangeText={setNewName}
+              />
 
-            <Text style={styles.inputLabel}>Descripción (opcional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: Lugar donde solía beber..."
-              placeholderTextColor={colors.border}
-              value={newDescription}
-              onChangeText={setNewDescription}
-            />
+              <Text style={styles.inputLabel}>Descripción (opcional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Lugar donde solía consumir..."
+                placeholderTextColor={colors.border}
+                value={newDescription}
+                onChangeText={setNewDescription}
+              />
 
-            <Text style={styles.inputLabel}>Tipo de zona</Text>
-            <View style={styles.typeRow}>
+              <Text style={styles.inputLabel}>Tipo de zona</Text>
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[styles.typeButton, newType === 'risk' && styles.typeButtonRisk]}
+                  onPress={() => setNewType('risk')}
+                >
+                  <View style={[styles.typeDot, { backgroundColor: '#FF6B6B' }]} />
+                  <Text style={[styles.typeButtonText, newType === 'risk' && styles.typeButtonTextSelected]}>Riesgo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.typeButton, newType === 'safe' && styles.typeButtonSafe]}
+                  onPress={() => setNewType('safe')}
+                >
+                  <View style={[styles.typeDot, { backgroundColor: '#4A7BF7' }]} />
+                  <Text style={[styles.typeButtonText, newType === 'safe' && styles.typeButtonTextSelected]}>Segura</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                style={[styles.typeButton, newType === 'risk' && styles.typeButtonRisk]}
-                onPress={() => setNewType('risk')}
+                style={[styles.saveButton, (!newName.trim() || saving) && styles.saveButtonDisabled]}
+                disabled={!newName.trim() || saving}
+                onPress={handleSaveZone}
               >
-                <View style={[styles.typeDot, { backgroundColor: '#FF6B6B' }]} />
-                <Text style={[styles.typeButtonText, newType === 'risk' && styles.typeButtonTextSelected]}>Riesgo</Text>
+                {saving
+                  ? <ActivityIndicator color={colors.white} />
+                  : <Text style={styles.saveButtonText}>Guardar zona</Text>
+                }
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeButton, newType === 'safe' && styles.typeButtonSafe]}
-                onPress={() => setNewType('safe')}
-              >
-                <View style={[styles.typeDot, { backgroundColor: '#4A7BF7' }]} />
-                <Text style={[styles.typeButtonText, newType === 'safe' && styles.typeButtonTextSelected]}>Segura</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.saveButton, (!newName.trim() || saving) && styles.saveButtonDisabled]}
-              disabled={!newName.trim() || saving}
-              onPress={handleSaveZone}
-            >
-              {saving
-                ? <ActivityIndicator color={colors.white} />
-                : <Text style={styles.saveButtonText}>Guardar zona</Text>
-              }
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
