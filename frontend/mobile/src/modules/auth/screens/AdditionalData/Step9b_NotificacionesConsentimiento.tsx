@@ -8,19 +8,20 @@ import { useOnboarding } from '../../../../context/OnboardingContext';
 /**
  * Pantalla previa al Step10 (reloj de hora).
  * Pregunta al usuario si quiere recibir recordatorios diarios.
- * Usa un Switch (mas intuitivo para ON/OFF) que el usuario activa/desactiva
- * y luego presiona Continuar.
+ * Usa un Switch (mas intuitivo para ON/OFF).
+ *
+ * El boton Continuar SIEMPRE esta visible: si el usuario no toca el switch,
+ * se asume que no quiere notificaciones (default OFF). Si lo activa, va al
+ * reloj para elegir la hora.
  *
  * Cumple con el principio de consentimiento informado (Ley 1581).
  */
 export default function Step9b_NotificacionesConsentimiento({ navigation }: any) {
     const [enabled, setEnabled] = useState<boolean>(false);
-    const [touched, setTouched] = useState<boolean>(false);
     const { setField } = useOnboarding();
 
     const handleToggle = (value: boolean) => {
         setEnabled(value);
-        setTouched(true);
     };
 
     const handleContinue = () => {
@@ -41,7 +42,7 @@ export default function Step9b_NotificacionesConsentimiento({ navigation }: any)
             characterImage={require('../../../../assets/images/character11.png')}
             onBack={() => navigation.goBack()}
             onContinue={handleContinue}
-            showButton={touched}
+            showButton={true}
             continueLabel="Continuar"
         >
             <View style={styles.container}>

@@ -25,7 +25,6 @@ import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
 import { CompleteProfileUseCase } from '../../application/use-cases/complete-profile.use-case';
 import { GetProfileUseCase } from '../../application/use-cases/get-profile.use-case';
 import { UpdateProfileUseCase } from '../../application/use-cases/update-profile.use-case';
-import { DeleteAccountUseCase } from '../../application/use-cases/delete-account.use-case';
 import { InitialRegisterDto } from '../dtos/initial-register.dto';
 import { UpdateProfileDto } from '../dtos/update-profile.dto';
 import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-data.use-case';
@@ -36,10 +35,6 @@ import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-dat
  * El motivo es OPCIONAL: si el usuario decide compartir por que se va, lo
  * guardamos en `usuarios.delete_motivo` para retroalimentacion del producto.
  * Movil envia este motivo desde el modal de confirmacion de eliminacion.
- *
- * Los decoradores @IsOptional/@IsString son CRITICOS: sin ellos, el
- * ValidationPipe global de NestJS rechaza el body con 400 Bad Request
- * cuando llegan propiedades que no estan declaradas (whitelist mode).
  */
 class DeleteAllDataDto {
   @IsOptional()
@@ -57,7 +52,6 @@ export class UserController {
     private readonly completeProfileUseCase: CompleteProfileUseCase,
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
-    private readonly deleteAccountUseCase: DeleteAccountUseCase,
     private readonly deleteAllDataUseCase: DeleteAllDataUseCase,
   ) { }
 
@@ -88,14 +82,6 @@ export class UserController {
   @ApiBadRequestResponse({ description: 'Datos inválidos.' })
   async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
     return this.updateProfileUseCase.execute(req.user.uid, dto);
-  }
-
-  @Delete('account')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Eliminar cuenta del usuario autenticado' })
-  @ApiOkResponse({ description: 'Cuenta eliminada.' })
-  async deleteAccount(@Request() req: any) {
-    return this.deleteAccountUseCase.execute(req.user.uid);
   }
 
   /**

@@ -7,14 +7,17 @@ import api from './api';
  * preferencia guardada del usuario en ROBLE.
  *
  * Casos de uso:
- * - Login exitoso → cargar settings y agendar si push_notifications_enabled
- * - Logout → cancelar TODAS las notificaciones del SO
- * - Delete account → cancelar TODAS las notificaciones antes del logout
+ * - Login exitoso -> cargar settings y agendar si push_notifications_enabled
+ * - Logout -> cancelar TODAS las notificaciones del SO
+ * - Delete account -> cancelar TODAS antes del logout
+ * - Cambio de hora en Settings -> re-agendar con la nueva hora
  *
  * Compatible con Expo Go (lazy imports + verificacion executionEnvironment).
  */
 
 const DAILY_REMINDER_ID = 'newlife-daily-reminder';
+const NOTIFICATION_TITLE = '¡Tu momento NewLife llegó!';
+const NOTIFICATION_BODY = 'Cada día es una nueva victoria. Abre la app y registra tu check-in diario.';
 
 const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
@@ -28,7 +31,7 @@ const loadNotifications = async () => {
     try {
         return await import('expo-notifications');
     } catch (error) {
-        console.error('❌ No se pudo cargar expo-notifications:', error);
+        console.error('No se pudo cargar expo-notifications:', error);
         return null;
     }
 };
@@ -61,23 +64,22 @@ const ensurePermissions = async (): Promise<boolean> => {
 };
 
 /**
- * Llamar despues de un login exitoso.
+ * Llamar despues de un login exitoso o al abrir la app.
  * Obtiene las preferencias del usuario y agenda la notificacion diaria si aplica.
  */
 export async function syncNotificationsOnLogin(): Promise<void> {
     try {
         const Notifications = await loadNotifications();
         if (!Notifications) {
-            console.log('ℹ️ Notificaciones no disponibles en Expo Go (skip sync)');
+            console.log('Notificaciones no disponibles en Expo Go (skip sync)');
             return;
         }
 
-        // Obtener settings del backend
         const response = await api.get('/notifications/settings');
         const settings = response.data;
 
         if (!settings) {
-            console.log('ℹ️ Usuario sin configuracion de notificaciones aun');
+            console.log('Usuario sin configuracion de notificaciones aun');
             return;
         }
 
@@ -88,38 +90,32 @@ export async function syncNotificationsOnLogin(): Promise<void> {
         } = settings;
 
         if (!push_notifications_enabled) {
-            // El usuario tiene notificaciones desactivadas → asegurar que no hay
-            // ninguna agendada (por si quedo algo de una sesion anterior).
             await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
-            console.log('ℹ️ Usuario tiene notificaciones desactivadas, ninguna agendada');
+            console.log('Usuario tiene notificaciones desactivadas, ninguna agendada');
             return;
         }
 
-        // Validar que tenemos hora y minuto
         if (preferred_reminder_hour === null || preferred_reminder_hour === undefined) {
-            console.log('ℹ️ Usuario habilitado pero sin hora preferida, no se agenda nada');
+            console.log('Usuario habilitado pero sin hora preferida, no se agenda nada');
             return;
         }
 
         const hour = preferred_reminder_hour;
         const minute = preferred_reminder_minute ?? 0;
 
-        // Pedir permisos (no bloqueante: si denega, no agendamos pero no fallamos)
         const hasPermission = await ensurePermissions();
         if (!hasPermission) {
-            console.warn('⚠️ Sin permisos de notificacion, no se puede agendar');
+            console.warn('Sin permisos de notificacion, no se puede agendar');
             return;
         }
 
-        // Cancelar agendamiento previo (idempotente)
         await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
 
-        // Agendar nuevo
         await Notifications.scheduleNotificationAsync({
             identifier: DAILY_REMINDER_ID,
             content: {
-                title: '🌟 Tu momento NewLife',
-                body: 'Abre la app para ver tu frase del dia y registrar tu check-in',
+                title: NOTIFICATION_TITLE,
+                body: NOTIFICATION_BODY,
                 sound: true,
             },
             trigger: {
@@ -130,11 +126,49 @@ export async function syncNotificationsOnLogin(): Promise<void> {
         });
 
         console.log(
-            `✅ Notificacion diaria sincronizada al iniciar sesion: ${hour}:${minute.toString().padStart(2, '0')}`,
+            `Notificacion diaria agendada: ${hour}:${minute.toString().padStart(2, '0')}`,
         );
     } catch (error: any) {
-        console.log('⚠️ Error en syncNotificationsOnLogin:', error?.message ?? error);
-        // Fire-and-forget: no propagar errores para no bloquear login
+        console.log('Error en syncNotificationsOnLogin:', error?.message ?? error);
+    }
+}
+
+/**
+ * Re-agenda el recordatorio diario.
+ * Usar despues de que el usuario cambie la hora en Settings.
+ */
+export async function rescheduleDailyReminder(
+    hour: number,
+    minute: number,
+): Promise<boolean> {
+    try {
+        const Notifications = await loadNotifications();
+        if (!Notifications) return false;
+
+        const hasPermission = await ensurePermissions();
+        if (!hasPermission) return false;
+
+        await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
+
+        await Notifications.scheduleNotificationAsync({
+            identifier: DAILY_REMINDER_ID,
+            content: {
+                title: NOTIFICATION_TITLE,
+                body: NOTIFICATION_BODY,
+                sound: true,
+            },
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DAILY,
+                hour,
+                minute,
+            },
+        });
+
+        console.log(`Notificacion re-agendada: ${hour}:${minute.toString().padStart(2, '0')}`);
+        return true;
+    } catch (error: any) {
+        console.log('Error en rescheduleDailyReminder:', error?.message ?? error);
+        return false;
     }
 }
 
@@ -148,8 +182,90 @@ export async function cancelAllLocalNotifications(): Promise<void> {
         if (!Notifications) return;
 
         await Notifications.cancelAllScheduledNotificationsAsync();
-        console.log('✅ Todas las notificaciones locales canceladas');
+        console.log('Todas las notificaciones locales canceladas');
     } catch (error: any) {
-        console.log('⚠️ Error cancelando notificaciones:', error?.message ?? error);
+        console.log('Error cancelando notificaciones:', error?.message ?? error);
+    }
+}
+
+// ─── NOTIFICACIONES DE AGENDA ────────────────────────────────────────────────
+
+/**
+ * Agenda una notificacion para un evento de agenda.
+ * Se dispara X minutos ANTES de la hora del evento.
+ *
+ * @param eventoId - ID del evento (se usa como identifier para poder cancelar despues)
+ * @param title - titulo del evento (ej: "Cita con psicologo")
+ * @param eventDate - fecha y hora del evento
+ * @param minutesBefore - cuantos minutos antes (default 30)
+ * @returns identifier de la notificacion o null si fallo/no se agendo
+ */
+export async function scheduleAgendaReminder(
+    eventoId: string,
+    title: string,
+    eventDate: Date,
+    minutesBefore: number = 30,
+): Promise<string | null> {
+    try {
+        const Notifications = await loadNotifications();
+        if (!Notifications) {
+            console.log('Notificaciones no disponibles (Expo Go o sin libreria)');
+            return null;
+        }
+
+        const hasPermission = await ensurePermissions();
+        if (!hasPermission) return null;
+
+        // Calcular cuando disparar: eventDate - minutesBefore minutos
+        const triggerDate = new Date(eventDate.getTime() - minutesBefore * 60 * 1000);
+
+        // Validar que la fecha de trigger es futura
+        if (triggerDate.getTime() <= Date.now()) {
+            console.warn(`No se puede agendar recordatorio en el pasado para evento ${eventoId}`);
+            return null;
+        }
+
+        // Usar el evento_id como identifier para poder cancelarlo despues
+        const identifier = `agenda-${eventoId}`;
+
+        // Cancelar previo si existia (idempotente)
+        await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => {});
+
+        await Notifications.scheduleNotificationAsync({
+            identifier,
+            content: {
+                title: `Recordatorio: ${title}`,
+                body: `Tu evento es en ${minutesBefore} minutos. Prepárate.`,
+                sound: true,
+            },
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: triggerDate,
+            },
+        });
+
+        console.log(`Recordatorio agendado para evento ${eventoId} a las ${triggerDate.toISOString()}`);
+        return identifier;
+    } catch (error: any) {
+        console.log('Error en scheduleAgendaReminder:', error?.message ?? error);
+        return null;
+    }
+}
+
+/**
+ * Cancela el recordatorio de un evento de agenda especifico.
+ *
+ * @param eventoId - ID del evento
+ */
+export async function cancelAgendaReminder(eventoId: string): Promise<void> {
+    try {
+        const Notifications = await loadNotifications();
+        if (!Notifications) return;
+
+        const identifier = `agenda-${eventoId}`;
+        await Notifications.cancelScheduledNotificationAsync(identifier);
+        console.log(`Recordatorio de evento ${eventoId} cancelado`);
+    } catch (error: any) {
+        console.log(`No se pudo cancelar recordatorio del evento ${eventoId}:`, error?.message ?? error);
     }
 }
