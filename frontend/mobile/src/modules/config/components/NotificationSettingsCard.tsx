@@ -11,9 +11,17 @@ import TimePickerModal from './TimePickerModal';
 
 /**
  * Card expandible para gestionar notificaciones desde Settings.
- * Sigue el patron visual exacto de InfoAccordion.tsx (mismas sombras, padding,
- * iconos, divisores, jerarquia tipografica).
+ * Sigue el patron visual exacto de InfoAccordion.tsx.
+ *
+ * FIX: cuando el usuario activa el toggle por PRIMERA vez sin tener una hora
+ * configurada previamente (ej. dijo "no" en el onboarding y ahora cambia de
+ * opinion en Settings), se le asigna automaticamente una hora por defecto
+ * (9:00 AM) para que la notificacion se pueda agendar.
  */
+
+const DEFAULT_HOUR = 9;
+const DEFAULT_MINUTE = 0;
+
 export default function NotificationSettingsCard() {
     const { showToast } = useToast();
     const {
@@ -37,8 +45,13 @@ export default function NotificationSettingsCard() {
     }, [getSettings]);
 
     const enabled = settings?.push_notifications_enabled === true;
-    const hour = settings?.preferred_reminder_hour ?? 9;
-    const minute = settings?.preferred_reminder_minute ?? 0;
+    const hour = settings?.preferred_reminder_hour ?? DEFAULT_HOUR;
+    const minute = settings?.preferred_reminder_minute ?? DEFAULT_MINUTE;
+
+    // True si el usuario NO tiene hora preferida guardada (vino del onboarding con "no")
+    const noHasStoredTime =
+        settings?.preferred_reminder_hour === null ||
+        settings?.preferred_reminder_hour === undefined;
 
     const formatTime = (h: number, m: number) => {
         const period = h >= 12 ? 'PM' : 'AM';
@@ -47,13 +60,35 @@ export default function NotificationSettingsCard() {
     };
 
     const handleToggle = async (value: boolean) => {
-        const updated = await toggleNotifications(value);
-        if (!updated) {
-            showToast('No se pudo actualizar. Intenta de nuevo.', 'error');
-            return;
-        }
-
         if (value) {
+            // Activando: si no tiene hora previa, guardamos enabled=true + hora por defecto
+            // en una sola llamada para evitar quedar en estado inconsistente (enabled=true sin hora)
+            if (noHasStoredTime) {
+                const updated = await setPreferredTime(DEFAULT_HOUR, DEFAULT_MINUTE, true);
+                if (!updated) {
+                    showToast('No se pudo actualizar. Intenta de nuevo.', 'error');
+                    return;
+                }
+
+                const ok = await scheduleDailyReminder(DEFAULT_HOUR, DEFAULT_MINUTE);
+                if (ok) {
+                    showToast(
+                        `Recordatorio activado a las ${formatTime(DEFAULT_HOUR, DEFAULT_MINUTE)}. Puedes cambiar la hora abajo.`,
+                        'success',
+                    );
+                } else {
+                    showToast('Activado, pero faltan permisos del sistema', 'info');
+                }
+                return;
+            }
+
+            // Ya tenia hora previa: solo prender + agendar con la hora guardada
+            const updated = await toggleNotifications(true);
+            if (!updated) {
+                showToast('No se pudo actualizar. Intenta de nuevo.', 'error');
+                return;
+            }
+
             const ok = await scheduleDailyReminder(hour, minute);
             if (ok) {
                 showToast(`Recordatorio activado a las ${formatTime(hour, minute)}`, 'success');
@@ -61,6 +96,12 @@ export default function NotificationSettingsCard() {
                 showToast('Activado, pero faltan permisos del sistema', 'info');
             }
         } else {
+            // Desactivando: solo apagar + cancelar
+            const updated = await toggleNotifications(false);
+            if (!updated) {
+                showToast('No se pudo actualizar. Intenta de nuevo.', 'error');
+                return;
+            }
             await cancelDailyReminder();
             showToast('Recordatorio desactivado', 'success');
         }
