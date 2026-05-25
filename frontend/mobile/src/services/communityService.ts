@@ -50,12 +50,12 @@ export const deletePost = async (communityId: string, postId: string) => {
 };
 
 export const getUserPosts = async () => {
-  const res = await api.get('/user/posts');
+  const res = await api.get('/communities/my-posts');
   return res.data;
 };
 
 export const getUserPostsById = async (robleId: string) => {
-  const res = await api.get(`/user/${robleId}/posts`);
+  const res = await api.get(`/communities/users/${robleId}/posts`);
   return res.data;
 };
 

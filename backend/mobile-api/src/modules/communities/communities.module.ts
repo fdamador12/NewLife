@@ -28,6 +28,11 @@ import { LikeCommentUseCase } from './application/use-cases/like-comment.use-cas
 import { ReplyToCommentUseCase } from './application/use-cases/reply-to-comment.use-case';
 import { LikeCommentReplyUseCase } from './application/use-cases/like-comment-reply.use-case';
 import { DeleteReplyUseCase } from './application/use-cases/delete-reply.use-case';
+import { GetUserPostsUseCase } from './application/use-cases/get-user-posts.use-case';
+import { GetUserPostsByIdUseCase } from './application/use-cases/get-user-posts-by-id.use-case';
+import { GetForumsUseCase } from './application/use-cases/get-forums.use-case';
+import { GetForumDetailUseCase } from './application/use-cases/get-forum-detail.use-case';
+import { ReplyForumUseCase } from './application/use-cases/reply-forum.use-case';
 
 @Module({
   imports: [AuthModule, DatabaseModule],
@@ -59,6 +64,11 @@ import { DeleteReplyUseCase } from './application/use-cases/delete-reply.use-cas
     ReplyToCommentUseCase,
     LikeCommentReplyUseCase,
     DeleteReplyUseCase,
+    GetUserPostsUseCase,
+    GetUserPostsByIdUseCase,
+    GetForumsUseCase,
+    GetForumDetailUseCase,
+    ReplyForumUseCase,
   ],
   exports: [ResolveUserIdHelper]
 })
