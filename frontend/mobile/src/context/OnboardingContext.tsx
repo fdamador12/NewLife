@@ -12,6 +12,8 @@ type OnboardingData = {
   comp_logros_comunid?: boolean;
   moment_motiv?: string;
   nombre_contacto?: string;
+  // Preferencia de notificaciones elegida en Step9b
+  wants_notifications?: boolean;
 };
 
 type OnboardingContextType = {

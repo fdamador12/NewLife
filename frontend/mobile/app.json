@@ -1,10 +1,10 @@
 {
-  "name": "mobile",
   "expo": {
     "name": "NewLife",
     "slug": "newlife",
     "version": "1.1.0",
     "icon": "./src/assets/images/logo.png",
+    "scheme": "newlife",
     "platforms": [
       "android"
     ],
@@ -19,14 +19,25 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM"
       ]
     },
     "plugins": [
       "expo-font",
       "expo-audio",
       "@react-native-community/datetimepicker",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/images/logo.png",
+          "color": "#c97b3f",
+          "defaultChannel": "newlife-default"
+        }
+      ]
     ],
     "extra": {
       "eas": {

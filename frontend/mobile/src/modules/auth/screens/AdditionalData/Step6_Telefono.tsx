@@ -41,7 +41,7 @@ export default function Step6_Telefono({ navigation }: any) {
         onContinue={() => {
           setField('telefono', parseInt(phone));
           setField('nombre_contacto', name);
-          navigation.navigate('Step10');
+          navigation.navigate('Step9b');
         }}
         showButton={true}
         disabled={!isValid}

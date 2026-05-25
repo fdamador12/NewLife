@@ -10,6 +10,7 @@ import {
   isGuestTourCompleted,
   hasGuestCompletedProfile,
 } from '../services/guestService';
+import { syncNotificationsOnLogin } from '../services/notificationSync';
 
 export default function LoaderScreen({ navigation }: any) {
   useEffect(() => {
@@ -38,6 +39,12 @@ export default function LoaderScreen({ navigation }: any) {
               return;
             }
 
+            // 🔔 Sincronizar notificaciones locales con la preferencia del usuario.
+            // Fire-and-forget: no bloquea la navegacion si falla.
+            syncNotificationsOnLogin().catch((err) => {
+              console.log('⚠️ No se pudieron sincronizar notificaciones:', err);
+            });
+
             const email = await AsyncStorage.getItem('userEmail');
             const tourCompleted = await AsyncStorage.getItem(`tourCompleted_${email}`);
 
@@ -49,16 +56,6 @@ export default function LoaderScreen({ navigation }: any) {
             // Antes este catch hacia navigation.replace('Home'), lo cual
             // causaba que cuentas eliminadas o con tokens corruptos entraran
             // igual al Home con un usuario fantasma que no existe en backend.
-            //
-            // Causas posibles del 401:
-            // - La cuenta fue eliminada (estado='ELIMINADO' en backend)
-            // - El refresh token expiro
-            // - El backend cambio el secret de JWT
-            // - Tokens corruptos en AsyncStorage de pruebas viejas
-            //
-            // Comportamiento correcto: limpiar credenciales basura y mandar
-            // al usuario a Welcome para que se loguee de nuevo o entre como
-            // invitado.
             console.warn(
               '⚠️ Sesion invalida o cuenta eliminada, limpiando tokens y redirigiendo a Welcome',
               err?.response?.status,
@@ -83,7 +80,6 @@ export default function LoaderScreen({ navigation }: any) {
           const completedProfile = await hasGuestCompletedProfile();
 
           if (!completedProfile) {
-            // Guest sin onboarding → mostrar Story
             navigation.replace('Story');
             return;
           }

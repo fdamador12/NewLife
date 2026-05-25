@@ -11,6 +11,7 @@ import { loginUser, getOnboardingStatus } from '../../../services/authService';
 import FieldError from '../../../feedback/FieldError';
 import { useToast } from '../../../feedback/ToastContext';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
+import { syncNotificationsOnLogin } from '../../../services/notificationSync';
 
 const INPUT_HEIGHT = 52;
 
@@ -106,6 +107,12 @@ export default function LoginScreen({ navigation }: any) {
 
       // 📊 Analytics: trackear login exitoso
       analytics.track(EVENT_TYPES.USER_LOGGED_IN);
+
+      // 🔔 Sincronizar notificaciones locales con la preferencia del usuario.
+      // Fire-and-forget: no bloquea la navegacion si falla.
+      syncNotificationsOnLogin().catch((err) => {
+        console.log('⚠️ No se pudieron sincronizar notificaciones:', err);
+      });
 
       const status = await getOnboardingStatus();
       navigation.navigate(status.completed ? 'Home' : 'Story');

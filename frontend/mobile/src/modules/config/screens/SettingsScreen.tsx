@@ -10,8 +10,10 @@ import { usePet } from '../../pet/hooks/usePet';
 import { useToast } from '../../../feedback/ToastContext';
 import InfoAccordion from '../components/InfoAccordion';
 import SettingsRow from '../components/SettingsRow';
+import NotificationSettingsCard from '../components/NotificationSettingsCard';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
 import { isGuestMode, clearGuestData } from '../../../services/guestService';
+import { cancelAllLocalNotifications } from '../../../services/notificationSync';
 
 export default function SettingsScreen({ navigation }: any) {
   const { showToast } = useToast();
@@ -21,10 +23,14 @@ export default function SettingsScreen({ navigation }: any) {
   const [pronombre, setPronombre] = useState('');
   const [motivoSobrio, setMotivoSobrio] = useState('');
   const [gastoSemanal, setGastoSemanal] = useState('');
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        const guest = await isGuestMode();
+        setIsGuest(guest);
+
         const data = await getProfile();
         setApodo(data?.apodo || '');
         setPronombre(data?.pronombre || '');
@@ -46,11 +52,18 @@ export default function SettingsScreen({ navigation }: any) {
       if (!guest) {
         await analytics.track(EVENT_TYPES.USER_LOGGED_OUT);
       }
+
+      // 🔔 Cancelar TODAS las notificaciones locales antes de cerrar sesion.
+      // Razon: si el usuario cierra sesion y otro usuario entra en el mismo
+      // dispositivo, no queremos que sigan llegando notificaciones del usuario
+      // anterior. Las del nuevo usuario se reagendaran en su proximo login.
+      await cancelAllLocalNotifications();
+
       resetPet();
       if (guest) {
         await clearGuestData();
       } else {
-        await logoutUser(); // ← reemplaza el AsyncStorage.multiRemove
+        await logoutUser();
       }
       analytics.reset();
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
@@ -95,6 +108,14 @@ export default function SettingsScreen({ navigation }: any) {
         />
 
         <View style={styles.gap} />
+
+        {/* Notificaciones - solo para usuarios registrados (no guest) */}
+        {!isGuest && (
+          <>
+            <NotificationSettingsCard />
+            <View style={styles.gap} />
+          </>
+        )}
 
         <SettingsRow
           icon="shield"

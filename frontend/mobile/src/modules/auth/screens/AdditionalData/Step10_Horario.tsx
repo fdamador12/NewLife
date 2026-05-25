@@ -10,13 +10,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isGuestMode, saveGuestProfile, saveGuestSobrietyStart, createGuestContact, markGuestProfileCompleted } from '../../../../services/guestService';
 import { markOnboardingProfileCompleted } from '../../../../services/onboarding-storage';
 import { useToast } from '../../../../feedback/ToastContext';
+import { useNotificationSettings } from '../../../../hooks/useNotificationSettings';
+import { useLocalNotifications } from '../../../../hooks/useLocalNotifications';
 
 const { width } = Dimensions.get('window');
 const CLOCK_SIZE = width * 0.7;
 const CENTER = CLOCK_SIZE / 2;
 const RADIUS = CENTER - 20;
 
-export default function Step10_Horario({ navigation }: any) {
+export default function Step10_Horario({ navigation, route }: any) {
     const [hour, setHour] = useState(9);
     const [minute, setMinute] = useState(0);
     const [period, setPeriod] = useState<'AM' | 'PM'>('AM');
@@ -24,6 +26,12 @@ export default function Step10_Horario({ navigation }: any) {
     const [loading, setLoading] = useState(false);
     const { data } = useOnboarding();
     const { showToast } = useToast();
+    const { updateSettings } = useNotificationSettings();
+    const { scheduleDailyReminder } = useLocalNotifications();
+
+    // Si el usuario dijo "NO" en Step9b, saltamos el reloj
+    const skipClock = route?.params?.skipClock === true;
+    const wantsNotifications = data?.wants_notifications === true;
 
     const hourNumbers = Array.from({ length: 12 }, (_, i) => i + 1);
     const minuteNumbers = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -54,17 +62,26 @@ export default function Step10_Horario({ navigation }: any) {
         try {
             setLoading(true);
 
-            const hourIn24 = period === 'PM' && hour !== 12
-                ? hour + 12
-                : period === 'AM' && hour === 12
-                    ? 0
-                    : hour;
-            const moment_motiv = `${hourIn24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
+            // Si saltamos el reloj, hora por defecto (no se usará)
+            const hourIn24 = skipClock
+                ? 9
+                : (period === 'PM' && hour !== 12
+                    ? hour + 12
+                    : period === 'AM' && hour === 12
+                        ? 0
+                        : hour);
+            const minuteFinal = skipClock ? 0 : minute;
+            const moment_motiv = `${hourIn24.toString().padStart(2, '0')}:${minuteFinal.toString().padStart(2, '0')}:00`;
 
             const guest = await isGuestMode();
 
+            // IMPORTANTE: extraer nombre_contacto Y wants_notifications del data.
+            // wants_notifications es solo para uso interno del frontend (decide si agendar
+            // notificacion local), NO va al backend de completeProfile que valida estrictamente
+            // los campos permitidos.
+            const { nombre_contacto, wants_notifications, ...profileData } = data;
+
             if (guest) {
-                const { nombre_contacto, ...profileData } = data;
                 await saveGuestProfile({ ...profileData, moment_motiv });
                 await saveGuestSobrietyStart(data.ult_fecha_consumo);
 
@@ -73,13 +90,39 @@ export default function Step10_Horario({ navigation }: any) {
                 }
 
                 await markGuestProfileCompleted();
+
+                // Solo agendar local (guest no usa backend)
+                if (wantsNotifications) {
+                    await scheduleDailyReminder(hourIn24, minuteFinal).catch((err) => {
+                        console.log('⚠️ No se pudo agendar notificacion local:', err);
+                    });
+                }
+
                 navigation.navigate('Congratulations');
             } else {
-                const { nombre_contacto, ...profileData } = data;
                 await completeProfile({ ...profileData, moment_motiv });
 
                 if (nombre_contacto && profileData.telefono) {
                     await createContact(nombre_contacto, profileData.telefono.toString());
+                }
+
+                // 🔔 Guardar preferencias en ROBLE
+                try {
+                    await updateSettings({
+                        push_notifications_enabled: wantsNotifications,
+                        preferred_reminder_hour: wantsNotifications ? hourIn24 : null,
+                        preferred_reminder_minute: wantsNotifications ? minuteFinal : null,
+                    });
+                    console.log('✅ Preferencias guardadas en ROBLE');
+                } catch (notifErr) {
+                    console.log('⚠️ No se pudo guardar preferencias en ROBLE:', notifErr);
+                }
+
+                // 🔔 Agendar notificacion local si aplica
+                if (wantsNotifications) {
+                    await scheduleDailyReminder(hourIn24, minuteFinal).catch((err) => {
+                        console.log('⚠️ No se pudo agendar notificacion local:', err);
+                    });
                 }
 
                 navigation.navigate('Congratulations');
@@ -91,6 +134,27 @@ export default function Step10_Horario({ navigation }: any) {
             setLoading(false);
         }
     };
+
+    // Si saltamos el reloj, mostrar layout simplificado
+    if (skipClock) {
+        return (
+            <StepLayout
+                currentStep={7}
+                question="¡Listo! Finalicemos tu perfil"
+                characterImage={require('../../../../assets/images/character11.png')}
+                onBack={() => navigation.goBack()}
+                onContinue={handleFinish}
+                showButton={true}
+            >
+                <View style={styles.container}>
+                    <Text style={styles.skipText}>
+                        Has elegido no recibir recordatorios. Podrás activarlos cuando
+                        quieras desde Configuración.
+                    </Text>
+                </View>
+            </StepLayout>
+        );
+    }
 
     return (
         <StepLayout
@@ -206,6 +270,13 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         gap: spacing.md,
+    },
+    skipText: {
+        fontSize: fontSizes.md,
+        color: colors.text,
+        textAlign: 'center',
+        paddingHorizontal: spacing.lg,
+        lineHeight: 24,
     },
     timeDisplay: {
         flexDirection: 'row',

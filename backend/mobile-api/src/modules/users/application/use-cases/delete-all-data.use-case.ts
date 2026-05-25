@@ -17,6 +17,8 @@ const UUID_TABLES = [
   'contenido_favorito',
   'zonas',
   'config_usuarios',
+  // FIX 2026-05: agregar tabla de notificaciones para que se borre con la cuenta
+  'user_notification_settings',
 ];
 
 // Tablas donde el ID es el _id de Roble (user_id en esas tablas).
@@ -48,16 +50,11 @@ const ANONYMIZED_NAME = '[Cuenta eliminada]';
  *
  * FLUJO:
  * 1. Resuelve el _id de Roble del usuario por su usuario_id (uuid del JWT).
- * 2. Borra los datos personales de 25 tablas en paralelo.
+ * 2. Borra los datos personales de las tablas en paralelo.
  * 3. SOFT DELETE del registro en `usuarios`:
  *    - Marca estado='ELIMINADO' para bloqueo de login
  *    - Anonimiza `nombre` con placeholder (sin romper schema NOT NULL)
  *    - Guarda `deleted_at` y opcionalmente `delete_motivo`
- *
- * SCHEMA REQUERIDO en tabla `usuarios`:
- * - `estado` (varchar, nullable): se setea a 'ELIMINADO'
- * - `deleted_at` (timestamp, nullable): cuando se elimino
- * - `delete_motivo` (varchar, nullable): motivo opcional del usuario
  *
  * IMPORTANTE: NO ponemos campos a null aunque parezca natural hacerlo.
  * Razon: el schema actual tiene `nombre`, `last_login`, etc. como NOT NULL,
@@ -68,6 +65,11 @@ const ANONYMIZED_NAME = '[Cuenta eliminada]';
  * - `nombre` → placeholder "[Cuenta eliminada]" (cumple GDPR + no rompe codigo)
  * - `last_login` → se conserva (no es PII identificable)
  * - Otros campos → se conservan (la cuenta no puede acceder, son inutiles)
+ *
+ * NOTA SOBRE NOTIFICACIONES LOCALES:
+ * Las notificaciones agendadas en el DISPOSITIVO del usuario NO pueden ser
+ * canceladas desde el backend. El frontend debe llamar a
+ * `cancelAllScheduledNotificationsAsync()` ANTES de invocar este endpoint.
  */
 @Injectable()
 export class DeleteAllDataUseCase {

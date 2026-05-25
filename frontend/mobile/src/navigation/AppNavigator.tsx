@@ -25,6 +25,7 @@ import Step3_UltimoConsumo from '../modules/auth/screens/AdditionalData/Step3_Ul
 import Step4_Motivo from '../modules/auth/screens/AdditionalData/Step4_Motivo';
 import Step5_Dinero from '../modules/auth/screens/AdditionalData/Step5_Dinero';
 import Step6_Telefono from '../modules/auth/screens/AdditionalData/Step6_Telefono';
+import Step9b_NotificacionesConsentimiento from '../modules/auth/screens/AdditionalData/Step9b_NotificacionesConsentimiento';
 import Step10_Horario from '../modules/auth/screens/AdditionalData/Step10_Horario';
 import MainScreen from '../modules/home/screens/MainScreen';
 import SOSScreen from '../modules/home/screens/SOSScreen';
@@ -121,6 +122,7 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Step4" component={Step4_Motivo} />
                   <Stack.Screen name="Step5" component={Step5_Dinero} />
                   <Stack.Screen name="Step6" component={Step6_Telefono} />
+                  <Stack.Screen name="Step9b" component={Step9b_NotificacionesConsentimiento} />
                   <Stack.Screen name="Step10" component={Step10_Horario} />
                   <Stack.Screen name="Home" component={MainScreen} />
                   <Stack.Screen name="SOS" component={SOSScreen} />
