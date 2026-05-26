@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getGratitudeHistory } from '../../../services/progressService';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
+import { isGuestMode, getGuestCheckins } from '../../../services/guestService';
 
 interface GratitudeEntry {
   dia: string;
@@ -18,61 +19,84 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Analytics: trackear visita al historial de gratitud (al montar).
   useEffect(() => {
     analytics.track(EVENT_TYPES.GRATITUDE_HISTORY_VIEWED);
   }, []);
 
   useEffect(() => {
-    fetchGratitudeHistory();
+    let cancelled = false;
+    const init = async () => {
+      console.log('🔄 Iniciando GratitudeHistoryScreen...');
+      const guest = await isGuestMode();
+      console.log('👤 isGuest:', guest);
+      if (!cancelled) {
+        fetchGratitudeHistory(guest);
+      }
+    };
+    init();
+    return () => { cancelled = true; };
   }, []);
 
-  const fetchGratitudeHistory = async () => {
+  const fetchGratitudeHistory = async (guest: boolean) => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('📤 Obteniendo historial de gratitud...');
-      
-      const response = await getGratitudeHistory();
-      
-      console.log('✅ Respuesta del servidor:', response);
+      console.log('📥 fetchGratitudeHistory llamado con guest:', guest);
+  if (guest) {
+    const checkins = await getGuestCheckins();
+    const filtered = checkins.filter((c: any) => c.gratitud && c.gratitud.trim() !== '');
 
-      // Extraer los registros
-      const records = response?.data || [];
+    const formatted = filtered
+      .map((c: any) => {
+        const date = new Date(c.dia + 'T00:00:00');
+        return {
+          diaRaw: c.dia, // ✅ guardar fecha original para ordenar
+          dia: date.toLocaleDateString('es-ES', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }),
+          gratitud: c.gratitud,
+          hora: c.hora || '00:00',
+        };
+      })
+      .sort((a: any, b: any) => {
+        // ✅ ordenar por fecha original + hora
+        const dateTimeA = `${a.diaRaw}T${a.hora}`;
+        const dateTimeB = `${b.diaRaw}T${b.hora}`;
+        return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime();
+      })
+      .map(({ diaRaw, ...rest }: any) => rest); // ✅ quitar diaRaw antes de setear
 
-      // ✅ DESPUÉS (ordena por fecha + hora)
-      const sorted = records.sort((a: GratitudeEntry, b: GratitudeEntry) => {
-        // El backend retorna "dia" como "2026-04-15" (solo fecha)
-        // Pero en "hora" está la hora: "14:32"
-        // Combinar ambos para ordenar por timestamp completo
-        const dateTimeA = `${a.dia}T${a.hora}`;
-        const dateTimeB = `${b.dia}T${b.hora}`;
-        
-        const timestampA = new Date(dateTimeA).getTime();
-        const timestampB = new Date(dateTimeB).getTime();
-        
-        return timestampB - timestampA; // ✅ Más reciente primero
-      });
+    setEntries(formatted);
+  } else {
+        console.log('📤 Obteniendo historial de gratitud del backend...');
+        const response = await getGratitudeHistory();
+        console.log('✅ Respuesta del servidor:', response);
 
-      // ✅ FORMATEAR fechas: "5 oct 2025"
-      const formatted = sorted.map((entry: any) => {
-        const date = new Date(entry.dia);
-        const formatted_date = date.toLocaleDateString('es-ES', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
+        const records = response?.data || [];
+        const sorted = records.sort((a: GratitudeEntry, b: GratitudeEntry) => {
+          const dateTimeA = `${a.dia}T${a.hora}`;
+          const dateTimeB = `${b.dia}T${b.hora}`;
+          return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime();
         });
 
-        return {
-          dia: formatted_date,
-          gratitud: entry.gratitud,
-          hora: entry.hora,
-        };
-      });
+        const formatted = sorted.map((entry: any) => {
+          const date = new Date(entry.dia);
+          return {
+            dia: date.toLocaleDateString('es-ES', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }),
+            gratitud: entry.gratitud,
+            hora: entry.hora,
+          };
+        });
 
-      console.log('📊 Datos formateados:', formatted);
-      setEntries(formatted);
+        console.log('📊 Datos formateados:', formatted);
+        setEntries(formatted);
+      }
     } catch (err: any) {
       console.error('❌ Error obteniendo historial:', err);
       setError('No se pudo cargar el historial de gratitud');
@@ -83,8 +107,6 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.text} />
@@ -95,7 +117,6 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Contenido */}
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -107,7 +128,10 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={fetchGratitudeHistory}
+            onPress={async () => {
+              const guest = await isGuestMode();
+              fetchGratitudeHistory(guest);
+            }}
           >
             <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
           </TouchableOpacity>
@@ -133,7 +157,6 @@ export default function GratitudeHistoryScreen({ navigation }: any) {
           ))}
         </ScrollView>
       )}
-
     </View>
   );
 }
@@ -205,8 +228,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: spacing.lg, backgroundColor: colors.accent,
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.md,
+    marginTop: spacing.lg,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
   },
   retryButtonText: {
     color: colors.white,

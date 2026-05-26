@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity, Modal,
+  View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import StepLayout from '../../components/StepLayout';
@@ -39,6 +39,7 @@ export default function Step6_Telefono({ navigation }: any) {
         characterImage={require('../../../../assets/images/character7.png')}
         onBack={() => navigation.goBack()}
         onContinue={() => {
+          Keyboard.dismiss();
           setField('telefono', parseInt(phone));
           setField('nombre_contacto', name);
           navigation.navigate('Step9b');
@@ -60,7 +61,10 @@ export default function Step6_Telefono({ navigation }: any) {
           </View>
 
           <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.prefixSelector} onPress={() => setShowPicker(true)}>
+            <TouchableOpacity style={styles.prefixSelector} onPress={() => {
+              Keyboard.dismiss();
+              setShowPicker(true);
+            }}>
               <Text style={styles.prefixText}>{prefix.code}</Text>
               <Icon name="chevron-down" size={14} color={colors.textMuted} />
             </TouchableOpacity>
@@ -75,6 +79,10 @@ export default function Step6_Telefono({ navigation }: any) {
               maxLength={10}
             />
           </View>
+
+          <Text style={styles.hint}>
+            Puedes agregar más contactos y modificarlos después en Configuración
+          </Text>
         </View>
       </StepLayout>
 
@@ -142,6 +150,12 @@ const styles = StyleSheet.create({
     height: INPUT_HEIGHT,
     fontSize: fontSizes.md,
     color: colors.text,
+  },
+  hint: {
+    fontSize: fontSizes.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   overlay: {
     flex: 1,

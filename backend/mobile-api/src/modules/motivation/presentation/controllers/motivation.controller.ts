@@ -17,7 +17,6 @@ import { ReclamarXpUseCase } from '../../application/use-cases/reclamar-xp.use-c
 
 @ApiTags('Motivación')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('motivation')
 export class MotivationController {
   constructor(
@@ -32,13 +31,27 @@ export class MotivationController {
     private readonly reclamarXpUseCase: ReclamarXpUseCase,
   ) {}
 
-  @ApiOperation({ summary: 'Obtiene la frase del día actual y verifica si el usuario le dio corazón' })
+  // ✅ Sin guard — funciona para guest y usuarios logueados
+  @ApiOperation({ summary: 'Obtiene la frase del día actual' })
   @Get('frase-del-dia')
   async getFraseDelDia(@Req() req: any) {
-    const token = req.headers.authorization.split(' ')[1];
-    return await this.getFraseDelDiaUseCase.execute(req.user.uid, token);
+    const token = req.headers.authorization?.split(' ')[1] ?? null;
+    const uid = req.user?.uid ?? null;
+    return await this.getFraseDelDiaUseCase.execute(uid, token);
   }
 
+  // ✅ Sin guard — funciona para guest y usuarios logueados
+  @ApiOperation({ summary: 'Obtiene todas las frases hasta una fecha específica' })
+  @ApiQuery({ name: 'hasta', description: 'Fecha en formato YYYY-MM-DD', example: '2026-04-21' })
+  @Get('frases')
+  async getFrasesPorFecha(@Query('hasta') hasta: string, @Req() req: any) {
+    const token = req.headers.authorization?.split(' ')[1] ?? null;
+    const uid = req.user?.uid ?? null;
+    return await this.getFrasesPorFechaUseCase.execute(uid, hasta, token);
+  }
+
+  // ✅ Con guard — requiere autenticación
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene la lista de todas las frases que el usuario ha guardado (favoritas)' })
   @Get('frases-guardadas')
   async getFrasesGuardadas(@Req() req: any) {
@@ -46,14 +59,7 @@ export class MotivationController {
     return await this.getFrasesGuardadasUseCase.execute(req.user.uid, token);
   }
 
-  @ApiOperation({ summary: 'Obtiene todas las frases hasta una fecha específica' })
-  @ApiQuery({ name: 'hasta', description: 'Fecha en formato YYYY-MM-DD', example: '2026-04-21' })
-  @Get('frases')
-  async getFrasesPorFecha(@Query('hasta') hasta: string, @Req() req: any) {
-    const token = req.headers.authorization.split(' ')[1];
-    return await this.getFrasesPorFechaUseCase.execute(req.user.uid, hasta, token);
-  }
-
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Guarda una frase en la lista de favoritas (Darle corazón)' })
   @Post('frases-guardadas')
   async guardarFrase(@Req() req: any, @Body() dto: FraseActionDto) {
@@ -61,6 +67,7 @@ export class MotivationController {
     return await this.guardarFraseUseCase.execute(req.user.uid, dto.frase_id, token);
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Quita una frase de la lista de favoritas (Quitar corazón)' })
   @ApiParam({ name: 'fraseId', description: 'El ID de la frase que se va a eliminar de guardadas' })
   @Delete('frases-guardadas/:fraseId')
@@ -69,6 +76,7 @@ export class MotivationController {
     return await this.desguardarFraseUseCase.execute(req.user.uid, fraseId, token);
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtener la lista de retos inscritos y su progreso' })
   @Get('mis-retos')
   async getMyChallenges(@Req() req: any) {
@@ -76,6 +84,7 @@ export class MotivationController {
     return await this.getMyChallengesUseCase.execute(req.user.uid, token);
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Inscribe al usuario a un reto publicado y lo inicia en 0' })
   @Post('retos/unirse')
   async joinChallenge(@Req() req: any, @Body() dto: JoinChallengeDto) {
@@ -83,6 +92,7 @@ export class MotivationController {
     return await this.joinChallengeUseCase.execute(req.user.uid, dto.reto_id, token);
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtener la lista de medallas (Retos en estado COMPLETED)' })
   @Get('mis-medallas')
   async getMisMedallas(@Req() req: any) {
@@ -90,6 +100,7 @@ export class MotivationController {
     return await this.getMisMedallasUseCase.execute(req.user.uid, token);
   }
 
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Reclamar XP de un reto completado' })
   @ApiParam({ name: 'userRetoId', description: 'El user_reto_id del reto completado' })
   @Post('retos/:userRetoId/reclamar-xp')

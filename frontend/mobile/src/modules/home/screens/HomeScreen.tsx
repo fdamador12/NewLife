@@ -13,14 +13,16 @@ import {
   clearGuestData,
   getGuestProfile,
   getGuestSobrietyTime,
+  getGuestAhorro,
 } from '../../../services/guestService';
 import SobrietyCard from './components/SobrietyCard';
 import SavingsCard from './components/SavingsCard';
-import GuestBanner from './components/GuestBanner';
 import PetWidget from '../../pet/components/PetWidget';
 import { usePet } from '../../pet/hooks/usePet';
 import { getAhorro } from '../../../services/progressService';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
+import { useBottomInset } from '../../../hooks/useBottomInset';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen({ navigation }: any) {
   const [sobriety, setSobriety] = useState({ dias: 0, horas: 0, minutos: 0 });
@@ -28,9 +30,10 @@ export default function HomeScreen({ navigation }: any) {
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [guestApodo, setGuestApodo] = useState('');
   const { resetPet, fetchPet } = usePet();
+  const bottomInset = useBottomInset(spacing.xl);
+  const insets = useSafeAreaInsets();
+  const hasNavBar = insets.bottom >= 48;
 
-  // Profile via SWR — only active for authenticated users.
-  // getSync() returns cached data instantly if warmUp() was called at startup.
   const { data: userProfile } = useCacheQuery(
     CACHE_KEYS.PROFILE,
     30,
@@ -40,9 +43,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const apodo = isGuest === true ? guestApodo : (userProfile?.apodo ?? '');
 
-  useEffect(() => {
-    fetchPet();
-  }, []);
+  useEffect(() => { fetchPet(); }, []);
 
   useEffect(() => {
     const checkGuest = async () => {
@@ -59,7 +60,6 @@ export default function HomeScreen({ navigation }: any) {
     return () => { unsubscribe(); };
   }, []);
 
-  // Determine guest mode; load guest apodo if needed.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -95,7 +95,7 @@ export default function HomeScreen({ navigation }: any) {
     };
 
     fetchSobriety();
-
+    const unsubscribeFocus = navigation.addListener('focus', fetchSobriety);
     const interval = setInterval(() => {
       setSobriety(prev => {
         let { dias, horas, minutos } = prev;
@@ -106,53 +106,32 @@ export default function HomeScreen({ navigation }: any) {
       });
     }, 60000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      unsubscribeFocus();
+    };
+  }, [navigation]);
 
   useEffect(() => {
     const fetchAhorro = async () => {
       try {
         const guest = await isGuestMode();
-        if (!guest) {
+        if (guest) {
+          const data = await getGuestAhorro();
+          setAhorro({ ahorro_total: data.ahorro_total ?? 0, dias_limpios: data.dias_limpios ?? 0 });
+        } else {
           const data = await getAhorro();
-          setAhorro({
-            ahorro_total: data.ahorro_total ?? 0,
-            dias_limpios: data.dias_limpios ?? 0,
-          });
+          setAhorro({ ahorro_total: data.ahorro_total ?? 0, dias_limpios: data.dias_limpios ?? 0 });
         }
       } catch (e) {
         console.log('Error obteniendo ahorro:', e);
       }
     };
+
     fetchAhorro();
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      // 📊 Analytics: AWAITEAMOS el track antes de borrar el token.
-      // Si no lo awaitamos, multiRemove borraría el token mientras el track
-      // está leyéndolo y el evento se perdería silenciosamente.
-      // El track NUNCA rechaza la Promise (todos los errores son atrapados internamente),
-      // así que es seguro awaitarlo sin riesgo.
-      if (!isGuest) {
-        await analytics.track(EVENT_TYPES.USER_LOGGED_OUT);
-      }
-
-      resetPet();
-      if (isGuest) {
-        await clearGuestData();
-      } else {
-        await logoutUser();
-      }
-
-      // 📊 Analytics: limpiar la sesión para que el próximo usuario tenga session_id nuevo
-      analytics.reset();
-
-      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
-    } catch (e) {
-      console.log('Error cerrando sesion:', e);
-    }
-  };
+    const unsubscribeFocus = navigation.addListener('focus', fetchAhorro);
+    return () => { unsubscribeFocus(); };
+  }, [navigation]);
 
   const getGreetingTime = () => {
     const hour = new Date().getHours();
@@ -161,11 +140,15 @@ export default function HomeScreen({ navigation }: any) {
     return 'Buenas noches,';
   };
 
-  // 📊 Analytics: trackear el SOS y luego navegar
   const handleSosPress = () => {
     analytics.track(EVENT_TYPES.SOS_TRIGGERED, { source: 'home_button' });
     navigation.navigate('SOS');
   };
+
+  // ✅ Con 3 botones: SOS más compacto y spacer ajustado
+  // Sin 3 botones: SOS normal, spacer normal
+  const SOS_PADDING_BOTTOM = hasNavBar ? bottomInset + -30 : bottomInset + 0;
+  const SPACER_HEIGHT = hasNavBar ? 80 : 120;
 
   return (
     <View style={styles.container}>
@@ -173,15 +156,13 @@ export default function HomeScreen({ navigation }: any) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header mejorado */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greetingTime}>{getGreetingTime()}</Text>
-            <Text style={styles.greeting}>
-              {apodo ? apodo : 'Amig@'}
-            </Text>
+            <Text style={styles.greeting}>{apodo ? apodo : 'Amig@'}</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => navigation.navigate('Settings')}
           >
@@ -189,14 +170,12 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Pet Widget */}
+        {/* Mascota */}
         <PetWidget onPress={() => navigation.navigate('PetScreen')} />
 
-        {/* Seccion de logros */}
+        {/* Sobriedad */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Tu progreso</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Tu progreso</Text>
           <SobrietyCard
             dias={sobriety.dias}
             horas={sobriety.horas}
@@ -204,48 +183,34 @@ export default function HomeScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Seccion de ahorro */}
-        {!isGuest && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
-            </View>
-            <SavingsCard
-              ahorroTotal={ahorro.ahorro_total}
-              diasLimpios={ahorro.dias_limpios}
-              onPress={() => navigation.navigate('SavingsScreen')}
-            />
-          </View>
-        )}
-
-        {/* Banner de invitado o logout */}
-        {isGuest && (
-          <GuestBanner
-            onCreateAccount={() => navigation.navigate('Register')}
-            onLogout={handleLogout}
+        {/* Ahorro */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Dinero ahorrado</Text>
+          <SavingsCard
+            ahorroTotal={ahorro.ahorro_total}
+            diasLimpios={ahorro.dias_limpios}
+            onPress={() => navigation.navigate('SavingsScreen')}
           />
-        )}
+        </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: SPACER_HEIGHT }} />
       </ScrollView>
 
-      {/* Boton SOS flotante mejorado */}
-      <View style={styles.sosWrapper}>
+      {/* SOS flotante */}
+      <View style={[styles.sosWrapper, { paddingBottom: SOS_PADDING_BOTTOM }]}>
         <TouchableOpacity
-          style={styles.sosButton}
+          style={[styles.sosButton, hasNavBar && styles.sosButtonCompact]}
           onPress={handleSosPress}
           activeOpacity={0.85}
         >
           <View style={styles.sosInner}>
-            <View style={styles.sosIconContainer}>
-              <Feather name="phone" size={20} color={colors.white} />
+            <View style={[styles.sosIconContainer, hasNavBar && styles.sosIconContainerCompact]}>
+              <Feather name="phone" size={hasNavBar ? 16 : 20} color={colors.white} />
             </View>
-            <View style={styles.sosTextContainer}>
-              <Text style={styles.sosTitle}>SOS</Text>
-            </View>
+            <Text style={[styles.sosTitle, hasNavBar && styles.sosTitleCompact]}>SOS</Text>
           </View>
-          <View style={styles.sosArrow}>
-            <Feather name="chevron-right" size={24} color="rgba(255,255,255,0.8)" />
+          <View style={[styles.sosArrow, hasNavBar && styles.sosArrowCompact]}>
+            <Feather name="chevron-right" size={hasNavBar ? 18 : 24} color="rgba(255,255,255,0.8)" />
           </View>
         </TouchableOpacity>
       </View>
@@ -260,17 +225,17 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.xl,
-    paddingTop: 60,
+    paddingTop: 56,
     gap: spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   headerLeft: {
-    gap: 2,
+    gap: 1,
   },
   greetingTime: {
     fontSize: fontSizes.lg,
@@ -282,9 +247,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.5,
-  },
-  wave: {
-    fontSize: 26,
   },
   settingsButton: {
     width: 44,
@@ -300,42 +262,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   section: {
-    gap: spacing.sm,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  sectionIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
   },
   sectionTitle: {
     fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.text,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: '#fdfdfd',
-    padding: spacing.md,
-    borderRadius: 12,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: '#a5a2a2',
-  },
-  logoutText: {
-    color: '#443e3e',
-    fontWeight: '600',
-    fontSize: fontSizes.md,
   },
   sosWrapper: {
     position: 'absolute',
@@ -343,7 +275,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
     paddingTop: spacing.lg,
     backgroundColor: 'transparent',
   },
@@ -361,6 +292,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
   },
+  sosButtonCompact: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 16,
+  },
   sosInner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -374,8 +310,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sosTextContainer: {
-    gap: 2,
+  sosIconContainerCompact: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
   },
   sosTitle: {
     fontSize: fontSizes.lg,
@@ -383,10 +321,8 @@ const styles = StyleSheet.create({
     color: colors.white,
     letterSpacing: 1,
   },
-  sosSubtitle: {
-    fontSize: fontSizes.sm,
-    color: 'rgba(255,255,255,0.85)',
-    fontWeight: '500',
+  sosTitleCompact: {
+    fontSize: fontSizes.md,
   },
   sosArrow: {
     width: 36,
@@ -395,5 +331,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sosArrowCompact: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
   },
 });

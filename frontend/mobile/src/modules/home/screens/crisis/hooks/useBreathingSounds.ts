@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import  api  from '../../../../../services/api';
+import api from '../../../../../services/api';
 
 export interface BreathingSound {
   _id: string;
@@ -29,17 +29,15 @@ export const useBreathingSounds = (): UseBreathingSoundsReturn => {
     try {
       setLoading(true);
       setError(null);
-      
       const response = await api.get('/sos/breathing-sounds');
-      
       if (Array.isArray(response.data)) {
         setSounds(response.data);
       } else {
-        setError('Formato de respuesta inválido');
+        setError('No se pudieron cargar los sonidos. Intenta de nuevo.');
       }
     } catch (err: any) {
       console.error('Error obteniendo sonidos:', err);
-      setError(err.message || 'Error al obtener sonidos');
+      setError('No se pudieron cargar los sonidos. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -49,10 +47,5 @@ export const useBreathingSounds = (): UseBreathingSoundsReturn => {
     fetchSounds();
   }, []);
 
-  return {
-    sounds,
-    loading,
-    error,
-    refetch: fetchSounds,
-  };
+  return { sounds, loading, error, refetch: fetchSounds };
 };

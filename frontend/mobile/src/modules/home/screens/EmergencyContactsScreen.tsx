@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Linking, Modal, TextInput, ActivityIndicator,
+  Linking, Modal, TextInput, ActivityIndicator, Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -34,24 +34,32 @@ export default function EmergencyContactsScreen({ navigation }: any) {
   const [phone, setPhone] = useState('');
   const [nameError, setNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [isClosing, setIsClosing] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const { showToast } = useToast();
   const { showConfirm } = useConfirm();
 
-  // Analytics: trackear vista de la pantalla.
-  // Esta pantalla SOLO se navega desde SOSScreen ("Ver contactos") segun el
-  // grep del codebase, asi que el source es siempre 'sos' (hardcoded). Eso
-  // evita tener que pasar route.params desde SOSScreen.
-  // El evento es el MISMO que el de ContactsScreen para que en el dashboard
-  // se consoliden y solo se diferencien por la property `source`.
   useEffect(() => {
-    analytics.track(EVENT_TYPES.EMERGENCY_CONTACTS_VIEWED, {
-      source: 'sos',
-    });
+    analytics.track(EVENT_TYPES.EMERGENCY_CONTACTS_VIEWED, { source: 'sos' });
   }, []);
 
   useEffect(() => {
     fetchContacts();
+  }, []);
+
+  // ✅ Detectar altura exacta del teclado
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   const fetchContacts = async () => {
@@ -84,10 +92,22 @@ export default function EmergencyContactsScreen({ navigation }: any) {
       setName('');
       setPhone('');
     }
+    setIsClosing(false);
     setShowModal(true);
   };
 
+  // ✅ Cierre suave
+  const closeModal = () => {
+    Keyboard.dismiss();
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsClosing(false);
+    }, 300);
+  };
+
   const saveContact = async () => {
+    Keyboard.dismiss();
     setNameError('');
     setPhoneError('');
 
@@ -135,9 +155,9 @@ export default function EmergencyContactsScreen({ navigation }: any) {
           await createContact(name, phone);
         }
       }
-      setShowModal(false);
       fetchContacts();
       showToast(editingContact ? 'Contacto actualizado' : 'Contacto guardado', 'success');
+      closeModal();
     } catch (e: any) {
       console.log('Error guardando contacto:', e);
       showToast(e.response?.data?.message || 'Error al guardar el contacto. Intenta de nuevo.', 'error');
@@ -169,8 +189,6 @@ export default function EmergencyContactsScreen({ navigation }: any) {
     });
   };
 
-  // Analytics: AWAITEAMOS el track antes de Linking.openURL para evitar
-  // race condition (Linking puede sacar al usuario antes de que el track termine).
   const callContact = async (phone: string) => {
     await analytics.track(EVENT_TYPES.EMERGENCY_CONTACT_USED, {
       contact_method: CONTACT_METHODS.PHONE,
@@ -237,47 +255,64 @@ export default function EmergencyContactsScreen({ navigation }: any) {
 
       <Modal visible={showModal} transparent animationType="slide" statusBarTranslucent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {editingContact ? 'Editar contacto' : 'Nuevo contacto'}
-            </Text>
 
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre..."
-                placeholderTextColor={colors.border}
-                value={name}
-                onChangeText={(t) => { setName(t); if (nameError) setNameError(''); }}
-              />
-              <FieldError message={nameError} />
-            </View>
+          {/* ✅ Backdrop — toca para cerrar modal */}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={closeModal}
+          />
 
-            <View>
-              <TextInput
-                style={styles.input}
-                placeholder="Número telefónico..."
-                placeholderTextColor={colors.border}
-                value={phone}
-                onChangeText={(t) => {
-                  const cleaned = t.replace(/[^0-9]/g, '');
-                  setPhone(cleaned);
-                  if (phoneError) setPhoneError('');
-                }}
-                keyboardType="phone-pad"
-                maxLength={10}
-              />
-              <FieldError message={phoneError} />
-            </View>
+          {/* ✅ Modal sube exactamente la altura del teclado */}
+          <View style={[styles.modalCard, { marginBottom: keyboardHeight }]}>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowModal(false)}>
-                <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={saveContact}>
-                <Text style={styles.modalSaveText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
+            {/* ✅ Toca dentro para cerrar teclado sin cerrar modal */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={Keyboard.dismiss}
+              style={styles.modalInner}
+            >
+              <Text style={styles.modalTitle}>
+                {editingContact ? 'Editar contacto' : 'Nuevo contacto'}
+              </Text>
+
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nombre..."
+                  placeholderTextColor={colors.border}
+                  value={name}
+                  onChangeText={(t) => { setName(t); if (nameError) setNameError(''); }}
+                />
+                <FieldError message={nameError} />
+              </View>
+
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Número telefónico..."
+                  placeholderTextColor={colors.border}
+                  value={phone}
+                  onChangeText={(t) => {
+                    const cleaned = t.replace(/[^0-9]/g, '');
+                    setPhone(cleaned);
+                    if (phoneError) setPhoneError('');
+                  }}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
+                <FieldError message={phoneError} />
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.modalCancel} onPress={closeModal}>
+                  <Text style={styles.modalCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalSave} onPress={saveContact}>
+                  <Text style={styles.modalSaveText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -336,9 +371,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     gap: spacing.md,
   },
-  cardInfo: {
-    gap: 4,
-  },
+  cardInfo: { gap: 4 },
   contactName: {
     fontSize: fontSizes.lg,
     fontWeight: '700',
@@ -380,13 +413,18 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalCard: {
     backgroundColor: colors.white,
     borderTopLeftRadius: borderRadius.md * 2,
     borderTopRightRadius: borderRadius.md * 2,
+  },
+  modalInner: {
     padding: spacing.xl,
     gap: spacing.md,
   },

@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform, Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 const { width } = Dimensions.get('window');
 const TAB_WIDTH = width / 5;
@@ -24,6 +25,7 @@ export default function BottomTabNavigator({ activeTab, onTabPress }: Props) {
   const activeIndex = TABS.findIndex((t) => t.key === activeTab);
   const circlePosition = useRef(new Animated.Value(activeIndex * TAB_WIDTH)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const bottomInset = useBottomInset(24);
 
   useEffect(() => {
     Animated.parallel([
@@ -50,9 +52,8 @@ export default function BottomTabNavigator({ activeTab, onTabPress }: Props) {
   }, [activeIndex]);
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { paddingBottom: bottomInset }]}>
 
-      {/* Círculo activo flotante animado */}
       <Animated.View
         style={[
           styles.circleWrapper,
@@ -71,7 +72,6 @@ export default function BottomTabNavigator({ activeTab, onTabPress }: Props) {
         </Animated.View>
       </Animated.View>
 
-      {/* Barra */}
       <View style={styles.bar}>
         {TABS.map((tab, index) => {
           const isActive = activeTab === tab.key;
@@ -96,12 +96,10 @@ export default function BottomTabNavigator({ activeTab, onTabPress }: Props) {
   );
 }
 
-
 const styles = StyleSheet.create({
   wrapper: {
     position: 'relative',
     backgroundColor: '#2A3240',
-    paddingBottom: 24,
   },
   circleWrapper: {
     position: 'absolute',

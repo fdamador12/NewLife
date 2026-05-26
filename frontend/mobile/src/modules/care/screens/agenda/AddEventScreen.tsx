@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAgenda } from '../../hooks/useAgenda';
@@ -13,6 +14,7 @@ import { AgendaEventFrontend } from '../../services/agendaService';
 import EventForm from './components/EventForm';
 import { analytics, EVENT_TYPES } from '../../../../services/analytics';
 import { scheduleAgendaReminder } from '../../../../services/notificationSync';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 const COLORS = {
   primary: '#D38A58',
@@ -60,16 +62,27 @@ function combineDateAndTime(date: Date, timeStr: string): Date {
   return combined;
 }
 
+// ✅ Parsea YYYY-MM-DD sin problema de timezone
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 export default function AddEventScreen({ navigation, route }: any) {
   const { createAgenda, updateAgenda } = useAgenda();
   const { showToast } = useToast();
   const refetch = route.params?.refetch;
   const [isSaving, setIsSaving] = useState(false);
+  const bottomInset = useBottomInset(32);
 
   const existing = route.params?.event as AgendaEvent | undefined;
   const defaultDateStr = route.params?.defaultDate as string | undefined;
-  const defaultDate: Date = defaultDateStr ? new Date(defaultDateStr) : new Date();
-  const existingDate = existing?.date ? new Date(existing.date as string) : defaultDate;
+
+  // ✅ Parsear fechas localmente sin timezone
+  const defaultDate: Date = defaultDateStr ? parseLocalDate(defaultDateStr) : new Date();
+  const existingDate = existing?.date
+    ? (typeof existing.date === 'string' ? parseLocalDate(existing.date) : existing.date)
+    : defaultDate;
 
   const [title, setTitle] = useState(existing?.title || '');
   const [selectedDate, setSelectedDate] = useState<Date>(existingDate);
@@ -96,6 +109,7 @@ export default function AddEventScreen({ navigation, route }: any) {
   };
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     if (!title.trim()) {
       showToast('El título del evento es obligatorio.', 'error');
       return;
@@ -205,7 +219,7 @@ export default function AddEventScreen({ navigation, route }: any) {
       />
 
       <TouchableOpacity
-        style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        style={[styles.saveButton, { bottom: bottomInset }, isSaving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={isSaving}
       >
@@ -245,7 +259,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.darkGray },
   saveButton: {
     position: 'absolute',
-    bottom: 32,
     left: 20,
     right: 20,
     backgroundColor: COLORS.primary,

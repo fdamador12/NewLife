@@ -22,20 +22,12 @@ export default function DailyCheckInScreen({ navigation }: any) {
 
   const { showToast } = useToast();
 
-  // Refs para tracking de abandono.
-  // - completedRef: se marca true en handleSuccess para que el cleanup
-  //   NO dispare DAILY_CHECKIN_ABANDONED cuando el usuario completo OK.
   const completedRef = useRef(false);
 
-  // Analytics: trackear inicio del flujo del checkin al montar la pantalla.
-  // El cleanup detecta si el usuario salio sin completar (cualquier mecanismo:
-  // boton atras, gesto, app cerrada) y trackea DAILY_CHECKIN_ABANDONED.
-  // El cleanup es fire-and-forget porque React no permite await en cleanup.
   useEffect(() => {
     analytics.track(EVENT_TYPES.DAILY_CHECKIN_STARTED);
 
     return () => {
-      // Solo trackear abandono si NO se completo exitosamente
       if (!completedRef.current) {
         analytics.track(EVENT_TYPES.DAILY_CHECKIN_ABANDONED);
       }
@@ -58,14 +50,8 @@ export default function DailyCheckInScreen({ navigation }: any) {
     new_form: string | null;
     xp: number;
   }) => {
-    // Marcar como completado ANTES de cualquier track o navegacion,
-    // para que el cleanup del useEffect NO dispare DAILY_CHECKIN_ABANDONED.
     completedRef.current = true;
-
-    // Analytics: trackear que completo los 3 pasos exitosamente.
-    // NO guardamos el contenido del checkin (mood, reflexion, etc) por privacidad.
     analytics.track(EVENT_TYPES.DAILY_CHECKIN_COMPLETED);
-
     navigation.navigate('CheckInSuccess', {
       xp_gained: params.xp_gained,
       evolved: params.evolved,
@@ -76,6 +62,7 @@ export default function DailyCheckInScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* ✅ zIndex para que el header no intercepte toques del contenido */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack}>
           <Feather name="chevron-left" size={24} color={colors.white} />
@@ -85,34 +72,36 @@ export default function DailyCheckInScreen({ navigation }: any) {
         </Text>
       </View>
 
-      {step === 1 && (
-        <CheckInStep1
-          onNo={() => {
-            setFormData({ ...formData, consumo: false });
-            setStep(3);
-          }}
-          onYes={() => {
-            setFormData({ ...formData, consumo: true });
-            setStep(2);
-          }}
-          formData={formData}
-          setFormData={setFormData}
-        />
-      )}
-      {step === 2 && (
-        <CheckInStep2
-          onContinue={() => setStep(3)}
-          formData={formData}
-          setFormData={setFormData}
-        />
-      )}
-      {step === 3 && (
-        <CheckInStep3
-          formData={formData}
-          showToast={showToast}
-          onSuccess={handleSuccess}
-        />
-      )}
+      <View style={styles.content}>
+        {step === 1 && (
+          <CheckInStep1
+            onNo={() => {
+              setFormData({ ...formData, consumo: false });
+              setStep(3);
+            }}
+            onYes={() => {
+              setFormData({ ...formData, consumo: true });
+              setStep(2);
+            }}
+            formData={formData}
+            setFormData={setFormData}
+          />
+        )}
+        {step === 2 && (
+          <CheckInStep2
+            onContinue={() => setStep(3)}
+            formData={formData}
+            setFormData={setFormData}
+          />
+        )}
+        {step === 3 && (
+          <CheckInStep3
+            formData={formData}
+            showToast={showToast}
+            onSuccess={handleSuccess}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -132,6 +121,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#303030',
     borderBottomLeftRadius: 34,
     borderBottomRightRadius: 34,
+    // ✅ zIndex bajo para no interceptar toques del contenido debajo
+    zIndex: 0,
   },
   headerTitle: {
     flex: 1,
@@ -140,5 +131,10 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlign: 'center',
     marginRight: 24,
+  },
+  // ✅ contenido por encima del header con zIndex mayor
+  content: {
+    flex: 1,
+    zIndex: 1,
   },
 });

@@ -11,37 +11,32 @@ export class GetFrasesPorFechaUseCase {
     private readonly systemAuth: SystemAuthService,
   ) {}
 
-  async execute(usuarioId: string, fecha: string, userToken: string) {
-    // 1️⃣ Validar formato de fecha
+  async execute(usuarioId: string | null, fecha: string, userToken: string | null) {
     if (!this.isValidDateFormat(fecha)) {
       throw new BadRequestException('Formato de fecha inválido. Use YYYY-MM-DD');
     }
 
-    // 2️⃣ Validar que la fecha no sea futura
     const today = new Date().toISOString().split('T')[0];
     if (fecha > today) {
       throw new BadRequestException('No se pueden consultar frases de fechas futuras');
     }
 
-    // 3️⃣ Obtener token maestro
     const masterToken = await this.systemAuth.getMasterToken();
-
-    // 4️⃣ Obtener todas las frases hasta esa fecha
     const frases = await this.motivationProvider.getFrasesPorFecha(fecha, masterToken);
 
     if (!frases || frases.length === 0) {
       return { data: [] };
     }
 
-    // 5️⃣ Para cada frase, verificar si está guardada
+    // ✅ Solo verificar favoritos si hay usuario autenticado
     const frasesConFavorito = await Promise.all(
       frases.map(async (frase: FraseDiaEntity) => {
-        const isFavorite = await this.motivationProvider.isFraseGuardada(
-          usuarioId,
-          frase.frase_id,
-          userToken
-        );
-
+        let isFavorite = false;
+        if (usuarioId && userToken) {
+          isFavorite = await this.motivationProvider.isFraseGuardada(
+            usuarioId, frase.frase_id, userToken
+          );
+        }
         return {
           _id: frase._id,
           frase_id: frase.frase_id,
@@ -52,15 +47,12 @@ export class GetFrasesPorFechaUseCase {
       })
     );
 
-    console.log(`📜 Frases obtenidas hasta ${fecha}: ${frasesConFavorito.length} frases`);
-
     return { data: frasesConFavorito };
   }
 
   private isValidDateFormat(fecha: string): boolean {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
     if (!regex.test(fecha)) return false;
-
     const date = new Date(fecha + 'T00:00:00');
     return date instanceof Date && !isNaN(date.getTime());
   }

@@ -17,7 +17,7 @@ const COLORS = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Reunion': '#D38A58',
-  'Grupo AA': '#7FB77E',
+  'Grupo NA': '#7FB77E',
   'Fundación': '#00ADB5',
   'Otro': '#969696',
   'Lectura': '#406ADF',
@@ -25,13 +25,13 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const CATEGORY_ICONS: Record<string, string> = {
   'Reunion': 'users',
-  'Grupo AA': 'heart',
+  'Grupo NA': 'heart',
   'Fundación': 'home',
   'Otro': 'grid',
   'Lectura': 'book-open',
 };
 
-const CATEGORIES = ['Reunion', 'Grupo AA', 'Fundación', 'Otro', 'Lectura'];
+const CATEGORIES = ['Reunion', 'Grupo NA', 'Fundación', 'Otro', 'Lectura'];
 
 interface CategorySelectorProps {
   selected: string;

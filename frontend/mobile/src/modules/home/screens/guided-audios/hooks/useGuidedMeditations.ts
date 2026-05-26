@@ -19,13 +19,12 @@ export const useGuidedMeditations = () => {
       setLoading(true);
       setError(null);
       const response = await api.get('/guided-meditation');
-
       if (Array.isArray(response.data)) {
         setMeditations(response.data);
       }
     } catch (err: any) {
-      setError(err.message || 'Error cargando meditaciones');
-      console.error('Error:', err);
+      console.error('Error cargando meditaciones:', err);
+      setError('No se pudieron cargar las meditaciones. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -35,10 +34,5 @@ export const useGuidedMeditations = () => {
     fetchMeditations();
   }, []);
 
-  return {
-    meditations,
-    loading,
-    error,
-    fetchMeditations,
-  };
+  return { meditations, loading, error, fetchMeditations };
 };

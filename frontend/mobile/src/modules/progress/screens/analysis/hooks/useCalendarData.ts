@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getCalendar, getAllRegistros } from '../../../../../services/progressService';
+import { isGuestMode, getGuestCheckins } from '../../../../../services/guestService';
 
 export interface ProcessedDay {
   day: number;
@@ -25,8 +26,16 @@ export const useCalendarData = () => {
 
   const calculateMinMaxFromAllRegistros = useCallback(async () => {
     try {
-      const response = await getAllRegistros();
-      const allRegistros = response?.registros || [];
+      const guest = await isGuestMode();
+
+      let allRegistros: any[] = [];
+
+      if (guest) {
+        allRegistros = await getGuestCheckins();
+      } else {
+        const response = await getAllRegistros();
+        allRegistros = response?.registros || [];
+      }
 
       if (!allRegistros || allRegistros.length === 0) {
         const today = new Date();
@@ -54,7 +63,6 @@ export const useCalendarData = () => {
     }
   }, []);
 
-  // processDays simplificado — el backend ya agrupa por día correctamente
   const processDays = useCallback((rawDays: any[]) => {
     return rawDays.map((reg) => ({
       day: reg.day,
@@ -69,22 +77,63 @@ export const useCalendarData = () => {
     })).sort((a, b) => a.day - b.day);
   }, []);
 
+  // ✅ Procesa checkins guest al formato que espera el calendario
+  const processGuestDays = useCallback((checkins: any[], month: number, year: number): ProcessedDay[] => {
+    const filtered = checkins.filter(c => {
+      const fecha = new Date(c.fecha);
+      return fecha.getMonth() + 1 === month && fecha.getFullYear() === year;
+    });
+
+    // ✅ Agrupar por día — si alguno tiene consumo, el día es dificil
+    const diasMap: Record<number, any> = {};
+    filtered.forEach(c => {
+      const day = new Date(c.fecha).getDate();
+      if (!diasMap[day]) {
+        diasMap[day] = c;
+      } else if (c.consumo === true) {
+        // ✅ Consumo tiene prioridad — sobrescribe con el registro de consumo
+        diasMap[day] = c;
+      }
+    });
+
+    return Object.values(diasMap).map(c => ({
+      day: new Date(c.fecha).getDate(),
+      tipo: (c.consumo ? 'dificil' : 'limpio') as 'limpio' | 'dificil',
+      resumen: {
+        emocion: c.emocion || 'Sin emoción',
+        ...(c.consumo && {
+          ubicacion: c.ubicacion,
+          social: c.social,
+        }),
+      },
+    })).sort((a, b) => a.day - b.day);
+  }, []);
+
   const fetchCalendar = useCallback(
     async (month: number, year: number) => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getCalendar(month, year);
-        const processed = processDays(data.days || []);
-        setProcessedDays(processed);
+
+        const guest = await isGuestMode();
+
+        if (guest) {
+          const checkins = await getGuestCheckins();
+          const processed = processGuestDays(checkins, month, year);
+          setProcessedDays(processed);
+        } else {
+          const data = await getCalendar(month, year);
+          const processed = processDays(data.days || []);
+          setProcessedDays(processed);
+        }
       } catch (err: any) {
-        setError(err.message || 'Error cargando calendario');
+          setError('No se pudo cargar el calendario. Intenta de nuevo.');
         setProcessedDays([]);
       } finally {
         setLoading(false);
       }
     },
-    [processDays]
+    [processDays, processGuestDays]
   );
 
   const goToPreviousMonth = useCallback(() => {

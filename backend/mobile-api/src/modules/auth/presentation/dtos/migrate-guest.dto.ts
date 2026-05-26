@@ -57,6 +57,54 @@ export class MigrateGuestContactDto {
   telefono: string;
 }
 
+export class MigrateGuestCheckinDto {
+  @IsString()
+  fecha: string;
+
+  @IsString()
+  emocion: string;
+
+  @IsBoolean()
+  consumo: boolean;
+
+  @IsString()
+  gratitud: string;
+
+  @IsOptional()
+  @IsString()
+  ubicacion?: string;
+
+  @IsOptional()
+  @IsString()
+  social?: string;
+
+  @IsOptional()
+  @IsString()
+  reflexion?: string;
+}
+
+export class MigrateGuestProgressDto {
+  @IsNumber()
+  nivel: number;
+
+  @IsNumber()
+  subnivel: number;
+}
+
+export class MigrateGuestPetDto {
+  @IsNumber()
+  xp: number;
+
+  @IsString()
+  selected_form: string;
+
+  @IsArray()
+  unlocked_forms: string[];
+
+  @IsOptional()
+  last_actions?: Record<string, string>;
+}
+
 export class MigrateGuestDto {
   @IsString()
   guestId: string;
@@ -74,4 +122,20 @@ export class MigrateGuestDto {
   @ValidateNested({ each: true })
   @Type(() => MigrateGuestContactDto)
   contacts: MigrateGuestContactDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MigrateGuestCheckinDto)
+  checkins?: MigrateGuestCheckinDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MigrateGuestProgressDto)
+  progress?: MigrateGuestProgressDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MigrateGuestPetDto)
+  pet?: MigrateGuestPetDto;
 }

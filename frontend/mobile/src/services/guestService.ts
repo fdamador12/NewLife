@@ -71,6 +71,16 @@ export const getGuestSobrietyTime = async (): Promise<any> => {
   return { contador: { dias, horas, minutos } };
 };
 
+export const updateGuestSobrietyDate = async (): Promise<void> => {
+  const guestId = await getGuestId();
+  const ahora = new Date();
+  const ahoraCol = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  await AsyncStorage.setItem(
+    `guestSobriety_${guestId}`,
+    JSON.stringify({ startDate: ahoraCol.toISOString() })
+  );
+};
+
 // ─── Contactos ────────────────────────────────────────────────────────────────
 
 export const getGuestContacts = async (): Promise<any[]> => {
@@ -132,12 +142,18 @@ export const getGuestDataForMigration = async (): Promise<any> => {
   const profileRaw = await AsyncStorage.getItem(`guestProfile_${guestId}`);
   const sobrietyRaw = await AsyncStorage.getItem(`guestSobriety_${guestId}`);
   const contactsRaw = await AsyncStorage.getItem(`guestContacts_${guestId}`);
+  const checkinsRaw = await AsyncStorage.getItem(`guestCheckins_${guestId}`);
+  const progressRaw = await AsyncStorage.getItem(`guestProgress_${guestId}`);
+  const petRaw = await AsyncStorage.getItem(`guestPet_${guestId}`);
 
   return {
     guestId,
     profile: profileRaw ? JSON.parse(profileRaw) : {},
     sobriety: sobrietyRaw ? JSON.parse(sobrietyRaw) : null,
     contacts: contactsRaw ? JSON.parse(contactsRaw) : [],
+    checkins: checkinsRaw ? JSON.parse(checkinsRaw) : [],
+    progress: progressRaw ? JSON.parse(progressRaw) : { nivel: 1, subnivel: 1 },
+    pet: petRaw ? JSON.parse(petRaw) : null,
   };
 };
 
@@ -157,4 +173,136 @@ export const hasGuestCompletedProfile = async (): Promise<boolean> => {
   const guestId = await getGuestId();
   const val = await AsyncStorage.getItem(`guestProfileCompleted_${guestId}`);
   return val === 'true';
+};
+
+// ─── Checkins ────────────────────────────────────────────────────────────────
+
+export const saveGuestCheckin = async (checkin: {
+  emocion: string;
+  consumo: boolean;
+  gratitud: string;
+  ubicacion?: string;
+  social?: string;
+  reflexion?: string;
+}): Promise<void> => {
+  const guestId = await getGuestId();
+  const checkins = await getGuestCheckins();
+
+  const ahora = new Date();
+  const ahoraCol = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  const fechaStr = ahoraCol.toISOString();
+  const diaStr = fechaStr.slice(0, 10);
+  const horaStr = fechaStr.slice(11, 16);
+
+  // ✅ Agregar todos los checkins — el usuario puede hacer varios por día
+  const nuevo = {
+    id: uuidv4(),
+    fecha: fechaStr,
+    dia: diaStr,
+    hora: horaStr,
+    emocion: checkin.emocion,
+    consumo: checkin.consumo,
+    gratitud: checkin.gratitud,
+    ...(checkin.consumo && {
+      ubicacion: checkin.ubicacion || '',
+      social: checkin.social || '',
+      reflexion: checkin.reflexion || '',
+    }),
+  };
+
+  checkins.push(nuevo);
+  await AsyncStorage.setItem(`guestCheckins_${guestId}`, JSON.stringify(checkins));
+};
+
+export const getGuestCheckins = async (): Promise<any[]> => {
+  const guestId = await getGuestId();
+  const raw = await AsyncStorage.getItem(`guestCheckins_${guestId}`);
+  return raw ? JSON.parse(raw) : [];
+};
+
+export const getGuestTodayCheckin = async (): Promise<any | null> => {
+  const checkins = await getGuestCheckins();
+  const ahora = new Date();
+  const ahoraCol = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  const hoy = ahoraCol.toISOString().slice(0, 10);
+  return checkins.find((c: any) => c.dia === hoy) ?? null;
+};
+
+// ─── Progreso camino ──────────────────────────────────────────────────────────
+
+export const saveGuestProgress = async (nivel: number, subnivel: number): Promise<void> => {
+  const guestId = await getGuestId();
+  await AsyncStorage.setItem(
+    `guestProgress_${guestId}`,
+    JSON.stringify({ nivel, subnivel }),
+  );
+};
+
+export const getGuestProgress = async (): Promise<{ nivel: number; subnivel: number }> => {
+  const guestId = await getGuestId();
+  const raw = await AsyncStorage.getItem(`guestProgress_${guestId}`);
+  return raw ? JSON.parse(raw) : { nivel: 1, subnivel: 1 };
+};
+
+// ─── Mascota ──────────────────────────────────────────────────────────────────
+
+export const saveGuestPet = async (pet: object): Promise<void> => {
+  const guestId = await getGuestId();
+  await AsyncStorage.setItem(`guestPet_${guestId}`, JSON.stringify(pet));
+};
+
+export const getGuestPet = async (): Promise<any | null> => {
+  const guestId = await getGuestId();
+  const raw = await AsyncStorage.getItem(`guestPet_${guestId}`);
+  return raw ? JSON.parse(raw) : null;
+};
+
+// ─── Ahorro ───────────────────────────────────────────────────────────────────
+
+export const getGuestAhorro = async (): Promise<{
+  ahorro_total: number;
+  dias_limpios: number;
+  gasto_diario: number;
+  gasto_semanal: number;
+}> => {
+  const checkins = await getGuestCheckins();
+  const profile = await getGuestProfile();
+
+  const gasto_semanal = Number(profile.gasto_semana ?? profile.gasto_semanal ?? 0);
+  const gasto_diario = gasto_semanal / 7;
+
+  // ✅ Agrupar por día — si alguno tiene consumo, el día es malo
+  const diasMap: Record<string, boolean> = {};
+  checkins.forEach((c: any) => {
+    if (diasMap[c.dia] === undefined) {
+      diasMap[c.dia] = c.consumo;
+    } else if (c.consumo === true) {
+      diasMap[c.dia] = true;
+    }
+  });
+
+  const dias_limpios = Object.values(diasMap).filter(v => v === false).length;
+  const ahorro_total = dias_limpios * gasto_diario;
+
+  return {
+    ahorro_total: Math.round(ahorro_total),
+    dias_limpios,
+    gasto_diario: Math.round(gasto_diario),
+    gasto_semanal,
+  };
+};
+
+// ─── Migración pendiente ──────────────────────────────────────────────────────
+
+export const setPendingMigration = async (): Promise<void> => {
+  await AsyncStorage.setItem('pendingMigration', 'true');
+};
+
+export const getPendingMigration = async (): Promise<boolean> => {
+  const val = await AsyncStorage.getItem('pendingMigration');
+  return val === 'true';
+};
+
+export const clearPendingMigration = async (): Promise<void> => {
+  await AsyncStorage.removeItem('pendingMigration');
 };
