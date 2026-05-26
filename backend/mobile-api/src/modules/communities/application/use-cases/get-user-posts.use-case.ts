@@ -39,6 +39,7 @@ export class GetUserPostsUseCase {
           id:                post._id,
           titulo:            post.titulo || null,
           contenido:         post.contenido,
+          imagen_url:        post.imagen_url || null,
           created_at:        post.created_at,
           comunidad_id:      post.comunidad_id,
           comunidad_nombre:  community?.nombre || '',

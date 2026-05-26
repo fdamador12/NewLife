@@ -23,7 +23,7 @@ services:
       ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN}
       CORS_ORIGIN: ${CORS_ORIGIN}
       # ── MinIO ─────────────────────────────────────────────────────
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
       MINIO_REGION: ${MINIO_REGION}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -56,6 +56,9 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - MINIO_ENDPOINT=http://minio:9000
+    depends_on:
+      - minio
     command: npm run start:dev
     restart: unless-stopped
 
@@ -95,11 +98,11 @@ services:
     command: server /data --console-address ":9001"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 30s
 
   # ── Inicialización de MinIO ──────────────────────────────────────
   # Servicio efimero que crea el bucket publico si no existe.

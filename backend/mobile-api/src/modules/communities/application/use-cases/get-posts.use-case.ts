@@ -54,6 +54,7 @@ export class GetPostsUseCase {
           comunidad_id:      post.comunidad_id,
           titulo:            post.titulo || null,
           contenido:         post.contenido,
+          imagen_url:        post.imagen_url || null,
           created_at:        post.created_at,
           edited_at:         post.edited_at,
           es_mio:            post.autor_id === robleId,

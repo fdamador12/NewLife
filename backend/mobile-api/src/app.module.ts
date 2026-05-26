@@ -15,6 +15,7 @@ import { GuidedMeditationModule } from './modules/guided-meditation/guided-medit
 import { PetModule } from './modules/pet/pet.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ZonesModule } from './zones/zones.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ZonesModule } from './zones/zones.module';
     PetModule,
     AnalyticsModule,
     ZonesModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

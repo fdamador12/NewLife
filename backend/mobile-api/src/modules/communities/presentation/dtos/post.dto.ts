@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsOptional, IsUrl } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePostDto {
@@ -8,8 +8,12 @@ export class CreatePostDto {
   titulo?: string;
   
   @ApiProperty({ example: '¡Hoy cumplí 30 días sobrio!', maxLength: 2000 })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(2000)
-  contenido: string;
+  contenido?: string;
+
+  @IsOptional()
+  @IsUrl()
+  imagen_url?: string;
 }

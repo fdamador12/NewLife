@@ -3,16 +3,18 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Modal, Image, ActivityIndicator, Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { apiError } from '../../../utils/apiError';
-import { createPost } from '../../../services/communityService';
+import { createPost, uploadPostImage } from '../../../services/communityService';
 
 export default function CreatePostScreen({ navigation, route }: any) {
   const { communities = [] } = route.params || {};
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [selectedCommunities, setSelectedCommunities] = useState<string[]>([]);
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,13 +49,44 @@ export default function CreatePostScreen({ navigation, route }: any) {
 
   const canPublish = title.trim().length > 0 && selectedWithAccess.length > 0;
 
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesita acceso a tu galería para subir imágenes.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const handlePublish = async () => {
     if (!canPublish) return;
     setLoading(true);
     try {
+      let uploadedUrl: string | undefined;
+      if (imageUri) {
+        try {
+          uploadedUrl = await uploadPostImage(imageUri);
+        } catch (uploadErr: any) {
+          console.error('[CreatePost] uploadPostImage falló:', JSON.stringify({
+            message: uploadErr?.message,
+            status: uploadErr?.response?.status,
+            data: uploadErr?.response?.data,
+            code: uploadErr?.code,
+          }, null, 2));
+          Alert.alert('Error al subir imagen', apiError(uploadErr, 'No se pudo subir la imagen. Verifica tu conexión.'));
+          return;
+        }
+      }
       await Promise.all(
-        selectedWithAccess.map(communityId =>   // ← usa selectedWithAccess
-          createPost(communityId, body.trim(), title.trim())
+        selectedWithAccess.map(communityId =>
+          createPost(communityId, body.trim(), title.trim(), uploadedUrl)
         )
       );
       navigation.goBack();
@@ -110,14 +143,27 @@ export default function CreatePostScreen({ navigation, route }: any) {
           textAlignVertical="top"
         />
 
-        {/* Imagen — pendiente */}
-        <TouchableOpacity style={styles.imageUpload} disabled>
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>Cargar imagen</Text>
-            <View style={styles.imagePlaceholderIcon}>
-              <Feather name="image" size={32} color={colors.border} />
+        {/* Imagen */}
+        <TouchableOpacity style={styles.imageUpload} onPress={pickImage} activeOpacity={0.8}>
+          {imageUri ? (
+            <View>
+              <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+              <TouchableOpacity
+                style={styles.imageRemoveBtn}
+                onPress={() => setImageUri(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="x" size={16} color="#FFF" />
+              </TouchableOpacity>
             </View>
-          </View>
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>Cargar imagen</Text>
+              <View style={styles.imagePlaceholderIcon}>
+                <Feather name="image" size={32} color={colors.border} />
+              </View>
+            </View>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />
@@ -296,6 +342,24 @@ const styles = StyleSheet.create({
     height: 80,
     backgroundColor: '#F0F0F0',
     borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: borderRadius.md,
+  },
+
+  imageRemoveBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },

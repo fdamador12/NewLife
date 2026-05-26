@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, Image, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, Pressable, Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ type Post = {
   comunidad_nombre?: string;
   created_at: string;
   contenido: string;
+  imagen_url?: string | null;
   total_comentarios: number;
   total_reacciones: number;
   mis_reacciones: string[];
@@ -150,7 +151,10 @@ function PostCard({
       
       {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
       <Text style={styles.postContent}>{post.contenido}</Text>
-      
+      {post.imagen_url ? (
+        <Image source={{ uri: post.imagen_url }} style={styles.postImage} resizeMode="cover" />
+      ) : null}
+
       <View style={styles.actions}>
         <TouchableOpacity 
           style={[styles.actionBtn, liked && styles.actionBtnLiked]} 
@@ -254,7 +258,7 @@ export default function SocialScreen({ navigation }: any) {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  useFocusEffect(useCallback(() => { fetchData(true); }, [fetchData]));
 
   const confirmDeletePost = async () => {
     const { postId, comunidadId } = deleteModal;
@@ -530,7 +534,8 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 13, color: COLORS.muted },
   menuBtn: { padding: 4 },
   postTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8, lineHeight: 22 },
-  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 16 },
+  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 12 },
+  postImage: { width: '100%', height: 200, borderRadius: 12, marginBottom: 16 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 6 },
   actionBtnLiked: { backgroundColor: COLORS.redLight },

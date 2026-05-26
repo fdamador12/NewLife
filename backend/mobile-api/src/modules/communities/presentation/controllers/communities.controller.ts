@@ -128,7 +128,7 @@ export class CommunitiesController {
   @Post(':id/posts')
   @ApiOperation({ summary: 'Crear post' })
   async createPost(@Param('id') id: string, @Body() dto: CreatePostDto, @Request() req: any) {
-    return this.createPostUseCase.execute(id, req.user.uid, dto.contenido, dto.titulo);
+    return this.createPostUseCase.execute(id, req.user.uid, dto.contenido, dto.titulo, dto.imagen_url);
   }
 
   @Delete(':id/posts/:postId')
