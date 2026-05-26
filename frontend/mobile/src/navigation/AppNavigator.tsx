@@ -90,6 +90,8 @@ import PostDetailScreen from '../modules/social/screens/PostDetailScreen';
 import CommunityModerationScreen from '../modules/social/screens/CommunityModerationScreen';
 import EditProfileMenuScreen from '../modules/social/screens/EditProfileMenuScreen';
 import EditProfileScreen from '../modules/social/screens/EditProfileScreen';
+import CreatePostScreen from '../modules/social/screens/CreatePostScreen';
+import SocialProfileScreen from '../modules/social/screens/SocialProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -216,6 +218,9 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="CommunityModeration" component={CommunityModerationScreen} />
                   <Stack.Screen name="EditProfile" component={EditProfileMenuScreen} />
                   <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
+                  <Stack.Screen name="CreatePost" component={CreatePostScreen} />
+                  <Stack.Screen name="SocialProfile" component={SocialProfileScreen} />
+                  <Stack.Screen name="UserProfile" component={SocialProfileScreen} />
                 </Stack.Navigator>
                 <Toast />
                 <ConfirmModal />

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, Image, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, RefreshControl, Modal, Pressable,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
@@ -480,6 +480,9 @@ export default function PostDetailScreen({ navigation, route }: any) {
 
             {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
             <Text style={styles.postContent}>{post.contenido}</Text>
+            {post.imagen_url ? (
+              <Image source={{ uri: post.imagen_url }} style={styles.postImage} resizeMode="cover" />
+            ) : null}
 
             <View style={styles.actions}>
               <TouchableOpacity style={[styles.actionBtn, postLiked && styles.actionBtnLiked]} onPress={handleReact}>
@@ -639,7 +642,8 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 13, color: COLORS.muted },
   menuBtn: { padding: 4 },
   postTitle: { fontSize: 17, fontWeight: '600', color: COLORS.text, marginBottom: 8, lineHeight: 24 },
-  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 16 },
+  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 12 },
+  postImage: { width: '100%', height: 220, borderRadius: 12, marginBottom: 16 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 6 },
   actionBtnLiked: { backgroundColor: COLORS.redLight },

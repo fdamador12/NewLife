@@ -42,7 +42,7 @@ export class DatabaseService {
   async findById(tableName: string, id: any, token: string): Promise<any> {
     const result = await this.find(tableName, { _id: id }, token);
     const rows = Array.isArray(result) ? result : (result?.rows ?? []);
-    return rows[0] ?? null;
+    return rows.find((r: any) => r._id === id) ?? null;
   }
 
   async find(tableName: string, filters: any, token: string) {

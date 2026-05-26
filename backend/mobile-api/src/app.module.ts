@@ -16,6 +16,7 @@ import { PetModule } from './modules/pet/pet.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ZonesModule } from './zones/zones.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AnalyticsModule,
     ZonesModule,
     NotificationsModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

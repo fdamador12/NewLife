@@ -37,8 +37,26 @@ export const getPosts = async (communityId: string, force = false) => {
   return res.data;
 };
 
-export const createPost = async (communityId: string, contenido: string, titulo?: string) => {
-  const res = await api.post(`/communities/${communityId}/posts`, { contenido, titulo });
+export const uploadPostImage = async (imageUri: string): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', {
+    uri: imageUri,
+    type: 'image/jpeg',
+    name: 'post-image.jpg',
+  } as any);
+  // Axios sets Content-Type: application/json by default for POST in React Native
+  // (unlike browsers, RN doesn't auto-clear it for FormData).
+  // Setting it to undefined removes it so the native XHR sets it correctly:
+  // multipart/form-data; boundary=<uuid>
+  const res = await api.post('/media/upload', formData, {
+    headers: { 'Content-Type': undefined } as any,
+    transformRequest: (data) => data,
+  });
+  return res.data.url;
+};
+
+export const createPost = async (communityId: string, contenido: string, titulo?: string, imagen_url?: string) => {
+  const res = await api.post(`/communities/${communityId}/posts`, { contenido, titulo, imagen_url });
   communityCache.invalidate(CK.posts(communityId), CK.socialFeed);
   return res.data;
 };
@@ -50,12 +68,12 @@ export const deletePost = async (communityId: string, postId: string) => {
 };
 
 export const getUserPosts = async () => {
-  const res = await api.get('/user/posts');
+  const res = await api.get('/communities/my-posts');
   return res.data;
 };
 
 export const getUserPostsById = async (robleId: string) => {
-  const res = await api.get(`/user/${robleId}/posts`);
+  const res = await api.get(`/communities/users/${robleId}/posts`);
   return res.data;
 };
 

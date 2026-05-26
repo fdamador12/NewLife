@@ -13,7 +13,8 @@ export class ResolveUserIdHelper {
     const masterToken = await this.systemAuth.getMasterToken();
     const res = await this.dbService.find('usuarios', { usuario_id: usuarioUuid }, masterToken);
     const rows = Array.isArray(res) ? res : (res.rows || []);
-    if (!rows[0]) throw new NotFoundException('Usuario no encontrado.');
-    return rows[0]._id;
+    const user = rows.find((u: any) => u.usuario_id === usuarioUuid);
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+    return user._id;
   }
 }

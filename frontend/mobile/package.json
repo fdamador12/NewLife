@@ -26,6 +26,7 @@
     "expo-dev-client": "~55.0.16",
     "expo-device": "~55.0.7",
     "expo-font": "~55.0.6",
+    "expo-image-picker": "~55.0.20",
     "expo-linear-gradient": "~55.0.14",
     "expo-notifications": "~0.32.12",
     "lottie-react-native": "^7.3.6",
