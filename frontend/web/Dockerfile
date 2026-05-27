@@ -9,17 +9,19 @@ RUN npm install
 
 COPY . .
 
-# Variable horneada en build time (no depende de .env.local ni de runtime)
+# Variables horneadas en build time (no dependen de .env.local ni de runtime)
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# URL del mobile-api para el formulario de eliminar cuenta
+ARG NEXT_PUBLIC_MOBILE_API_URL
+ENV NEXT_PUBLIC_MOBILE_API_URL=$NEXT_PUBLIC_MOBILE_API_URL
+
 RUN npm run build
 
-# ── Imagen final ──────────────────────────────────────────────────
 FROM node:20-alpine
 WORKDIR /app
 
-# Solo copiamos lo necesario para correr (no node_modules de dev)
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
