@@ -12,6 +12,7 @@
       "package": "com.uninorte.newlife",
       "icon": "./src/assets/images/logo.png",
       "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/logo_foreground.png",
         "backgroundColor": "#c97b3f"

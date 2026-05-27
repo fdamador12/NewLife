@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { ProgressModule } from '../progress/progress.module';
+import { PushModule } from '../push/push.module';   // ← NUEVO
 import { CommunitiesController } from './presentation/controllers/communities.controller';
 import { ResolveUserIdHelper } from './application/helpers/resolve-user-id.helper';
 import { GetMyCommunitiesUseCase } from './application/use-cases/get-my-communities.use-case';
@@ -37,10 +38,9 @@ import { ReplyForumUseCase } from './application/use-cases/reply-forum.use-case'
 import { GetPublicProfileUseCase } from './application/use-cases/get-public-profile.use-case';
 
 @Module({
-  // ProgressModule debe estar en imports[] (no en providers[]) para que su
-  // export 'IProgressProviderPort' este disponible para inyeccion en
-  // GetPublicProfileUseCase. Los modulos siempre van en imports[].
-  imports: [AuthModule, DatabaseModule, ProgressModule],
+  // PushModule agregado para que ReplyDailyForumUseCase y ReplyForumUseCase
+  // puedan inyectar ExpoPushService (exportado por PushModule).
+  imports: [AuthModule, DatabaseModule, ProgressModule, PushModule],
   controllers: [CommunitiesController],
   providers: [
     ResolveUserIdHelper,

@@ -27,6 +27,11 @@ const UUID_TABLES = [
 // las membresias del usuario en la tabla real `comunidad_usuarios` (plural).
 // Verificado contra el resto del backend: TODAS las demas operaciones
 // (insertar membresia, actualizar tipo de acceso, etc.) usan 'comunidad_usuarios'.
+//
+// FIX 2026-05 (push notifications): agregar 'push_tokens' para que al eliminar
+// la cuenta no queden tokens huerfanos en la base. Esto tambien previene que
+// si el robleId se reusara, el dispositivo viejo recibiera notificaciones
+// del nuevo usuario.
 const ROBLE_ID_TABLES = [
   'foro_respuesta_comentarios',
   'comentario_likes',
@@ -40,6 +45,7 @@ const ROBLE_ID_TABLES = [
   'comentario_respuesta_likes',
   'reacciones',
   'comentario_respuestas',
+  'push_tokens',  // ← NUEVO
 ];
 
 /** Placeholder usado para anonimizar el nombre del usuario eliminado. */
@@ -70,6 +76,11 @@ const ANONYMIZED_NAME = '[Cuenta eliminada]';
  * Las notificaciones agendadas en el DISPOSITIVO del usuario NO pueden ser
  * canceladas desde el backend. El frontend debe llamar a
  * `cancelAllScheduledNotificationsAsync()` ANTES de invocar este endpoint.
+ *
+ * NOTA SOBRE PUSH NOTIFICATIONS:
+ * Los push_tokens se borran como parte de ROBLE_ID_TABLES. Esto significa que
+ * el backend NO podra enviar mas pushes a ese dispositivo. Pero el dispositivo
+ * podra registrar un nuevo token cuando otro usuario inicie sesion ahi.
  */
 @Injectable()
 export class DeleteAllDataUseCase {
@@ -128,14 +139,6 @@ export class DeleteAllDataUseCase {
     await Promise.all([...uuidDeletes, ...robleIdDeletes]);
 
     // 4. SOFT DELETE del registro principal en `usuarios`.
-    //
-    // CRITICO: este paso evita que la cuenta "resucite" en LoginUseCase.
-    //
-    // ANONIMIZACION sin tocar schema:
-    // - `nombre` cambia a placeholder (no es null para no romper queries)
-    // - `estado` = 'ELIMINADO' (bloqueo de login)
-    // - `deleted_at` = timestamp actual
-    // - `delete_motivo` = motivo opcional
     if (robleId) {
       try {
         const updatePayload: Record<string, any> = {
@@ -144,7 +147,6 @@ export class DeleteAllDataUseCase {
           deleted_at: new Date().toISOString(),
         };
 
-        // Solo agregar motivo si vino del caller (landing). Movil no envia motivo.
         if (motivo) {
           updatePayload.delete_motivo = motivo;
         }
@@ -159,7 +161,6 @@ export class DeleteAllDataUseCase {
           `❌ CRITICO: no se pudo marcar usuario como ELIMINADO. ` +
           `La cuenta puede ser reactivable. Error: ${err.message}`,
         );
-        // Re-lanzar el error para que el caller sepa que algo crítico fallo
         throw err;
       }
     } else {

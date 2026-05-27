@@ -17,6 +17,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ZonesModule } from './zones/zones.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MediaModule } from './modules/media/media.module';
+import { PushModule } from './modules/push/push.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { MediaModule } from './modules/media/media.module';
     ZonesModule,
     NotificationsModule,
     MediaModule,
+    PushModule,
   ],
 })
 export class AppModule {}

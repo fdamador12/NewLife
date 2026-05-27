@@ -93,6 +93,12 @@ export default function DailyForumScreen({ navigation, route }: any) {
     );
   }
 
+  // Calcular el indice del primer foro NO-hoy una sola vez fuera del map.
+  // Esto es: (a) mas eficiente (O(n) vs O(n^2) anterior con find/findIndex
+  // dentro del map), y (b) lo necesitamos para saber donde insertar el
+  // titulo "Foros de días anteriores".
+  const firstNonTodayIdx = forums.findIndex(f => !f.es_hoy);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -126,46 +132,54 @@ export default function DailyForumScreen({ navigation, route }: any) {
             </Text>
           </View>
         ) : (
-          forums.map((forum) => {
-            const isTodayForum = forum.es_hoy;
-            return isTodayForum ? (
-              <TouchableOpacity
-                key={forum.id}
-                style={styles.forumCardTodayLarge}
-                onPress={() => handleForumPress(forum)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.forumIconRow}>
-                  <View style={styles.forumIconTodayLarge}>
-                    <Feather name="message-square" size={20} color={COLORS.white} />
-                  </View>
-                  <View style={styles.forumLabelRow}>
-                    <Text style={styles.forumLabel}>Foro del dia</Text>
-                    <View style={styles.todayBadgeLarge}>
-                      <View style={styles.liveDot} />
-                      <Text style={styles.todayBadgeTextLarge}>Activo</Text>
-                    </View>
-                  </View>
-                </View>
-                <Text style={styles.forumQuestionLarge}>
-                  {forum.pregunta}
-                </Text>
-                <View style={styles.forumFooter}>
-                  <View style={{ flex: 1 }} />
-                  <Feather name="chevron-right" size={20} color={COLORS.accent} />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <>
-                {forums.find(f => !f.es_hoy) &&
-                  forums.indexOf(forum) === forums.findIndex(f => !f.es_hoy) && (
-                    <Text style={styles.sectionTitle}>
-                      Foros de días anteriores
-                    </Text>
-                  )}
-
+          forums.map((forum, idx) => {
+            // Foro de hoy → card grande oscuro
+            if (forum.es_hoy) {
+              return (
                 <TouchableOpacity
                   key={forum.id}
+                  style={styles.forumCardTodayLarge}
+                  onPress={() => handleForumPress(forum)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.forumIconRow}>
+                    <View style={styles.forumIconTodayLarge}>
+                      <Feather name="message-square" size={20} color={COLORS.white} />
+                    </View>
+                    <View style={styles.forumLabelRow}>
+                      <Text style={styles.forumLabel}>Foro del dia</Text>
+                      <View style={styles.todayBadgeLarge}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.todayBadgeTextLarge}>Activo</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.forumQuestionLarge}>
+                    {forum.pregunta}
+                  </Text>
+                  <View style={styles.forumFooter}>
+                    <View style={{ flex: 1 }} />
+                    <Feather name="chevron-right" size={20} color={COLORS.accent} />
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
+            // Foro pasado → card normal blanco
+            // Si es el PRIMER foro no-hoy, mostrar el titulo de seccion antes
+            const showSectionTitle = idx === firstNonTodayIdx;
+
+            // FIX KEY WARNING: usamos React.Fragment CON key explicita (no
+            // se puede poner key en el shorthand <>...</>). Esto resuelve el
+            // warning de "Each child in a list should have a unique key prop".
+            return (
+              <React.Fragment key={forum.id}>
+                {showSectionTitle && (
+                  <Text style={styles.sectionTitle}>
+                    Foros de días anteriores
+                  </Text>
+                )}
+                <TouchableOpacity
                   style={styles.forumCard}
                   onPress={() => handleForumPress(forum)}
                   activeOpacity={0.9}
@@ -195,7 +209,7 @@ export default function DailyForumScreen({ navigation, route }: any) {
                     color={COLORS.muted}
                   />
                 </TouchableOpacity>
-              </>
+              </React.Fragment>
             );
           })
         )}
@@ -204,6 +218,7 @@ export default function DailyForumScreen({ navigation, route }: any) {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
@@ -212,7 +227,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text },
   scroll: { paddingHorizontal: 20, paddingTop: 20, gap: 12 },
 
-  // Estilos para el foro de hoy (oscuro, como en SocialScreen)
   forumCardTodayLarge: {
     backgroundColor: COLORS.dark,
     borderRadius: 16,
@@ -222,78 +236,33 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
   },
-  forumIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  forumIconRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   forumIconTodayLarge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: COLORS.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  forumLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  forumLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-  },
+  forumLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  forumLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
   todayBadgeLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#4CAF50',
-  },
-  todayBadgeTextLarge: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  forumQuestionLarge: {
-    fontSize: 15,
-    color: COLORS.white,
-    fontWeight: '500',
-    lineHeight: 22,
-  },
-  forumFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4CAF50' },
+  todayBadgeTextLarge: { fontSize: 11, fontWeight: '600', color: COLORS.white },
+  forumQuestionLarge: { fontSize: 15, color: COLORS.white, fontWeight: '500', lineHeight: 22 },
+  forumFooter: { flexDirection: 'row', alignItems: 'center' },
 
   forumCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 12,
+    backgroundColor: COLORS.white, borderRadius: 20, padding: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12,
   },
   forumIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: COLORS.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   forumContent: { flex: 1, gap: 4 },
   forumMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -304,11 +273,5 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.lightMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   emptyTitle: { fontSize: 20, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
   emptyText: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 12,
-    marginTop: 8,
-  },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 12, marginTop: 8 },
 });
