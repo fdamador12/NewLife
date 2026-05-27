@@ -1,30 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Modal, Image, ActivityIndicator, Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { apiError } from '../../../utils/apiError';
 import { createPost, uploadPostImage } from '../../../services/communityService';
 
 /**
- * Pantalla de crear post desde la pantalla Social principal.
- * Permite seleccionar multiples comunidades destino.
+ * Vista previa de imagen con aspect ratio REAL (no altura fija).
+ * Asi el preview muestra exactamente el recorte que el usuario hizo en
+ * el ImagePicker — sin deformar ni cortar.
  *
- * Reglas de validacion:
- *  - DESCRIPCION es obligatoria (es lo que comunica el mensaje del usuario).
- *  - TITULO es opcional.
- *  - IMAGEN es opcional.
- *  - Al menos una comunidad seleccionada con acceso de POSTEAR.
- *
- * El ImagePicker limita el recorte a un aspect ratio 4:5 maximo
- * (instagram-like) para evitar imagenes super verticales que rompen
- * el scroll. Solo acepta tipo 'images', no video ni otros formatos.
+ * Limita el aspect ratio mostrado a [0.5, 3] para evitar que imagenes
+ * super verticales/horizontales se vean ridiculas en el preview.
  */
+function ImagePreview({ uri }: { uri: string }) {
+  const [aspectRatio, setAspectRatio] = useState<number>(1);
+
+  useEffect(() => {
+    Image.getSize(
+      uri,
+      (w, h) => setAspectRatio(w / h),
+      () => setAspectRatio(1),
+    );
+  }, [uri]);
+
+  const displayRatio = Math.max(0.5, Math.min(3, aspectRatio));
+
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.imagePreview, { aspectRatio: displayRatio }]}
+      resizeMode="cover"
+    />
+  );
+}
+
 export default function CreatePostScreen({ navigation, route }: any) {
   const { communities = [] } = route.params || {};
+  const insets = useSafeAreaInsets();
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -39,30 +57,22 @@ export default function CreatePostScreen({ navigation, route }: any) {
     );
   };
 
-  const communitiesWithAccess = communities.filter(
-    (c: any) => c.tipo_acceso !== 'SOLO_VER'
-  );
+  const communitiesWithAccess = communities.filter((c: any) => c.tipo_acceso !== 'SOLO_VER');
 
   const toggleAll = () => {
     const accessibleIds = communitiesWithAccess.map((c: any) => c.id);
-    if (selectedCommunities.length === accessibleIds.length) {
-      setSelectedCommunities([]);
-    } else {
-      setSelectedCommunities(accessibleIds);
-    }
+    if (selectedCommunities.length === accessibleIds.length) setSelectedCommunities([]);
+    else setSelectedCommunities(accessibleIds);
   };
 
   const selectedNames = communities
     .filter((c: any) => selectedCommunities.includes(c.id))
-    .map((c: any) => c.nombre)
-    .join(', ');
+    .map((c: any) => c.nombre).join(', ');
 
   const selectedWithAccess = selectedCommunities.filter(id =>
     communitiesWithAccess.some((c: any) => c.id === id)
   );
 
-  // VALIDACION: descripcion obligatoria, comunidad obligatoria
-  // Titulo e imagen son opcionales
   const canPublish = body.trim().length > 0 && selectedWithAccess.length > 0;
 
   const pickImage = async () => {
@@ -72,12 +82,8 @@ export default function CreatePostScreen({ navigation, route }: any) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      // Solo imagenes - excluye video y otros formatos
       mediaTypes: ['images'],
       allowsEditing: true,
-      // Limitar recorte a 4:5 (vertical instagram) para evitar
-      // imagenes muy largas que rompen el scroll del feed
-      aspect: [4, 5],
       quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
@@ -94,7 +100,7 @@ export default function CreatePostScreen({ navigation, route }: any) {
         try {
           uploadedUrl = await uploadPostImage(imageUri);
         } catch (uploadErr: any) {
-          console.error('[CreatePost] uploadPostImage falló:', uploadErr?.message);
+          console.error('[CreatePost] uploadPostImage fallo:', uploadErr?.message);
           Alert.alert('Error al subir imagen', apiError(uploadErr, 'No se pudo subir la imagen.'));
           setLoading(false);
           return;
@@ -113,6 +119,8 @@ export default function CreatePostScreen({ navigation, route }: any) {
     }
   };
 
+  const buttonBottom = Math.max(insets.bottom + 16, 24);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -121,48 +129,43 @@ export default function CreatePostScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Selector de comunidad */}
-        <TouchableOpacity
-          style={styles.communitySelector}
-          onPress={() => setShowCommunityPicker(true)}
-        >
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: buttonBottom + 80 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity style={styles.communitySelector} onPress={() => setShowCommunityPicker(true)}>
           <View style={styles.communityDot} />
-          <Text style={[
-            styles.communitySelectorText,
-            selectedCommunities.length > 0 && styles.communitySelectorTextSelected,
-          ]}>
+          <Text style={[styles.communitySelectorText, selectedCommunities.length > 0 && styles.communitySelectorTextSelected]}>
             {selectedCommunities.length > 0 ? selectedNames : 'Seleccionar comunidad'}
           </Text>
           <Feather name="chevron-down" size={16} color={colors.textMuted} />
         </TouchableOpacity>
 
-        {/* Título — OPCIONAL */}
         <TextInput
           style={styles.titleInput}
           placeholder="Título (opcional)"
           placeholderTextColor={colors.border}
-          value={title}
-          onChangeText={setTitle}
+          value={title} onChangeText={setTitle}
           multiline
         />
 
-        {/* Descripción — OBLIGATORIA */}
         <TextInput
           style={styles.bodyInput}
           placeholder="¿Qué quieres compartir? *"
           placeholderTextColor={colors.border}
-          value={body}
-          onChangeText={setBody}
-          multiline
-          textAlignVertical="top"
+          value={body} onChangeText={setBody}
+          multiline textAlignVertical="top"
         />
 
-        {/* Imagen — OPCIONAL */}
         <TouchableOpacity style={styles.imageUpload} onPress={pickImage} activeOpacity={0.8}>
           {imageUri ? (
             <View>
-              <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+              {/*
+                Preview de imagen con aspect ratio REAL del recorte.
+                ImagePreview lee las dimensiones de la imagen recortada y
+                la muestra preservando exactamente esa proporcion.
+              */}
+              <ImagePreview uri={imageUri} />
               <TouchableOpacity
                 style={styles.imageRemoveBtn}
                 onPress={() => setImageUri(null)}
@@ -180,12 +183,14 @@ export default function CreatePostScreen({ navigation, route }: any) {
             </View>
           )}
         </TouchableOpacity>
-
-        <View style={{ height: 100 }} />
       </ScrollView>
 
       <TouchableOpacity
-        style={[styles.publishButton, (!canPublish || loading) && styles.publishButtonDisabled]}
+        style={[
+          styles.publishButton,
+          { bottom: buttonBottom },
+          (!canPublish || loading) && styles.publishButtonDisabled,
+        ]}
         onPress={handlePublish}
         disabled={!canPublish || loading}
       >
@@ -195,26 +200,17 @@ export default function CreatePostScreen({ navigation, route }: any) {
         }
       </TouchableOpacity>
 
-      {/* Modal selector comunidades */}
       <Modal visible={showCommunityPicker} transparent animationType="slide" statusBarTranslucent>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowCommunityPicker(false)}
-          activeOpacity={1}
-        >
-          <View style={styles.modalContent}>
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowCommunityPicker(false)} activeOpacity={1}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}>
             <Text style={styles.modalTitle}>Publicar en</Text>
 
             <TouchableOpacity style={styles.communityOption} onPress={toggleAll}>
-              <View style={[
-                styles.checkbox,
-                selectedCommunities.length === communitiesWithAccess.length &&
-                communitiesWithAccess.length > 0 && styles.checkboxSelected,
-              ]}>
-                {selectedCommunities.length === communitiesWithAccess.length &&
-                  communitiesWithAccess.length > 0 && (
-                    <Feather name="check" size={12} color={colors.white} />
-                  )}
+              <View style={[styles.checkbox,
+              selectedCommunities.length === communitiesWithAccess.length && communitiesWithAccess.length > 0 && styles.checkboxSelected]}>
+                {selectedCommunities.length === communitiesWithAccess.length && communitiesWithAccess.length > 0 && (
+                  <Feather name="check" size={12} color={colors.white} />
+                )}
               </View>
               <Text style={styles.communityOptionText}>Todas mis comunidades</Text>
             </TouchableOpacity>
@@ -230,11 +226,9 @@ export default function CreatePostScreen({ navigation, route }: any) {
                   onPress={() => hasAccess && toggleCommunity(community.id)}
                   activeOpacity={hasAccess ? 0.7 : 1}
                 >
-                  <View style={[
-                    styles.checkbox,
-                    selectedCommunities.includes(community.id) && styles.checkboxSelected,
-                    !hasAccess && styles.checkboxDisabled,
-                  ]}>
+                  <View style={[styles.checkbox,
+                  selectedCommunities.includes(community.id) && styles.checkboxSelected,
+                  !hasAccess && styles.checkboxDisabled]}>
                     {selectedCommunities.includes(community.id) && (
                       <Feather name="check" size={12} color={colors.white} />
                     )}
@@ -245,19 +239,14 @@ export default function CreatePostScreen({ navigation, route }: any) {
                       <Text style={[styles.communityOptionText, !hasAccess && styles.communityOptionTextDisabled]}>
                         {community.nombre}
                       </Text>
-                      {!hasAccess && (
-                        <Text style={styles.noAccessText}>Solo lectura</Text>
-                      )}
+                      {!hasAccess && <Text style={styles.noAccessText}>Solo lectura</Text>}
                     </View>
                   </View>
                 </TouchableOpacity>
               );
             })}
 
-            <TouchableOpacity
-              style={styles.modalConfirmButton}
-              onPress={() => setShowCommunityPicker(false)}
-            >
+            <TouchableOpacity style={styles.modalConfirmButton} onPress={() => setShowCommunityPicker(false)}>
               <Text style={styles.modalConfirmText}>Confirmar</Text>
             </TouchableOpacity>
           </View>
@@ -272,108 +261,56 @@ const styles = StyleSheet.create({
   header: { paddingTop: 60, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg },
   scroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
   communitySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: colors.border,
-    elevation: 1,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.white, borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+    alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.border, elevation: 1,
   },
   communityDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
   communitySelectorText: { fontSize: fontSizes.sm, color: colors.textMuted, fontWeight: '500' },
   communitySelectorTextSelected: { color: colors.text, fontWeight: '600' },
-  titleInput: {
-    fontSize: fontSizes.xxl,
-    fontWeight: '800',
-    color: colors.text,
-    paddingVertical: spacing.sm,
-  },
-  bodyInput: {
-    fontSize: fontSizes.md,
-    color: colors.textLight,
-    minHeight: 80,
-    lineHeight: 24,
-  },
+  titleInput: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.text, paddingVertical: spacing.sm },
+  bodyInput: { fontSize: fontSizes.md, color: colors.textLight, minHeight: 80, lineHeight: 24 },
   imageUpload: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    backgroundColor: colors.white, borderRadius: borderRadius.md, overflow: 'hidden',
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 3,
   },
   imagePlaceholder: { padding: spacing.xl, alignItems: 'center', gap: spacing.md },
   imagePlaceholderText: { fontSize: fontSizes.md, color: colors.textMuted, fontWeight: '500' },
   imagePlaceholderIcon: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#F0F0F0',
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 80, height: 80, backgroundColor: '#F0F0F0',
+    borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center',
   },
-  imagePreview: { width: '100%', height: 200, borderRadius: borderRadius.md },
+  // Preview: ancho 100%, alto calculado por aspectRatio dinamico
+  imagePreview: { width: '100%', borderRadius: borderRadius.md, backgroundColor: '#E8E8E8' },
   imageRemoveBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: 'absolute', top: 8, right: 8, width: 30, height: 30,
+    borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
   },
   publishButton: {
-    position: 'absolute',
-    bottom: 32,
-    left: spacing.xl,
-    right: spacing.xl,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    elevation: 4,
+    position: 'absolute', left: spacing.xl, right: spacing.xl,
+    backgroundColor: colors.primary, borderRadius: borderRadius.full,
+    paddingVertical: spacing.md, alignItems: 'center', elevation: 4,
   },
   publishButtonDisabled: { opacity: 0.4 },
   publishButtonText: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.xl,
-    gap: spacing.md,
-    paddingBottom: 48,
+    backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: spacing.xl, paddingHorizontal: spacing.xl, gap: spacing.md,
   },
   modalTitle: { fontSize: fontSizes.lg, fontWeight: '800', color: colors.text, marginBottom: spacing.sm },
   communityOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkboxSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
   communityOptionInfo: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   communityOptionText: { fontSize: fontSizes.md, color: colors.text, fontWeight: '500' },
   divider: { height: 1, backgroundColor: '#F0F0F0' },
   modalConfirmButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
+    backgroundColor: colors.primary, borderRadius: borderRadius.full,
+    paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.sm,
   },
   modalConfirmText: { color: colors.white, fontSize: fontSizes.md, fontWeight: '700' },
   communityOptionDisabled: { opacity: 0.5 },

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, RefreshControl, Modal, Pressable,
@@ -19,16 +19,9 @@ import { Avatar } from '../components/Avatar';
 import { ExpandableImage } from '../components/ExpandableImage';
 
 const COLORS = {
-  background: '#F7F7F7',
-  text: '#404040',
-  accent: '#D38A58',
-  white: '#FFFFFF',
-  muted: '#A0A0A0',
-  lightMuted: '#E8E8E8',
-  cream: '#FDF8F5',
-  red: '#E25C5C',
-  redLight: '#FDF0F0',
-  overlay: 'rgba(64, 64, 64, 0.5)',
+  background: '#F7F7F7', text: '#404040', accent: '#D38A58', white: '#FFFFFF',
+  muted: '#A0A0A0', lightMuted: '#E8E8E8', cream: '#FDF8F5', red: '#E25C5C',
+  redLight: '#FDF0F0', overlay: 'rgba(64, 64, 64, 0.5)',
 };
 
 function timeAgo(dateStr: string): string {
@@ -42,13 +35,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function CustomModal({
-  visible, title, message, buttons, onClose,
-}: {
-  visible: boolean; title: string; message?: string;
-  buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[];
-  onClose: () => void;
-}) {
+function CustomModal({ visible, title, message, buttons, onClose }: any) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -56,15 +43,11 @@ function CustomModal({
           <Text style={styles.modalTitle}>{title}</Text>
           {message && <Text style={styles.modalMessage}>{message}</Text>}
           <View style={styles.modalButtons}>
-            {buttons.map((btn, index) => (
-              <TouchableOpacity
-                key={index}
+            {buttons.map((btn: any, index: number) => (
+              <TouchableOpacity key={index}
                 style={[styles.modalBtn, btn.style === 'destructive' && styles.modalBtnDestructive, btn.style === 'cancel' && styles.modalBtnCancel]}
-                onPress={() => { onClose(); btn.onPress?.(); }}
-              >
-                <Text style={[styles.modalBtnText, btn.style === 'destructive' && styles.modalBtnTextDestructive, btn.style === 'cancel' && styles.modalBtnTextCancel]}>
-                  {btn.text}
-                </Text>
+                onPress={() => { onClose(); btn.onPress?.(); }}>
+                <Text style={[styles.modalBtnText, btn.style === 'destructive' && styles.modalBtnTextDestructive, btn.style === 'cancel' && styles.modalBtnTextCancel]}>{btn.text}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -75,34 +58,19 @@ function CustomModal({
 }
 
 type ReplyData = {
-  id: string;
-  contenido: string;
-  created_at: string;
-  es_mio: boolean;
+  id: string; contenido: string; created_at: string; es_mio: boolean;
   autor: { id: string; nombre: string; avatar_url?: string | null };
-  total_likes: number;
-  yo_di_like: boolean;
+  total_likes: number; yo_di_like: boolean;
 };
 
 type CommentData = {
-  id: string;
-  contenido: string;
-  created_at: string;
-  es_mio: boolean;
+  id: string; contenido: string; created_at: string; es_mio: boolean;
   autor: { id: string; nombre: string; avatar_url?: string | null };
-  total_likes: number;
-  yo_di_like: boolean;
+  total_likes: number; yo_di_like: boolean;
   respuestas: ReplyData[];
 };
 
-type ReplyingTo = { commentId: string; authorName: string } | null;
-
-function ReplyItem({
-  reply, esModerador, onLike, onDelete, onPressAuthor,
-}: {
-  reply: ReplyData; esModerador: boolean;
-  onLike: () => void; onDelete: () => void; onPressAuthor: () => void;
-}) {
+function ReplyItem({ reply, esModerador, onLike, onDelete, onPressAuthor }: any) {
   const [menuVisible, setMenuVisible] = useState(false);
   return (
     <>
@@ -122,33 +90,20 @@ function ReplyItem({
         <Text style={styles.replyContent}>{reply.contenido}</Text>
         <TouchableOpacity style={[styles.replyLikeBtn, reply.yo_di_like && styles.replyLikeBtnLiked]} onPress={onLike}>
           <Feather name="heart" size={14} color={reply.yo_di_like ? COLORS.red : COLORS.muted} />
-          {reply.total_likes > 0 && (
-            <Text style={[styles.replyLikeCount, reply.yo_di_like && styles.replyLikeCountLiked]}>{reply.total_likes}</Text>
-          )}
+          {reply.total_likes > 0 && <Text style={[styles.replyLikeCount, reply.yo_di_like && styles.replyLikeCountLiked]}>{reply.total_likes}</Text>}
         </TouchableOpacity>
       </View>
-      <CustomModal
-        visible={menuVisible} title="Opciones"
+      <CustomModal visible={menuVisible} title="Opciones"
         buttons={[{ text: 'Eliminar', style: 'destructive', onPress: onDelete }, { text: 'Cancelar', style: 'cancel' }]}
-        onClose={() => setMenuVisible(false)}
-      />
+        onClose={() => setMenuVisible(false)} />
     </>
   );
 }
 
-function CommentCard({
-  comment, canComment, esModerador, onLike, onDelete, onReplyTrigger,
-  onPressAuthor, onLikeReply, onDeleteReply,
-}: {
-  comment: CommentData; canComment: boolean; esModerador: boolean;
-  onLike: () => void; onDelete: () => void;
-  onReplyTrigger: (commentId: string, authorName: string) => void;
-  onPressAuthor: (autor: { id: string; nombre: string }) => void;
-  onLikeReply: (commentId: string, replyId: string) => void;
-  onDeleteReply: (commentId: string, reply: ReplyData) => void;
-}) {
+function CommentCard({ comment, canComment, esModerador, forceShowReplies, onLike, onDelete, onReplyTrigger, onPressAuthor, onLikeReply, onDeleteReply }: any) {
   const [showReplies, setShowReplies] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  useEffect(() => { if (forceShowReplies) setShowReplies(true); }, [forceShowReplies]);
   return (
     <>
       <View style={styles.commentCard}>
@@ -168,9 +123,7 @@ function CommentCard({
         <View style={styles.commentActions}>
           <TouchableOpacity style={[styles.actionBtn, comment.yo_di_like && styles.actionBtnLiked]} onPress={onLike}>
             <Feather name="heart" size={16} color={comment.yo_di_like ? COLORS.red : COLORS.muted} />
-            {comment.total_likes > 0 && (
-              <Text style={[styles.actionCount, comment.yo_di_like && styles.actionCountLiked]}>{comment.total_likes}</Text>
-            )}
+            {comment.total_likes > 0 && <Text style={[styles.actionCount, comment.yo_di_like && styles.actionCountLiked]}>{comment.total_likes}</Text>}
           </TouchableOpacity>
           {canComment && (
             <TouchableOpacity style={styles.actionBtn} onPress={() => onReplyTrigger(comment.id, comment.autor.nombre)}>
@@ -189,7 +142,7 @@ function CommentCard({
         </View>
         {showReplies && comment.respuestas.length > 0 && (
           <View style={styles.repliesContainer}>
-            {comment.respuestas.map((reply) => (
+            {comment.respuestas.map((reply: ReplyData) => (
               <ReplyItem key={reply.id} reply={reply} esModerador={esModerador}
                 onLike={() => onLikeReply(comment.id, reply.id)}
                 onDelete={() => onDeleteReply(comment.id, reply)}
@@ -199,15 +152,23 @@ function CommentCard({
           </View>
         )}
       </View>
-      <CustomModal
-        visible={menuVisible} title="Opciones"
+      <CustomModal visible={menuVisible} title="Opciones"
         buttons={[{ text: 'Eliminar', style: 'destructive', onPress: onDelete }, { text: 'Cancelar', style: 'cancel' }]}
-        onClose={() => setMenuVisible(false)}
-      />
+        onClose={() => setMenuVisible(false)} />
     </>
   );
 }
 
+/**
+ * PostDetailScreen — KeyboardAvoidingView para Expo Go.
+ *
+ * IMPORTANTE: softwareKeyboardLayoutMode:resize en app.json NO funciona
+ * en Expo Go (Expo Go usa su propio AndroidManifest precompilado y lo
+ * ignora). Funciona SOLO en EAS builds. Por eso necesitamos
+ * KeyboardAvoidingView con behavior="height" para Android.
+ *
+ * En iOS usamos behavior="padding" que funciona mejor con teclados grandes.
+ */
 export default function PostDetailScreen({ navigation, route }: any) {
   const { post, community, communityId: paramCommunityId } = route.params;
   const communityId: string = post.comunidad_id ?? paramCommunityId ?? community?.id;
@@ -223,7 +184,8 @@ export default function PostDetailScreen({ navigation, route }: any) {
   const [totalReacciones, setTotalReacciones] = useState<number>(post.total_reacciones ?? 0);
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<ReplyingTo>(null);
+  const [replyingTo, setReplyingTo] = useState<{ commentId: string; authorName: string } | null>(null);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const inputRef = useRef<TextInput>(null);
   const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
   const [modModalVisible, setModModalVisible] = useState(false);
@@ -264,10 +226,15 @@ export default function PostDetailScreen({ navigation, route }: any) {
 
   const handleSend = async () => {
     if (!commentText.trim()) return;
+    const replyTarget = replyingTo;
     setSending(true);
     try {
-      if (replyingTo) await replyToComment(communityId, post.id, replyingTo.commentId, commentText.trim());
-      else await createComment(communityId, post.id, commentText.trim());
+      if (replyTarget) {
+        await replyToComment(communityId, post.id, replyTarget.commentId, commentText.trim());
+        setExpandedReplies(prev => new Set(prev).add(replyTarget.commentId));
+      } else {
+        await createComment(communityId, post.id, commentText.trim());
+      }
       setCommentText(''); setReplyingTo(null);
       await fetchComments(true);
     } catch (err: any) {
@@ -277,10 +244,12 @@ export default function PostDetailScreen({ navigation, route }: any) {
 
   const handleReplyTrigger = (commentId: string, authorName: string) => {
     setReplyingTo({ commentId, authorName });
+    setExpandedReplies(prev => new Set(prev).add(commentId));
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const handleCancelReply = () => { setReplyingTo(null); setCommentText(''); };
+
   const handleLikeComment = async (commentId: string) => {
     try { await likeComment(communityId, post.id, commentId); await fetchComments(true); } catch { }
   };
@@ -321,163 +290,136 @@ export default function PostDetailScreen({ navigation, route }: any) {
   };
 
   if (loading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
-    );
+    return <View style={[styles.container, styles.centered]}><ActivityIndicator size="large" color={COLORS.accent} /></View>;
   }
 
-  const keyboardVerticalOffset = Platform.OS === 'ios' ? 90 : 0;
-  const safeBottom = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 0);
+  const safeBottom = Math.max(insets.bottom, 12);
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={keyboardVerticalOffset}
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-              <Feather name="chevron-left" size={24} color={COLORS.text} />
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Feather name="chevron-left" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Publicación</Text>
+          <View style={{ width: 44 }} />
+        </View>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchComments(true); }} colors={[COLORS.accent]} tintColor={COLORS.accent} />}
+      >
+        <View style={styles.postCard}>
+          <View style={styles.postHeader}>
+            <Avatar
+              url={post.autor?.avatar_url}
+              name={post.autor?.nombre || 'Usuario'}
+              size={48}
+              onPress={() => post.autor && navigation.navigate('UserProfile', { isOwn: false, robleId: post.autor.id, name: post.autor.nombre })}
+            />
+            <View style={styles.authorInfo}>
+              <Text style={styles.authorName}>{post.autor?.nombre || 'Usuario'}</Text>
+              <View style={styles.metaRow}>
+                {(community?.nombre || post.comunidad_nombre) && (
+                  <>
+                    <Text style={styles.communityName}>{community?.nombre || post.comunidad_nombre}</Text>
+                    <View style={styles.dot} />
+                  </>
+                )}
+                <Text style={styles.timeText}>{timeAgo(post.created_at)}</Text>
+              </View>
+            </View>
+            {(post.es_mio || esModerador) && (
+              <TouchableOpacity style={styles.menuBtn} onPress={() => setPostMenuVisible(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Feather name="more-horizontal" size={20} color={COLORS.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
+          {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
+          <Text style={styles.postContent}>{post.contenido}</Text>
+          {post.imagen_url ? (
+            <View style={{ marginBottom: 16 }}><ExpandableImage uri={post.imagen_url} /></View>
+          ) : null}
+          <View style={styles.actions}>
+            <TouchableOpacity style={[styles.actionBtn, postLiked && styles.actionBtnLiked]} onPress={handleReact}>
+              <Feather name="heart" size={18} color={postLiked ? COLORS.red : COLORS.muted} />
+              <Text style={[styles.actionCount, postLiked && styles.actionCountLiked]}>{totalReacciones}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Publicación</Text>
-            <View style={{ width: 44 }} />
+            <View style={styles.actionBtn}>
+              <Feather name="message-circle" size={18} color={COLORS.muted} />
+              <Text style={styles.actionCount}>{comments.length}</Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity style={styles.actionBtnShare}>
+              <Feather name="share" size={18} color={COLORS.muted} />
+            </TouchableOpacity>
           </View>
         </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchComments(true); }} colors={[COLORS.accent]} tintColor={COLORS.accent} />
-          }
-        >
-          <View style={styles.postCard}>
-            <View style={styles.postHeader}>
-              <Avatar
-                url={post.autor?.avatar_url}
-                name={post.autor?.nombre || 'Usuario'}
-                size={48}
-                onPress={() => post.autor && navigation.navigate('UserProfile', {
-                  isOwn: false, robleId: post.autor.id, name: post.autor.nombre,
-                })}
-              />
-              <View style={styles.authorInfo}>
-                <Text style={styles.authorName}>{post.autor?.nombre || 'Usuario'}</Text>
-                <View style={styles.metaRow}>
-                  {(community?.nombre || post.comunidad_nombre) && (
-                    <>
-                      <Text style={styles.communityName}>{community?.nombre || post.comunidad_nombre}</Text>
-                      <View style={styles.dot} />
-                    </>
-                  )}
-                  <Text style={styles.timeText}>{timeAgo(post.created_at)}</Text>
-                </View>
-              </View>
-              {(post.es_mio || esModerador) && (
-                <TouchableOpacity style={styles.menuBtn} onPress={() => setPostMenuVisible(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Feather name="more-horizontal" size={20} color={COLORS.muted} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
-            <Text style={styles.postContent}>{post.contenido}</Text>
-            {post.imagen_url ? (
-              <View style={{ marginBottom: 16 }}>
-                <ExpandableImage uri={post.imagen_url} />
-              </View>
-            ) : null}
-
-            <View style={styles.actions}>
-              <TouchableOpacity style={[styles.actionBtn, postLiked && styles.actionBtnLiked]} onPress={handleReact}>
-                <Feather name="heart" size={18} color={postLiked ? COLORS.red : COLORS.muted} />
-                <Text style={[styles.actionCount, postLiked && styles.actionCountLiked]}>{totalReacciones}</Text>
-              </TouchableOpacity>
-              <View style={styles.actionBtn}>
-                <Feather name="message-circle" size={18} color={COLORS.muted} />
-                <Text style={styles.actionCount}>{comments.length}</Text>
-              </View>
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity style={styles.actionBtnShare}>
-                <Feather name="share" size={18} color={COLORS.muted} />
-              </TouchableOpacity>
-            </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Comentarios</Text>
+          {comments.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{comments.length}</Text></View>}
+        </View>
+        {comments.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIcon}><Feather name="message-circle" size={32} color={COLORS.accent} /></View>
+            <Text style={styles.emptyTitle}>Sin comentarios</Text>
+            <Text style={styles.emptyText}>{canComment ? 'Sé el primero en comentar' : 'Aun no hay comentarios'}</Text>
           </View>
-
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Comentarios</Text>
-            {comments.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{comments.length}</Text>
-              </View>
-            )}
-          </View>
-
-          {comments.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIcon}>
-                <Feather name="message-circle" size={32} color={COLORS.accent} />
-              </View>
-              <Text style={styles.emptyTitle}>Sin comentarios</Text>
-              <Text style={styles.emptyText}>
-                {canComment ? 'Sé el primero en comentar' : 'Aun no hay comentarios en este post'}
-              </Text>
-            </View>
-          ) : (
-            comments.map((comment) => (
-              <CommentCard
-                key={comment.id} comment={comment} canComment={canComment} esModerador={esModerador}
-                onLike={() => handleLikeComment(comment.id)}
-                onDelete={() => handleDeleteCommentTrigger(comment)}
-                onReplyTrigger={handleReplyTrigger}
-                onPressAuthor={handlePressCommentAuthor}
-                onLikeReply={handleLikeReply}
-                onDeleteReply={handleDeleteReplyTrigger}
-              />
-            ))
-          )}
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-
-        {canComment && (
-          <View style={[styles.inputContainer, { paddingBottom: safeBottom }]}>
-            {replyingTo && (
-              <View style={styles.replyingBanner}>
-                <Feather name="corner-down-right" size={14} color={COLORS.accent} />
-                <Text style={styles.replyingText}>
-                  Respondiendo a <Text style={styles.replyingName}>@{replyingTo.authorName}</Text>
-                </Text>
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity onPress={handleCancelReply} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Feather name="x" size={16} color={COLORS.muted} />
-                </TouchableOpacity>
-              </View>
-            )}
-            <View style={styles.commentInputBar}>
-              <TextInput
-                ref={inputRef}
-                style={styles.commentInput}
-                placeholder={replyingTo ? `Responde a ${replyingTo.authorName}...` : 'Escribe un comentario...'}
-                placeholderTextColor={COLORS.muted}
-                value={commentText} onChangeText={setCommentText}
-                multiline={false} returnKeyType="send" onSubmitEditing={handleSend}
-              />
-              <TouchableOpacity
-                style={[styles.commentSendBtn, (!commentText.trim() || sending) && styles.sendBtnDisabled]}
-                onPress={handleSend} disabled={!commentText.trim() || sending}
-              >
-                {sending ? <ActivityIndicator size="small" color={COLORS.white} /> : <Feather name="send" size={18} color={COLORS.white} />}
-              </TouchableOpacity>
-            </View>
-          </View>
+        ) : (
+          comments.map((comment) => (
+            <CommentCard key={comment.id} comment={comment} canComment={canComment} esModerador={esModerador}
+              forceShowReplies={expandedReplies.has(comment.id)}
+              onLike={() => handleLikeComment(comment.id)}
+              onDelete={() => handleDeleteCommentTrigger(comment)}
+              onReplyTrigger={handleReplyTrigger}
+              onPressAuthor={handlePressCommentAuthor}
+              onLikeReply={handleLikeReply}
+              onDeleteReply={handleDeleteReplyTrigger}
+            />
+          ))
         )}
-      </View>
+        <View style={{ height: 20 }} />
+      </ScrollView>
+
+      {canComment && (
+        <View style={[styles.inputContainer, { paddingBottom: safeBottom }]}>
+          {replyingTo && (
+            <View style={styles.replyingBanner}>
+              <Feather name="corner-down-right" size={14} color={COLORS.accent} />
+              <Text style={styles.replyingText}>
+                Respondiendo a <Text style={styles.replyingName}>@{replyingTo.authorName}</Text>
+              </Text>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity onPress={handleCancelReply} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Feather name="x" size={16} color={COLORS.muted} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.commentInputBar}>
+            <TextInput ref={inputRef} style={styles.commentInput}
+              placeholder={replyingTo ? `Responde a ${replyingTo.authorName}...` : 'Escribe un comentario...'}
+              placeholderTextColor={COLORS.muted}
+              value={commentText} onChangeText={setCommentText}
+              multiline={false} returnKeyType="send" onSubmitEditing={handleSend}
+            />
+            <TouchableOpacity
+              style={[styles.commentSendBtn, (!commentText.trim() || sending) && styles.sendBtnDisabled]}
+              onPress={handleSend} disabled={!commentText.trim() || sending}
+            >
+              {sending ? <ActivityIndicator size="small" color={COLORS.white} /> : <Feather name="send" size={18} color={COLORS.white} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <CustomModal visible={postMenuVisible} title="Opciones"
         buttons={[{ text: 'Eliminar', style: 'destructive', onPress: () => setDeletePostModal(true) }, { text: 'Cancelar', style: 'cancel' }]}

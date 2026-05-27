@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import {
   changeMemberAccess, suspendMember, requestBan, removeMember,
@@ -25,11 +26,22 @@ const ACCESS_OPTIONS = [
   { key: 'CHAT_COMPLETO', label: 'Chat completo' },
 ] as const;
 
+/**
+ * Bottom sheet de acciones de moderacion.
+ *
+ * Diseño:
+ *  - El sheet se ancla al borde inferior real de la pantalla.
+ *  - paddingBottom usa safeAreaInsets.bottom para respetar barra de
+ *    navegacion del sistema (home/back en Android) y home indicator (iOS).
+ *  - Minimo 24px de paddingBottom para que los botones no peguen al borde.
+ *  - Se cierra al tocar fuera del sheet.
+ */
 export default function ModerationActionsModal({ visible, onClose, communityId, targetUser }: Props) {
   const [sub, setSub] = useState<SubModal>('none');
   const [suspendDays, setSuspendDays] = useState('');
   const [banReason, setBanReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const reset = () => {
     setSub('none');
@@ -48,9 +60,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
       closeAll();
     } catch (err: any) {
       Alert.alert('Error', apiError(err, 'No se pudo cambiar el acceso.'));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleSuspend = async () => {
@@ -63,9 +73,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
       closeAll();
     } catch (err: any) {
       Alert.alert('Error', apiError(err, 'No se pudo suspender al usuario.'));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleBan = async () => {
@@ -76,9 +84,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
       closeAll();
     } catch (err: any) {
       Alert.alert('Error', apiError(err, 'No se pudo solicitar el baneo.'));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleRemove = () => {
@@ -94,9 +100,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
             closeAll();
           } catch (err: any) {
             Alert.alert('Error', apiError(err, 'No se pudo expulsar al usuario.'));
-          } finally {
-            setLoading(false);
-          }
+          } finally { setLoading(false); }
         },
       },
     ]);
@@ -104,12 +108,15 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
 
   if (!visible || !targetUser) return null;
 
+  // Padding inferior: safe area + extra para botones home/back del sistema
+  const sheetPaddingBottom = Math.max(insets.bottom + 16, 32);
+
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={closeAll}>
+    <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={closeAll}>
       <View style={styles.container}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeAll} />
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: sheetPaddingBottom }]}>
           <View style={styles.handle} />
 
           {sub === 'none' && (
@@ -152,12 +159,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
               <Text style={styles.subtitle}>Nuevo acceso para {targetUser.nombre}</Text>
 
               {ACCESS_OPTIONS.map(({ key, label }) => (
-                <TouchableOpacity
-                  key={key}
-                  style={styles.row}
-                  onPress={() => handleAccessChange(key)}
-                  disabled={loading}
-                >
+                <TouchableOpacity key={key} style={styles.row} onPress={() => handleAccessChange(key)} disabled={loading}>
                   <Text style={styles.rowText}>{label}</Text>
                   {loading && <ActivityIndicator size="small" color={colors.primary} />}
                 </TouchableOpacity>
@@ -178,8 +180,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
                 style={styles.input}
                 placeholder="Número de días (ej: 7)"
                 placeholderTextColor={colors.textMuted}
-                value={suspendDays}
-                onChangeText={setSuspendDays}
+                value={suspendDays} onChangeText={setSuspendDays}
                 keyboardType="number-pad"
               />
 
@@ -188,10 +189,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
                 onPress={handleSuspend}
                 disabled={!suspendDays.trim() || loading}
               >
-                {loading
-                  ? <ActivityIndicator color={colors.white} />
-                  : <Text style={styles.confirmBtnText}>Suspender</Text>
-                }
+                {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.confirmBtnText}>Suspender</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.cancelRow} onPress={() => setSub('none')}>
@@ -209,8 +207,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
                 style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
                 placeholder="Describe el motivo del baneo..."
                 placeholderTextColor={colors.textMuted}
-                value={banReason}
-                onChangeText={setBanReason}
+                value={banReason} onChangeText={setBanReason}
                 multiline
               />
 
@@ -219,10 +216,7 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
                 onPress={handleBan}
                 disabled={!banReason.trim() || loading}
               >
-                {loading
-                  ? <ActivityIndicator color={colors.white} />
-                  : <Text style={styles.confirmBtnText}>Solicitar baneo</Text>
-                }
+                {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.confirmBtnText}>Solicitar baneo</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.cancelRow} onPress={() => setSub('none')}>
@@ -237,15 +231,18 @@ export default function ModerationActionsModal({ visible, onClose, communityId, 
 }
 
 const styles = StyleSheet.create({
+  // Container ocupa toda la pantalla y ancla el sheet al borde inferior
   container: { flex: 1, justifyContent: 'flex-end' },
+  // Overlay oscuro detras del sheet, cubre TODO incluyendo statusbar
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  // Sheet anclado al borde inferior REAL del telefono
   sheet: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.md,
-    borderTopRightRadius: borderRadius.md,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
     paddingTop: spacing.md,
+    // paddingBottom se setea inline con safeAreaInsets
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,

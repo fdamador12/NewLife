@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
 import {
-    View, Text, Image, TouchableOpacity, StyleSheet, Modal, Pressable, Dimensions,
+    View, Text, Image, TouchableOpacity, StyleSheet,
+    Modal, Pressable, Dimensions, StatusBar,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-/**
- * Genera un color hash estable a partir del nombre. El mismo nombre siempre
- * dara el mismo color, asi cada usuario sin foto se ve consistente entre
- * vistas y sesiones.
- */
 function hashColor(name: string): string {
     const colors = [
         '#D38A58', '#5B8DEF', '#406ADF', '#E9B44C',
@@ -39,23 +35,12 @@ type Props = {
 };
 
 /**
- * Avatar reusable con:
- *  - Imagen si hay url
- *  - Iniciales con color hash estable si no hay url
- *  - Opcionalmente expandible al tocar (modal pantalla completa SIN boton X)
- *  - Se cierra el modal tocando cualquier parte del fondo
- *
- * El modal nunca muestra un boton de cerrar visible — la interaccion es
- * "tocar para abrir, tocar fuera para cerrar". Mas limpio y consistente
- * con como funcionan las fotos de perfil en Instagram, WhatsApp, etc.
+ * Avatar reusable. Estilo del modal fullscreen igual al de ExpandableImage:
+ * fondo negro solido que cubre TODA la pantalla, cierra al tocar fuera,
+ * sin boton X. Inspirado en Instagram/WhatsApp.
  */
 export function Avatar({
-    url,
-    name,
-    size = 44,
-    expandable = false,
-    onPress,
-    style,
+    url, name, size = 44, expandable = false, onPress, style,
 }: Props) {
     const [modalVisible, setModalVisible] = useState(false);
 
@@ -101,21 +86,19 @@ export function Avatar({
                 <View style={style}>{avatarContent}</View>
             )}
 
-            {/* Modal pantalla completa — solo se ve si expandable=true y hay url */}
             {expandable && url && (
                 <Modal
                     visible={modalVisible}
-                    transparent
+                    transparent={false}
                     animationType="fade"
+                    statusBarTranslucent
                     onRequestClose={() => setModalVisible(false)}
                 >
-                    <Pressable
-                        style={styles.modalOverlay}
-                        onPress={() => setModalVisible(false)}
-                    >
+                    <StatusBar barStyle="light-content" backgroundColor="#000" translucent={false} />
+                    <Pressable style={styles.fullscreenOverlay} onPress={() => setModalVisible(false)}>
                         <Image
                             source={{ uri: url }}
-                            style={styles.expandedImage}
+                            style={styles.fullscreenImage}
                             resizeMode="contain"
                         />
                     </Pressable>
@@ -126,22 +109,16 @@ export function Avatar({
 }
 
 const styles = StyleSheet.create({
-    initialsContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    initialsText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-    },
-    modalOverlay: {
+    initialsContainer: { alignItems: 'center', justifyContent: 'center' },
+    initialsText: { color: '#FFFFFF', fontWeight: '700' },
+    fullscreenOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.95)',
+        backgroundColor: '#000000',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    expandedImage: {
+    fullscreenImage: {
         width: SCREEN_WIDTH,
-        height: SCREEN_HEIGHT * 0.85,
+        height: SCREEN_HEIGHT,
     },
 });

@@ -14,16 +14,9 @@ import { Avatar } from '../components/Avatar';
 import { ExpandableImage } from '../components/ExpandableImage';
 
 const COLORS = {
-  background: '#F7F7F7',
-  text: '#404040',
-  accent: '#D38A58',
-  white: '#FFFFFF',
-  muted: '#A0A0A0',
-  lightMuted: '#E8E8E8',
-  cream: '#FDF8F5',
-  red: '#E25C5C',
-  redLight: '#FDF0F0',
-  overlay: 'rgba(64, 64, 64, 0.5)',
+  background: '#F7F7F7', text: '#404040', accent: '#D38A58', white: '#FFFFFF',
+  muted: '#A0A0A0', lightMuted: '#E8E8E8', cream: '#FDF8F5', red: '#E25C5C',
+  redLight: '#FDF0F0', overlay: 'rgba(64, 64, 64, 0.5)',
 };
 
 type Post = {
@@ -41,13 +34,7 @@ type Post = {
   es_mio: boolean;
 };
 
-function CustomModal({
-  visible, title, message, buttons, onClose,
-}: {
-  visible: boolean; title: string; message?: string;
-  buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[];
-  onClose: () => void;
-}) {
+function CustomModal({ visible, title, message, buttons, onClose }: any) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -55,15 +42,11 @@ function CustomModal({
           <Text style={styles.modalTitle}>{title}</Text>
           {message && <Text style={styles.modalMessage}>{message}</Text>}
           <View style={styles.modalButtons}>
-            {buttons.map((btn, index) => (
-              <TouchableOpacity
-                key={index}
+            {buttons.map((btn: any, index: number) => (
+              <TouchableOpacity key={index}
                 style={[styles.modalBtn, btn.style === 'destructive' && styles.modalBtnDestructive, btn.style === 'cancel' && styles.modalBtnCancel]}
-                onPress={() => { onClose(); btn.onPress?.(); }}
-              >
-                <Text style={[styles.modalBtnText, btn.style === 'destructive' && styles.modalBtnTextDestructive, btn.style === 'cancel' && styles.modalBtnTextCancel]}>
-                  {btn.text}
-                </Text>
+                onPress={() => { onClose(); btn.onPress?.(); }}>
+                <Text style={[styles.modalBtnText, btn.style === 'destructive' && styles.modalBtnTextDestructive, btn.style === 'cancel' && styles.modalBtnTextCancel]}>{btn.text}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -84,10 +67,11 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function PostCard({ post, onPress, onPressAuthor, onShowMenu, onReact, esModerador }: {
-  post: Post; onPress: () => void; onPressAuthor: () => void;
-  onShowMenu: () => void; onReact: () => void; esModerador: boolean;
-}) {
+/**
+ * PostCard de detalle de comunidad.
+ * Imagen no expande — al tocar lleva al PostDetail (mismo behavior que feed).
+ */
+function PostCard({ post, onPress, onPressAuthor, onShowMenu, onReact, esModerador }: any) {
   const liked = post.mis_reacciones?.includes('LIKE') ?? false;
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.7}>
@@ -110,7 +94,7 @@ function PostCard({ post, onPress, onPressAuthor, onShowMenu, onReact, esModerad
       {post.contenido ? <Text style={styles.postContent}>{post.contenido}</Text> : null}
       {post.imagen_url ? (
         <View style={styles.imageWrapper}>
-          <ExpandableImage uri={post.imagen_url} />
+          <ExpandableImage uri={post.imagen_url} expandable={false} onPress={onPress} />
         </View>
       ) : null}
 
@@ -140,23 +124,20 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
   const [dailyForum, setDailyForum] = useState<any>(() => communityCache.peek<any>(CK.dailyForum)?.foro ?? null);
   const [loading, setLoading] = useState(!communityCache.peek(CK.posts(community.id)));
   const [refreshing, setRefreshing] = useState(false);
-  const [modTarget, setModTarget] = useState<{ id: string; nombre: string } | null>(null);
+  const [modTarget, setModTarget] = useState<any>(null);
   const [modModalVisible, setModModalVisible] = useState(false);
-  const [menuModal, setMenuModal] = useState<{ visible: boolean; postId: string }>({ visible: false, postId: '' });
-  const [deleteModal, setDeleteModal] = useState<{ visible: boolean; postId: string }>({ visible: false, postId: '' });
-  const [actionModal, setActionModal] = useState<{ visible: boolean; autor: any }>({ visible: false, autor: null });
-  const [errorModal, setErrorModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [menuModal, setMenuModal] = useState({ visible: false, postId: '' });
+  const [deleteModal, setDeleteModal] = useState({ visible: false, postId: '' });
+  const [actionModal, setActionModal] = useState<any>({ visible: false, autor: null });
+  const [errorModal, setErrorModal] = useState({ visible: false, message: '' });
 
   const fetchData = useCallback(async (force = false) => {
     if (!force) {
       const freshPosts = communityCache.get<Post[]>(CK.posts(community.id), TTL.posts);
       const freshForum = communityCache.get<any>(CK.dailyForum, TTL.dailyForum);
       if (freshPosts && freshForum) {
-        setPosts(freshPosts);
-        setDailyForum(freshForum.foro || null);
-        setLoading(false);
-        setRefreshing(false);
-        return;
+        setPosts(freshPosts); setDailyForum(freshForum.foro || null);
+        setLoading(false); setRefreshing(false); return;
       }
     }
     try {
@@ -169,8 +150,7 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
     } catch (err: any) {
       setErrorModal({ visible: true, message: apiError(err, 'Error al cargar la comunidad.') });
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false); setRefreshing(false);
     }
   }, [community.id]);
 
@@ -198,20 +178,14 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
     try {
       await deletePost(community.id, postId);
       await fetchData(true);
-      if (post && !post.es_mio && isModerador) {
-        setActionModal({ visible: true, autor: post.autor });
-      }
+      if (post && !post.es_mio && isModerador) setActionModal({ visible: true, autor: post.autor });
     } catch (err: any) {
       setErrorModal({ visible: true, message: apiError(err, 'No se pudo eliminar.') });
     }
   };
 
   if (loading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
-    );
+    return <View style={[styles.container, styles.centered]}><ActivityIndicator size="large" color={COLORS.accent} /></View>;
   }
 
   return (
@@ -238,9 +212,7 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
           </View>
         </View>
         <Text style={styles.headerTitle}>{communityName}</Text>
-        {community.descripcion && (
-          <Text style={styles.headerDescription} numberOfLines={2}>{community.descripcion}</Text>
-        )}
+        {community.descripcion && <Text style={styles.headerDescription} numberOfLines={2}>{community.descripcion}</Text>}
       </View>
 
       <ScrollView
@@ -253,16 +225,11 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
           onPress={() => dailyForum && navigation.navigate('DailyForum', { communities: [community], fixedCommunity: community, initialForum: dailyForum })}
           activeOpacity={0.8}
         >
-          <View style={styles.forumIcon}>
-            <Feather name="message-square" size={20} color={COLORS.white} />
-          </View>
+          <View style={styles.forumIcon}><Feather name="message-square" size={20} color={COLORS.white} /></View>
           <View style={styles.forumTextContent}>
             <View style={styles.forumLabelRow}>
               <Text style={styles.forumLabel}>Foro del dia</Text>
-              <View style={styles.forumBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.forumBadgeText}>Activo</Text>
-              </View>
+              <View style={styles.forumBadge}><View style={styles.liveDot} /><Text style={styles.forumBadgeText}>Activo</Text></View>
             </View>
             <Text style={styles.forumQuestion} numberOfLines={1}>{dailyForum?.pregunta || 'No hay foro activo hoy'}</Text>
           </View>
@@ -271,18 +238,12 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Publicaciones</Text>
-          {posts.length > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{posts.length}</Text>
-            </View>
-          )}
+          {posts.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{posts.length}</Text></View>}
         </View>
 
         {posts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIcon}>
-              <Feather name="edit-3" size={32} color={COLORS.accent} />
-            </View>
+            <View style={styles.emptyIcon}><Feather name="edit-3" size={32} color={COLORS.accent} /></View>
             <Text style={styles.emptyTitle}>Sin publicaciones</Text>
             <Text style={styles.emptyText}>Se el primero en compartir algo con la comunidad.</Text>
             {community.tipo_acceso !== 'SOLO_VER' && (
@@ -307,47 +268,27 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <CustomModal
-        visible={menuModal.visible}
-        title="Opciones"
+      <CustomModal visible={menuModal.visible} title="Opciones"
         buttons={[
           { text: 'Eliminar', style: 'destructive', onPress: () => setDeleteModal({ visible: true, postId: menuModal.postId }) },
           { text: 'Cancelar', style: 'cancel' },
         ]}
-        onClose={() => setMenuModal({ visible: false, postId: '' })}
-      />
-
-      <CustomModal
-        visible={deleteModal.visible}
-        title="Eliminar post"
-        message="¿Estas seguro de que deseas eliminar este post?"
-        buttons={[
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Eliminar', style: 'destructive', onPress: confirmDeletePost },
-        ]}
-        onClose={() => setDeleteModal({ visible: false, postId: '' })}
-      />
-
-      <CustomModal
-        visible={actionModal.visible}
-        title="Tomar acciones"
+        onClose={() => setMenuModal({ visible: false, postId: '' })} />
+      <CustomModal visible={deleteModal.visible} title="Eliminar post" message="¿Estas seguro?"
+        buttons={[{ text: 'Cancelar', style: 'cancel' }, { text: 'Eliminar', style: 'destructive', onPress: confirmDeletePost }]}
+        onClose={() => setDeleteModal({ visible: false, postId: '' })} />
+      <CustomModal visible={actionModal.visible} title="Tomar acciones"
         message={`¿Deseas tomar acciones sobre ${actionModal.autor?.nombre}?`}
         buttons={[
           { text: 'No', style: 'cancel' },
           { text: 'Si', onPress: () => { setModTarget(actionModal.autor); setModModalVisible(true); } },
         ]}
-        onClose={() => setActionModal({ visible: false, autor: null })}
-      />
-
-      <CustomModal
-        visible={errorModal.visible}
-        title="Error"
-        message={errorModal.message}
+        onClose={() => setActionModal({ visible: false, autor: null })} />
+      <CustomModal visible={errorModal.visible} title="Error" message={errorModal.message}
         buttons={[{ text: 'Aceptar', style: 'default' }]}
-        onClose={() => setErrorModal({ visible: false, message: '' })}
-      />
-
-      <ModerationActionsModal visible={modModalVisible} communityId={community.id} targetUser={modTarget} onClose={() => { setModModalVisible(false); setModTarget(null); }} />
+        onClose={() => setErrorModal({ visible: false, message: '' })} />
+      <ModerationActionsModal visible={modModalVisible} communityId={community.id} targetUser={modTarget}
+        onClose={() => { setModModalVisible(false); setModTarget(null); }} />
     </View>
   );
 }

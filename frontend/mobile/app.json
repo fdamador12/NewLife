@@ -11,6 +11,7 @@
     "android": {
       "package": "com.uninorte.newlife",
       "icon": "./src/assets/images/logo.png",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/logo.png",
         "backgroundColor": "#c97b3f"
