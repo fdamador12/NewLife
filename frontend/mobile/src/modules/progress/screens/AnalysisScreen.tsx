@@ -126,7 +126,8 @@ export default function AnalysisScreen({ navigation }: any) {
       )}
 
       {/* ✅ CALENDARIO MODULAR */}
-      <CalendarScreen />
+      <CalendarScreen navigation={navigation} />
+
 
       {/* SI NO HAY EMOCIONES: MOSTRAR MENSAJE VACÍO */}
       {!hasEmotions && <EmptyStateEmotions />}

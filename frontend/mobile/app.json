@@ -13,7 +13,7 @@
       "icon": "./src/assets/images/logo.png",
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/logo.png",
+        "foregroundImage": "./src/assets/images/logo_foreground.png",
         "backgroundColor": "#c97b3f"
       },
       "permissions": [

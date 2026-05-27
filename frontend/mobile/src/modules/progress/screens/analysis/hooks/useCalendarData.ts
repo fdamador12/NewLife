@@ -123,6 +123,7 @@ export const useCalendarData = () => {
           setProcessedDays(processed);
         } else {
           const data = await getCalendar(month, year);
+          console.log('📅 Calendar data:', JSON.stringify(data.days?.slice(0, 3)));
           const processed = processDays(data.days || []);
           setProcessedDays(processed);
         }
