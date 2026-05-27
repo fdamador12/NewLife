@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
+import { ProgressModule } from '../progress/progress.module';
 import { CommunitiesController } from './presentation/controllers/communities.controller';
 import { ResolveUserIdHelper } from './application/helpers/resolve-user-id.helper';
 import { GetMyCommunitiesUseCase } from './application/use-cases/get-my-communities.use-case';
@@ -33,9 +34,13 @@ import { GetUserPostsByIdUseCase } from './application/use-cases/get-user-posts-
 import { GetForumsUseCase } from './application/use-cases/get-forums.use-case';
 import { GetForumDetailUseCase } from './application/use-cases/get-forum-detail.use-case';
 import { ReplyForumUseCase } from './application/use-cases/reply-forum.use-case';
+import { GetPublicProfileUseCase } from './application/use-cases/get-public-profile.use-case';
 
 @Module({
-  imports: [AuthModule, DatabaseModule],
+  // ProgressModule debe estar en imports[] (no en providers[]) para que su
+  // export 'IProgressProviderPort' este disponible para inyeccion en
+  // GetPublicProfileUseCase. Los modulos siempre van en imports[].
+  imports: [AuthModule, DatabaseModule, ProgressModule],
   controllers: [CommunitiesController],
   providers: [
     ResolveUserIdHelper,
@@ -69,7 +74,8 @@ import { ReplyForumUseCase } from './application/use-cases/reply-forum.use-case'
     GetForumsUseCase,
     GetForumDetailUseCase,
     ReplyForumUseCase,
+    GetPublicProfileUseCase,
   ],
-  exports: [ResolveUserIdHelper]
+  exports: [ResolveUserIdHelper],
 })
-export class CommunitiesModule { }
+export class CommunitiesModule {}

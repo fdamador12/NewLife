@@ -29,14 +29,13 @@ export class GetPostsUseCase {
 
     if (posts.length === 0) return [];
 
-    // Prefetch autores únicos
+    // Prefetch autores unicos (ahora incluye avatar_url)
     const autorIds = [...new Set(posts.map((p: any) => p.autor_id))] as string[];
     const autoresArr = await Promise.all(
       autorIds.map(id => this.dbService.findById('usuarios', id, masterToken)),
     );
     const autorMap = Object.fromEntries(autorIds.map((id, i) => [id, autoresArr[i]]));
 
-    // Query por post_id directo (igual que getUserPosts) para evitar comparación en memoria
     const enriched = await Promise.all(
       posts.map(async (post: any) => {
         const [commentsRes, reactionsRes] = await Promise.all([
@@ -59,8 +58,9 @@ export class GetPostsUseCase {
           edited_at:         post.edited_at,
           es_mio:            post.autor_id === robleId,
           autor: {
-            id:     post.autor_id,
-            nombre: autor?.nombre || 'Usuario',
+            id:         post.autor_id,
+            nombre:     autor?.nombre || 'Usuario',
+            avatar_url: autor?.avatar_url || null,
           },
           total_comentarios: activeComments.length,
           total_reacciones:  reactionsRes.length,

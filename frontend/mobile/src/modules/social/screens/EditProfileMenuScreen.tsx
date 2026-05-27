@@ -6,12 +6,23 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { getProfile } from '../../../services/authService';
+import { Avatar } from '../components/Avatar';
 
-const MENU_ITEMS = [
-  { key: 'edit',     label: 'Editar perfil',      route: 'EditProfileScreen' },
-  { key: 'settings', label: 'Configuración',       route: 'Settings' },
-  { key: 'legal',    label: 'Legal / Seguridad',   route: 'PrivacyPolicy' },
-];
+/**
+ * Menu del perfil propio (accesible desde Comunidad).
+ *
+ * Muestra:
+ *  - Avatar real del usuario (tappable abre EditProfileScreen)
+ *  - @apodo | Nombre
+ *  - Descripcion (si tiene)
+ *  - Opciones: Editar perfil, Ver mi perfil publico, Configuracion
+ *
+ * "Ver mi perfil publico" lleva al SocialProfileScreen tal como lo veria
+ * cualquier otro usuario. Util para ver como te perciben en la comunidad.
+ *
+ * NOTA: se removio "Legal/Seguridad" porque las politicas de privacidad
+ * ya estan accesibles desde Configuracion (evita duplicacion).
+ */
 
 export default function EditProfileMenuScreen({ navigation }: any) {
   const [profile, setProfile] = useState<any>(null);
@@ -33,7 +44,9 @@ export default function EditProfileMenuScreen({ navigation }: any) {
   );
 
   const nombre = profile?.nombre || 'Usuario';
-  const apodo  = profile?.apodo  ? `@${profile.apodo}` : `@${nombre.toLowerCase().replace(' ', '')}`;
+  const apodo = profile?.apodo ? `@${profile.apodo}` : `@${nombre.toLowerCase().replace(' ', '')}`;
+  const avatarUrl = profile?.avatar_url || null;
+  const descripcion = profile?.descripcion || '';
 
   if (loading) {
     return (
@@ -52,35 +65,73 @@ export default function EditProfileMenuScreen({ navigation }: any) {
         <Text style={styles.headerTitle}>Perfil</Text>
       </View>
 
-      {/* Avatar */}
+      {/* Avatar + identidad */}
       <View style={styles.avatarSection}>
-        <View style={styles.avatarWrapper}>
-          <View style={styles.avatar}>
-            <Feather name="user" size={40} color={colors.white} />
-          </View>
-          <TouchableOpacity style={styles.avatarEditBadge}>
+        <TouchableOpacity
+          style={styles.avatarWrapper}
+          onPress={() => navigation.navigate('EditProfileScreen')}
+          activeOpacity={0.85}
+        >
+          <Avatar url={avatarUrl} name={nombre} size={100} />
+          <View style={styles.avatarEditBadge}>
             <Feather name="edit-2" size={10} color={colors.white} />
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
+
         <Text style={styles.profileIdentity}>
           <Text style={styles.username}>{apodo}</Text>
           {'  |  '}
           <Text style={styles.name}>{nombre}</Text>
         </Text>
+
+        {descripcion ? (
+          <Text style={styles.description}>{descripcion}</Text>
+        ) : (
+          <TouchableOpacity onPress={() => navigation.navigate('EditProfileScreen')}>
+            <Text style={styles.descriptionPlaceholder}>
+              Agrega una descripción
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Opciones */}
       <View style={styles.menuList}>
-        {MENU_ITEMS.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={styles.menuItem}
-            onPress={() => navigation.navigate(item.route)}
-          >
-            <Text style={styles.menuItemText}>{item.label}</Text>
-            <Feather name="chevron-right" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('EditProfileScreen')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.menuItemLeft}>
+            <Feather name="edit-2" size={18} color={colors.textMuted} />
+            <Text style={styles.menuItemText}>Editar perfil</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('SocialProfile', { isOwn: true })}
+          activeOpacity={0.8}
+        >
+          <View style={styles.menuItemLeft}>
+            <Feather name="eye" size={18} color={colors.textMuted} />
+            <Text style={styles.menuItemText}>Ver mi perfil público</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Settings')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.menuItemLeft}>
+            <Feather name="settings" size={18} color={colors.textMuted} />
+            <Text style={styles.menuItemText}>Configuración</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -107,26 +158,19 @@ const styles = StyleSheet.create({
   avatarSection: {
     alignItems: 'center',
     paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
   avatarWrapper: {
     position: 'relative',
   },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   avatarEditBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -142,6 +186,19 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.textMuted,
+  },
+  description: {
+    fontSize: fontSizes.sm,
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: spacing.sm,
+  },
+  descriptionPlaceholder: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    textDecorationLine: 'underline',
   },
   menuList: {
     paddingHorizontal: spacing.xl,
@@ -160,6 +217,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   menuItemText: {
     fontSize: fontSizes.md,

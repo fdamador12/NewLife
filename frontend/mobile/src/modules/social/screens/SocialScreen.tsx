@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, Image, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, Pressable, Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -10,11 +10,13 @@ import { getMyCommunities, getPosts, getDailyForum, reactToPost, deletePost } fr
 import { communityCache, CK, TTL } from '../../../services/communityCache';
 import { apiError } from '../../../utils/apiError';
 import ModerationActionsModal from '../components/ModerationActionsModal';
+import { Avatar } from '../components/Avatar';
+import { ExpandableImage } from '../components/ExpandableImage';
 
 type Post = {
   id: string;
   titulo?: string;
-  autor: { id: string; nombre: string };
+  autor: { id: string; nombre: string; avatar_url?: string | null };
   comunidad_id: string;
   comunidad_nombre?: string;
   created_at: string;
@@ -42,20 +44,10 @@ const COLORS = {
 
 const { width } = Dimensions.get('window');
 
-type Props = {
-  navigation?: any;
-};
-
 function CustomModal({
-  visible,
-  title,
-  message,
-  buttons,
-  onClose,
+  visible, title, message, buttons, onClose,
 }: {
-  visible: boolean;
-  title: string;
-  message?: string;
+  visible: boolean; title: string; message?: string;
   buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[];
   onClose: () => void;
 }) {
@@ -69,23 +61,10 @@ function CustomModal({
             {buttons.map((btn, index) => (
               <TouchableOpacity
                 key={index}
-                style={[
-                  styles.modalBtn,
-                  btn.style === 'destructive' && styles.modalBtnDestructive,
-                  btn.style === 'cancel' && styles.modalBtnCancel,
-                ]}
-                onPress={() => {
-                  onClose();
-                  btn.onPress?.();
-                }}
+                style={[styles.modalBtn, btn.style === 'destructive' && styles.modalBtnDestructive, btn.style === 'cancel' && styles.modalBtnCancel]}
+                onPress={() => { onClose(); btn.onPress?.(); }}
               >
-                <Text
-                  style={[
-                    styles.modalBtnText,
-                    btn.style === 'destructive' && styles.modalBtnTextDestructive,
-                    btn.style === 'cancel' && styles.modalBtnTextCancel,
-                  ]}
-                >
+                <Text style={[styles.modalBtnText, btn.style === 'destructive' && styles.modalBtnTextDestructive, btn.style === 'cancel' && styles.modalBtnTextCancel]}>
                   {btn.text}
                 </Text>
               </TouchableOpacity>
@@ -119,11 +98,7 @@ function PostCard({
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.postHeader}>
-        <TouchableOpacity onPress={onPressAuthor} activeOpacity={0.7}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{post.autor.nombre.charAt(0).toUpperCase()}</Text>
-          </View>
-        </TouchableOpacity>
+        <Avatar url={post.autor.avatar_url} name={post.autor.nombre} size={44} onPress={onPressAuthor} />
         <View style={styles.authorInfo}>
           <TouchableOpacity onPress={onPressAuthor} activeOpacity={0.7}>
             <Text style={styles.authorName}>{post.autor.nombre}</Text>
@@ -139,31 +114,24 @@ function PostCard({
           </View>
         </View>
         {(post.es_mio || isModerador) && (
-          <TouchableOpacity 
-            style={styles.menuBtn}
-            onPress={onShowMenu} 
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
+          <TouchableOpacity style={styles.menuBtn} onPress={onShowMenu} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Feather name="more-horizontal" size={20} color={COLORS.muted} />
           </TouchableOpacity>
         )}
       </View>
-      
+
       {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
-      <Text style={styles.postContent}>{post.contenido}</Text>
+      {post.contenido ? <Text style={styles.postContent}>{post.contenido}</Text> : null}
       {post.imagen_url ? (
-        <Image source={{ uri: post.imagen_url }} style={styles.postImage} resizeMode="cover" />
+        <View style={styles.imageWrapper}>
+          <ExpandableImage uri={post.imagen_url} />
+        </View>
       ) : null}
 
       <View style={styles.actions}>
-        <TouchableOpacity 
-          style={[styles.actionBtn, liked && styles.actionBtnLiked]} 
-          onPress={onReact}
-        >
+        <TouchableOpacity style={[styles.actionBtn, liked && styles.actionBtnLiked]} onPress={onReact}>
           <Feather name="heart" size={18} color={liked ? COLORS.red : COLORS.muted} />
-          <Text style={[styles.actionCount, liked && styles.actionCountLiked]}>
-            {post.total_reacciones ?? 0}
-          </Text>
+          <Text style={[styles.actionCount, liked && styles.actionCountLiked]}>{post.total_reacciones ?? 0}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={onPress}>
           <Feather name="message-circle" size={18} color={COLORS.muted} />
@@ -214,17 +182,14 @@ export default function SocialScreen({ navigation }: any) {
         return;
       }
     }
-
     try {
       const comms = await getMyCommunities(force);
       setCommunities(comms);
-
       if (comms.length === 0) {
         setAllPosts([]);
         communityCache.set(CK.socialFeed, { communities: comms, allPosts: [], dailyForum: null, forumCommunities: [] });
         return;
       }
-
       const [postsResults, dailyForumData] = await Promise.all([
         Promise.all(
           comms.map((c: any) =>
@@ -235,15 +200,12 @@ export default function SocialScreen({ navigation }: any) {
         ),
         getDailyForum(force).catch(() => ({ foro: null, comunidades: [] })),
       ]);
-
       const flatPosts = postsResults
         .flat()
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
       setAllPosts(flatPosts);
       setDailyForum(dailyForumData.foro || null);
       setForumCommunities(dailyForumData.comunidades || []);
-
       communityCache.set(CK.socialFeed, {
         communities: comms,
         allPosts: flatPosts,
@@ -264,7 +226,6 @@ export default function SocialScreen({ navigation }: any) {
     const { postId, comunidadId } = deleteModal;
     const post = allPosts.find(p => p.id === postId);
     const isModerador = communities.find((c: any) => c.id === comunidadId)?.es_moderador === true;
-
     try {
       await deletePost(comunidadId, postId);
       setAllPosts(prev => prev.filter(p => p.id !== postId));
@@ -290,7 +251,7 @@ export default function SocialScreen({ navigation }: any) {
             : (p.mis_reacciones || []).filter((r: string) => r !== 'LIKE'),
         };
       }));
-    } catch {}
+    } catch { }
   };
 
   const hasCommunities = communities.length > 0;
@@ -389,10 +350,7 @@ export default function SocialScreen({ navigation }: any) {
             <Text style={styles.emptyText}>
               Unete a una comunidad para ver publicaciones de otros miembros.
             </Text>
-            <TouchableOpacity 
-              style={styles.emptyBtn}
-              onPress={() => navigation.navigate('MyCommunities', { communities })}
-            >
+            <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('MyCommunities', { communities })}>
               <Text style={styles.emptyBtnText}>Explorar comunidades</Text>
             </TouchableOpacity>
           </View>
@@ -405,10 +363,7 @@ export default function SocialScreen({ navigation }: any) {
             <Text style={styles.emptyText}>
               Se el primero en compartir algo con tu comunidad.
             </Text>
-            <TouchableOpacity 
-              style={styles.emptyBtn}
-              onPress={() => navigation.navigate('CreatePost', { communities })}
-            >
+            <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('CreatePost', { communities })}>
               <Text style={styles.emptyBtnText}>Crear publicacion</Text>
             </TouchableOpacity>
           </View>
@@ -496,20 +451,14 @@ export default function SocialScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 60, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: COLORS.white,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: COLORS.white },
   headerTitle: { fontSize: 28, fontWeight: '700', color: COLORS.text },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: COLORS.background },
   iconBtnDisabled: { opacity: 0.5 },
   profileBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
-  forumCard: {
-    backgroundColor: COLORS.text, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24,
-  },
+  forumCard: { backgroundColor: COLORS.text, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
   forumIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
   forumTextContent: { flex: 1, gap: 4 },
   forumLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -523,9 +472,7 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: COLORS.lightMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   badgeText: { fontSize: 13, fontWeight: '600', color: COLORS.muted },
   postCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 14 },
-  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
+  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 12 },
   authorInfo: { flex: 1 },
   authorName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center' },
@@ -535,7 +482,7 @@ const styles = StyleSheet.create({
   menuBtn: { padding: 4 },
   postTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8, lineHeight: 22 },
   postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 12 },
-  postImage: { width: '100%', height: 200, borderRadius: 12, marginBottom: 16 },
+  imageWrapper: { marginBottom: 16 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 6 },
   actionBtnLiked: { backgroundColor: COLORS.redLight },

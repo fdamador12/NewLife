@@ -1,6 +1,11 @@
 import api from './api';
 import { communityCache, CK, TTL } from './communityCache';
 
+// Reexportar uploadPostImage del mediaService (fetch + retry + refresh).
+// La version vieja con axios + FormData fallaba con "Network Error" en
+// React Native (axios no maneja bien FormData en RN).
+export { uploadPostImage } from './mediaService';
+
 // ── Comunidades ───────────────────────────────────────────────────────────────
 
 export const getMyCommunities = async (force = false) => {
@@ -35,24 +40,6 @@ export const getPosts = async (communityId: string, force = false) => {
   const res = await api.get(`/communities/${communityId}/posts`);
   communityCache.set(key, res.data);
   return res.data;
-};
-
-export const uploadPostImage = async (imageUri: string): Promise<string> => {
-  const formData = new FormData();
-  formData.append('file', {
-    uri: imageUri,
-    type: 'image/jpeg',
-    name: 'post-image.jpg',
-  } as any);
-  // Axios sets Content-Type: application/json by default for POST in React Native
-  // (unlike browsers, RN doesn't auto-clear it for FormData).
-  // Setting it to undefined removes it so the native XHR sets it correctly:
-  // multipart/form-data; boundary=<uuid>
-  const res = await api.post('/media/upload', formData, {
-    headers: { 'Content-Type': undefined } as any,
-    transformRequest: (data) => data,
-  });
-  return res.data.url;
 };
 
 export const createPost = async (communityId: string, contenido: string, titulo?: string, imagen_url?: string) => {
@@ -263,5 +250,32 @@ export const removeMember = async (communityId: string, uid: string) => {
 
 export const getChatHistory = async (communityId: string, limit = 50) => {
   const res = await api.get(`/chat/${communityId}/messages`, { params: { limit } });
+  return res.data;
+};
+
+// ── Perfil publico ────────────────────────────────────────────────────────────
+
+/**
+ * Obtiene el perfil publico de otro usuario por su robleId.
+ *
+ * Devuelve info no sensible que se muestra en SocialProfileScreen:
+ * nombre, avatar, descripcion, apodo, pronombre, dias sin consumo,
+ * nivel del camino de 12 pasos, total de medallas y total de
+ * comunidades a las que pertenece.
+ */
+export const getUserPublicProfile = async (robleId: string): Promise<{
+  robleId: string;
+  nombre: string;
+  avatar_url: string | null;
+  descripcion: string;
+  apodo: string;
+  pronombre: string;
+  dias_sobrio: number;
+  nivel: number;
+  nivel_nombre: string;
+  total_medallas: number;
+  total_comunidades: number;
+}> => {
+  const res = await api.get(`/communities/users/${robleId}/profile`);
   return res.data;
 };

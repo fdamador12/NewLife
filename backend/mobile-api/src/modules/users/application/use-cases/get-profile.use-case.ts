@@ -2,6 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/infrastructure/database.service';
 import { SystemAuthService } from '../../../auth/infrastructure/services/system-auth.service';
 
+/**
+ * Obtiene el perfil completo del usuario.
+ *
+ * Combina datos de DOS tablas:
+ * - `usuarios`: datos de cuenta (nombre, email, avatar_url, descripcion)
+ * - `informacion_personal`: datos de onboarding (apodo, pronombre, motivo, gasto)
+ *
+ * Si alguna tabla no tiene fila, los campos devuelven valores neutros.
+ */
 @Injectable()
 export class GetProfileUseCase {
   constructor(
@@ -22,6 +31,8 @@ export class GetProfileUseCase {
 
     return {
       nombre: user?.nombre || '',
+      avatar_url: user?.avatar_url || null,
+      descripcion: user?.descripcion || '',
       apodo: info?.apodo || '',
       pronombre: info?.pronombre || '',
       motivo_sobrio: info?.motivo_sobrio || '',

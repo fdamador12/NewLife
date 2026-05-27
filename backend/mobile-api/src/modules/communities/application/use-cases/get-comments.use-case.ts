@@ -54,7 +54,11 @@ export class GetCommentsUseCase {
               contenido: respuesta.contenido,
               created_at: respuesta.created_at,
               es_mio: respuesta.autor_id === robleId,
-              autor: { id: respuesta.autor_id, nombre: rAutor?.nombre || 'Usuario' },
+              autor: {
+                id: respuesta.autor_id,
+                nombre: rAutor?.nombre || 'Usuario',
+                avatar_url: rAutor?.avatar_url || null,
+              },
               total_likes: rLikes.length,
               yo_di_like: rLikes.some((l: any) => l.usuario_id === robleId),
             };
@@ -66,7 +70,11 @@ export class GetCommentsUseCase {
           contenido: comment.contenido,
           created_at: comment.created_at,
           es_mio: comment.autor_id === robleId,
-          autor: { id: comment.autor_id, nombre: autor?.nombre || 'Usuario' },
+          autor: {
+            id: comment.autor_id,
+            nombre: autor?.nombre || 'Usuario',
+            avatar_url: autor?.avatar_url || null,
+          },
           total_likes: commentLikes.length,
           yo_di_like: commentLikes.some((l: any) => l.usuario_id === robleId),
           respuestas: respuestas.sort(

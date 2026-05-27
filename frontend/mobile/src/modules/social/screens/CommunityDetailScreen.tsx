@@ -10,6 +10,8 @@ import { getPosts, getDailyForum, deletePost, reactToPost } from '../../../servi
 import { communityCache, CK, TTL } from '../../../services/communityCache';
 import { apiError } from '../../../utils/apiError';
 import ModerationActionsModal from '../components/ModerationActionsModal';
+import { Avatar } from '../components/Avatar';
+import { ExpandableImage } from '../components/ExpandableImage';
 
 const COLORS = {
   background: '#F7F7F7',
@@ -27,11 +29,12 @@ const COLORS = {
 type Post = {
   id: string;
   titulo?: string;
-  autor: { id: string; nombre: string };
+  autor: { id: string; nombre: string; avatar_url?: string | null };
   comunidad_id: string;
   comunidad_nombre?: string;
   created_at: string;
   contenido: string;
+  imagen_url?: string | null;
   total_comentarios: number;
   total_reacciones: number;
   mis_reacciones: string[];
@@ -89,11 +92,7 @@ function PostCard({ post, onPress, onPressAuthor, onShowMenu, onReact, esModerad
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.postHeader}>
-        <TouchableOpacity onPress={onPressAuthor} activeOpacity={0.7}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{post.autor.nombre.charAt(0).toUpperCase()}</Text>
-          </View>
-        </TouchableOpacity>
+        <Avatar url={post.autor.avatar_url} name={post.autor.nombre} size={44} onPress={onPressAuthor} />
         <View style={styles.authorInfo}>
           <TouchableOpacity onPress={onPressAuthor} activeOpacity={0.7}>
             <Text style={styles.authorName}>{post.autor.nombre}</Text>
@@ -108,7 +107,12 @@ function PostCard({ post, onPress, onPressAuthor, onShowMenu, onReact, esModerad
       </View>
 
       {post.titulo && <Text style={styles.postTitle}>{post.titulo}</Text>}
-      {post.contenido && <Text style={styles.postContent}>{post.contenido}</Text>}
+      {post.contenido ? <Text style={styles.postContent}>{post.contenido}</Text> : null}
+      {post.imagen_url ? (
+        <View style={styles.imageWrapper}>
+          <ExpandableImage uri={post.imagen_url} />
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <TouchableOpacity style={[styles.actionBtn, liked && styles.actionBtnLiked]} onPress={onReact}>
@@ -184,7 +188,7 @@ export default function CommunityDetailScreen({ navigation, route }: any) {
           mis_reacciones: liked ? [...(p.mis_reacciones || []), 'LIKE'] : (p.mis_reacciones || []).filter((r: string) => r !== 'LIKE'),
         };
       }));
-    } catch {}
+    } catch { }
   };
 
   const confirmDeletePost = async () => {
@@ -374,15 +378,14 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: COLORS.lightMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   badgeText: { fontSize: 13, fontWeight: '600', color: COLORS.muted },
   postCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 14 },
-  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
+  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 12 },
   authorInfo: { flex: 1 },
   authorName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
   timeText: { fontSize: 13, color: COLORS.muted },
   menuBtn: { padding: 4 },
   postTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8, lineHeight: 22 },
-  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 16 },
+  postContent: { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: 12 },
+  imageWrapper: { marginBottom: 16 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 6 },
   actionBtnLiked: { backgroundColor: COLORS.redLight },

@@ -14,6 +14,7 @@ import {
   commentForumReply,
 } from '../../../services/communityService';
 import { communityCache, CK, TTL } from '../../../services/communityCache';
+import { Avatar } from '../components/Avatar';
 
 const COLORS = {
   background: '#F7F7F7',
@@ -77,7 +78,7 @@ type Comment = {
   contenido: string;
   created_at: string;
   es_mio: boolean;
-  autor: { id: string; nombre: string };
+  autor: { id: string; nombre: string; avatar_url?: string | null };
 };
 
 type Reply = {
@@ -85,16 +86,18 @@ type Reply = {
   contenido: string;
   created_at: string;
   es_mio: boolean;
-  autor: { id: string; nombre: string };
+  autor: { id: string; nombre: string; avatar_url?: string | null };
   total_likes: number;
   yo_di_like: boolean;
   comentarios: Comment[];
 };
 
 function ReplyCard({
-  reply, foroId, communityId, canInteract, onRefresh,
+  reply, foroId, communityId, canInteract, onRefresh, onPressAuthor,
 }: {
-  reply: Reply; foroId: string; communityId: string; canInteract: boolean; onRefresh: () => void;
+  reply: Reply; foroId: string; communityId: string; canInteract: boolean;
+  onRefresh: () => void;
+  onPressAuthor: (autor: { id: string; nombre: string }) => void;
 }) {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -129,15 +132,16 @@ function ReplyCard({
     }
   };
 
-  const authorInitial = reply.autor.nombre.charAt(0).toUpperCase();
-
   return (
     <>
       <View style={styles.replyCard}>
         <View style={styles.replyHeader}>
-          <View style={styles.replyAvatar}>
-            <Text style={styles.replyAvatarText}>{authorInitial}</Text>
-          </View>
+          <Avatar
+            url={reply.autor.avatar_url}
+            name={reply.autor.nombre}
+            size={40}
+            onPress={() => onPressAuthor(reply.autor)}
+          />
           <View style={styles.replyAuthorInfo}>
             <Text style={styles.replyAuthor}>{reply.autor.nombre}</Text>
             <Text style={styles.replyTime}>{timeAgo(reply.created_at)}</Text>
@@ -166,9 +170,12 @@ function ReplyCard({
               reply.comentarios.map((comment) => (
                 <View key={comment.id} style={styles.commentCard}>
                   <View style={styles.commentHeader}>
-                    <View style={styles.commentAvatar}>
-                      <Text style={styles.commentAvatarText}>{comment.autor.nombre.charAt(0).toUpperCase()}</Text>
-                    </View>
+                    <Avatar
+                      url={comment.autor.avatar_url}
+                      name={comment.autor.nombre}
+                      size={24}
+                      onPress={() => onPressAuthor(comment.autor)}
+                    />
                     <Text style={styles.commentAuthor}>{comment.autor.nombre}</Text>
                     <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
                   </View>
@@ -257,6 +264,10 @@ export default function DailyForumDetailScreen({ navigation, route }: any) {
     } finally {
       setSending(false);
     }
+  };
+
+  const handlePressAuthor = (autor: { id: string; nombre: string }) => {
+    navigation.navigate('UserProfile', { isOwn: false, robleId: autor.id, name: autor.nombre });
   };
 
   if (loading) {
@@ -372,6 +383,7 @@ export default function DailyForumDetailScreen({ navigation, route }: any) {
               communityId={community.id}
               canInteract={esHoy && community?.tipo_acceso !== 'SOLO_VER'}
               onRefresh={() => fetchDetail(true)}
+              onPressAuthor={handlePressAuthor}
             />
           ))
         )}
@@ -422,8 +434,6 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22 },
   replyCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 16, gap: 12 },
   replyHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  replyAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
-  replyAvatarText: { fontSize: 16, fontWeight: '600', color: COLORS.white },
   replyAuthorInfo: { flex: 1 },
   replyAuthor: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   replyTime: { fontSize: 12, color: COLORS.muted, marginTop: 2 },
@@ -437,8 +447,6 @@ const styles = StyleSheet.create({
   noCommentsText: { fontSize: 14, color: COLORS.muted, fontStyle: 'italic' },
   commentCard: { backgroundColor: COLORS.background, borderRadius: 14, padding: 12, gap: 6, borderLeftWidth: 3, borderLeftColor: COLORS.lightMuted },
   commentHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  commentAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.lightMuted, alignItems: 'center', justifyContent: 'center' },
-  commentAvatarText: { fontSize: 11, fontWeight: '600', color: COLORS.muted },
   commentAuthor: { fontSize: 13, fontWeight: '600', color: COLORS.text, flex: 1 },
   commentTime: { fontSize: 11, color: COLORS.muted },
   commentText: { fontSize: 13, color: COLORS.text, lineHeight: 18 },

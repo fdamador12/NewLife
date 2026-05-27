@@ -39,6 +39,7 @@ import { GetUserPostsByIdUseCase } from '../../application/use-cases/get-user-po
 import { GetForumsUseCase } from '../../application/use-cases/get-forums.use-case';
 import { GetForumDetailUseCase } from '../../application/use-cases/get-forum-detail.use-case';
 import { ReplyForumUseCase } from '../../application/use-cases/reply-forum.use-case';
+import { GetPublicProfileUseCase } from '../../application/use-cases/get-public-profile.use-case';
 
 @ApiTags('Comunidades')
 @ApiBearerAuth()
@@ -76,6 +77,7 @@ export class CommunitiesController {
     private readonly getForumsUseCase: GetForumsUseCase,
     private readonly getForumDetailUseCase: GetForumDetailUseCase,
     private readonly replyForumUseCase: ReplyForumUseCase,
+    private readonly getPublicProfileUseCase: GetPublicProfileUseCase,
   ) { }
 
   // ── Comunidades ────────────────────────────────────────────────────────────
@@ -103,6 +105,12 @@ export class CommunitiesController {
   @ApiOperation({ summary: 'Publicaciones del usuario autenticado' })
   async getMyPosts(@Request() req: any) {
     return this.getUserPostsUseCase.execute(req.user.uid);
+  }
+
+  @Get('users/:robleId/profile')
+  @ApiOperation({ summary: 'Perfil publico de un usuario por robleId (avatar, descripcion, apodo, pronombre)' })
+  async getUserPublicProfile(@Param('robleId') robleId: string) {
+    return this.getPublicProfileUseCase.execute(robleId);
   }
 
   @Get('users/:robleId/posts')
@@ -348,7 +356,6 @@ export class CommunitiesController {
     @Body() dto: RequestBanDto,
     @Request() req: any,
   ) {
-    // El body debe incluir el usuario_id del reportado
     return this.modRequestBanUseCase.execute(id, dto.usuario_id, req.user.uid, dto.motivo);
   }
 

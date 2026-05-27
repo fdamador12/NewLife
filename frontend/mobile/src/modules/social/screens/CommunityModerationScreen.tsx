@@ -15,6 +15,7 @@ import {
   addMember,
 } from '../../../services/communityService';
 import { communityCache, CK, TTL } from '../../../services/communityCache';
+import { Avatar } from '../components/Avatar';
 
 const COLORS = {
   background: '#F7F7F7',
@@ -56,6 +57,7 @@ type Member = {
   usuario_id: string;
   nombre: string;
   email: string;
+  avatar_url?: string | null;
   estado: string;
   tipo_acceso: string;
   es_moderador: boolean;
@@ -96,13 +98,10 @@ function CustomModal({
 
 function MemberCard({ member, onMenu }: { member: Member; onMenu: () => void }) {
   const estadoStyle = ESTADO_STYLES[member.estado] || ESTADO_STYLES.ACTIVO;
-  const initial = member.nombre.charAt(0).toUpperCase();
 
   return (
     <View style={styles.memberCard}>
-      <View style={styles.memberAvatar}>
-        <Text style={styles.memberAvatarText}>{initial}</Text>
-      </View>
+      <Avatar url={member.avatar_url} name={member.nombre} size={48} />
       <View style={styles.memberInfo}>
         <View style={styles.memberNameRow}>
           <Text style={styles.memberName} numberOfLines={1}>{member.nombre}</Text>
@@ -140,40 +139,32 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
-  // Add member
   const [addEmail, setAddEmail] = useState('');
   const [addAccess, setAddAccess] = useState('POSTEAR_COMENTAR');
   const [adding, setAdding] = useState(false);
 
-  // Member action menu modal
   const [menuModal, setMenuModal] = useState(false);
   const [menuTarget, setMenuTarget] = useState<Member | null>(null);
 
-  // Suspend modal
   const [suspendModal, setSuspendModal] = useState(false);
   const [suspendTarget, setSuspendTarget] = useState<Member | null>(null);
   const [suspendDays, setSuspendDays] = useState('');
   const [suspending, setSuspending] = useState(false);
 
-  // Ban modal
   const [banModal, setBanModal] = useState(false);
   const [banTarget, setBanTarget] = useState<Member | null>(null);
   const [banMotivo, setBanMotivo] = useState('');
   const [banning, setBanning] = useState(false);
 
-  // Change access modal
   const [accessModal, setAccessModal] = useState(false);
   const [accessTarget, setAccessTarget] = useState<Member | null>(null);
 
-  // Remove member modal
   const [removeModal, setRemoveModal] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
 
-  // Feedback modals
   const [successModal, setSuccessModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [errorModal, setErrorModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
 
-  // FIX: Define fetchMembers without useCallback to avoid circular dependency
   const fetchMembers = async (force = false) => {
     if (!force) {
       const fresh = communityCache.get<Member[]>(CK.members(communityId), TTL.members);
@@ -195,7 +186,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
     }
   };
 
-  // FIX: Use useCallback for the wrapped version to avoid hook order issues
   const handleFetchMembers = useCallback((force = false) => {
     return fetchMembers(force);
   }, [communityId]);
@@ -404,7 +394,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Suspend Modal */}
       <Modal visible={suspendModal} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setSuspendModal(false)}>
           <Pressable style={styles.formModalContent} onPress={(e) => e.stopPropagation()}>
@@ -442,7 +431,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         </Pressable>
       </Modal>
 
-      {/* Ban Modal */}
       <Modal visible={banModal} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setBanModal(false)}>
           <Pressable style={styles.formModalContent} onPress={(e) => e.stopPropagation()}>
@@ -480,7 +468,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         </Pressable>
       </Modal>
 
-      {/* Change Access Modal */}
       <Modal visible={accessModal} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setAccessModal(false)}>
           <Pressable style={styles.formModalContent} onPress={(e) => e.stopPropagation()}>
@@ -511,7 +498,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         </Pressable>
       </Modal>
 
-      {/* Remove Member Modal */}
       <CustomModal
         visible={removeModal}
         title="Expulsar miembro"
@@ -523,7 +509,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         onClose={() => setRemoveModal(false)}
       />
 
-      {/* Member action menu */}
       <Modal visible={menuModal} transparent animationType="slide">
         <TouchableOpacity
           style={styles.menuOverlay}
@@ -533,9 +518,9 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
           <View style={styles.menuSheet}>
             <View style={styles.menuHandle} />
             <View style={styles.menuHeader}>
-              <View style={styles.menuAvatar}>
-                <Text style={styles.menuAvatarText}>{menuTarget?.nombre.charAt(0).toUpperCase()}</Text>
-              </View>
+              {menuTarget && (
+                <Avatar url={menuTarget.avatar_url} name={menuTarget.nombre} size={48} />
+              )}
               <View style={styles.menuHeaderInfo}>
                 <Text style={styles.menuMemberName} numberOfLines={1}>{menuTarget?.nombre}</Text>
                 <Text style={styles.menuMemberEmail} numberOfLines={1}>{menuTarget?.email}</Text>
@@ -608,7 +593,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Success Modal */}
       <CustomModal
         visible={successModal.visible}
         title="Exito"
@@ -617,7 +601,6 @@ export default function CommunityModerationScreen({ navigation, route }: any) {
         onClose={() => setSuccessModal({ visible: false, message: '' })}
       />
 
-      {/* Error Modal */}
       <CustomModal
         visible={errorModal.visible}
         title="Error"
@@ -657,8 +640,6 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: COLORS.lightMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   badgeText: { fontSize: 13, fontWeight: '600', color: COLORS.muted },
   memberCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  memberAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
-  memberAvatarText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
   memberInfo: { flex: 1, gap: 2 },
   memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   memberName: { fontSize: 15, fontWeight: '600', color: COLORS.text, flexShrink: 1 },
@@ -702,8 +683,6 @@ const styles = StyleSheet.create({
   menuSheet: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 },
   menuHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.lightMuted, alignSelf: 'center', marginTop: 12, marginBottom: 8 },
   menuHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.lightMuted },
-  menuAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
-  menuAvatarText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
   menuHeaderInfo: { flex: 1 },
   menuMemberName: { fontSize: 16, fontWeight: '600', color: COLORS.text },
   menuMemberEmail: { fontSize: 14, color: COLORS.muted, marginTop: 2 },

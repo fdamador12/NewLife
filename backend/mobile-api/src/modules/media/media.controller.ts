@@ -23,7 +23,7 @@ export class MediaController {
   constructor(
     private readonly minioService: MinioService,
     private readonly imageValidator: ImageValidatorService,
-  ) {}
+  ) { }
 
   @Get('ping')
   @ApiOperation({ summary: 'Health check sin autenticación' })
@@ -57,9 +57,42 @@ export class MediaController {
     const processed = await this.imageValidator.validateAndProcess(file.buffer, file.mimetype);
     this.logger.log(`[upload] imagen procesada: ${processed.size}B ${processed.mimeType}`);
 
-    this.logger.log('[upload] subiendo a MinIO...');
+    this.logger.log('[upload] subiendo a MinIO carpeta posts...');
     const url = await this.minioService.uploadPostImage(processed.buffer, processed.mimeType);
     this.logger.log(`[upload] subida exitosa: ${url}`);
+
+    return { url };
+  }
+
+  @Post('upload-avatar')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Subir foto de perfil (jpeg, png, webp — máx 5 MB)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  async uploadAvatar(@UploadedFile() file: MulterFile) {
+    this.logger.log(`[upload-avatar] llamado. file=${file ? `${file.originalname} ${file.mimetype} ${file.size}B` : 'undefined'}`);
+
+    if (!file) {
+      throw new BadRequestException('Debe enviar un archivo en el campo "file".');
+    }
+
+    this.logger.log('[upload-avatar] validando y procesando imagen...');
+    const processed = await this.imageValidator.validateAndProcess(file.buffer, file.mimetype);
+    this.logger.log(`[upload-avatar] imagen procesada: ${processed.size}B ${processed.mimeType}`);
+
+    this.logger.log('[upload-avatar] subiendo a MinIO carpeta avatars...');
+    const url = await this.minioService.uploadAvatar(processed.buffer, processed.mimeType);
+    this.logger.log(`[upload-avatar] subida exitosa: ${url}`);
 
     return { url };
   }

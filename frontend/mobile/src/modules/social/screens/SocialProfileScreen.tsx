@@ -9,7 +9,14 @@ import {
   getSobrietyTime,
 } from '../../../services/authService';
 import { getCamino } from '../../../services/progressService';
-import { getUserPosts, getUserPostsById } from '../../../services/communityService';
+import {
+  getUserPosts,
+  getUserPostsById,
+  getUserPublicProfile,
+  getMyCommunities,
+} from '../../../services/communityService';
+import { Avatar } from '../components/Avatar';
+import { ExpandableImage } from '../components/ExpandableImage';
 
 const COLORS = {
   background: '#F7F7F7',
@@ -48,33 +55,23 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-const MEDAL_COLORS = [
-  { bg: COLORS.goldLight, icon: COLORS.gold },
-  { bg: COLORS.blueLight, icon: COLORS.blue },
-  { bg: COLORS.greenLight, icon: COLORS.green },
-  { bg: COLORS.purpleLight, icon: COLORS.purple },
-];
-
-function MedalIcon({ index }: { index: number }) {
-  const colorSet = MEDAL_COLORS[index % MEDAL_COLORS.length];
-  return (
-    <View style={[styles.medalIcon, { backgroundColor: colorSet.bg }]}>
-      <Feather name="award" size={18} color={colorSet.icon} />
-    </View>
-  );
-}
-
-function PostCard({ post, onPress }: { post: any; onPress: () => void }) {
-  const authorInitial = (post.autor_nombre || post.nombre || 'U').charAt(0).toUpperCase();
-
+function PostCard({
+  post,
+  authorName,
+  authorAvatar,
+  onPress,
+}: {
+  post: any;
+  authorName: string;
+  authorAvatar?: string | null;
+  onPress: () => void;
+}) {
   return (
     <TouchableOpacity style={styles.postCard} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.postHeader}>
-        <View style={styles.postAvatar}>
-          <Text style={styles.postAvatarText}>{authorInitial}</Text>
-        </View>
+        <Avatar url={authorAvatar} name={authorName} size={44} />
         <View style={styles.postAuthorInfo}>
-          <Text style={styles.postAuthor}>{post.autor_nombre || post.nombre}</Text>
+          <Text style={styles.postAuthor}>{post.autor_nombre || authorName}</Text>
           {post.comunidad_nombre ? (
             <Text style={styles.postCommunity}>{post.comunidad_nombre}</Text>
           ) : null}
@@ -83,6 +80,14 @@ function PostCard({ post, onPress }: { post: any; onPress: () => void }) {
       </View>
       {post.titulo ? <Text style={styles.postTitle}>{post.titulo}</Text> : null}
       {post.contenido ? <Text style={styles.postBody}>{post.contenido}</Text> : null}
+
+      {/* Imagen del post — NUEVO */}
+      {post.imagen_url ? (
+        <View style={{ marginBottom: 14 }}>
+          <ExpandableImage uri={post.imagen_url} />
+        </View>
+      ) : null}
+
       <View style={styles.postActions}>
         <View style={styles.actionPill}>
           <Feather name="heart" size={16} color={COLORS.muted} />
@@ -101,42 +106,92 @@ function PostCard({ post, onPress }: { post: any; onPress: () => void }) {
   );
 }
 
+
+/**
+ * Pantalla de perfil social. Se usa para dos cosas:
+ *
+ *  1. Ver MI propio perfil publico (tal como me ven otros) — params: { isOwn: true }
+ *  2. Ver perfil de OTRO usuario — params: { isOwn: false, robleId, name }
+ *
+ * IMPORTANTE — Deteccion automatica de "mi propio perfil":
+ * El navigator tiene dos rutas (SocialProfile y UserProfile) que apuntan
+ * al mismo componente. Dependiendo de donde se accede, puede llegar
+ * isOwn=true o el robleId del propio usuario logueado.
+ *
+ * Para que el boton "Editar perfil" SIEMPRE aparezca cuando el perfil
+ * mostrado es el propio, comparamos el robleId recibido contra el
+ * robleId del usuario logueado. Si coinciden, forzamos modo "isOwn".
+ */
 export default function SocialProfileScreen({ navigation, route }: any) {
-  const isOwn = route?.params?.isOwn === true;
-  const robleId: string | undefined = route?.params?.robleId;
+  const paramIsOwn = route?.params?.isOwn === true;
+  const robleIdParam: string | undefined = route?.params?.robleId;
   const initialName: string = route?.params?.name || '';
 
+  // isOwn dinamico: se ajusta despues de cargar profile (si el robleId
+  // coincide con el del usuario logueado)
+  const [isOwn, setIsOwn] = useState<boolean>(paramIsOwn);
   const [posts, setPosts] = useState<any[]>([]);
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [daysClean, setDaysClean] = useState<number>(0);
   const [nivel, setNivel] = useState<number>(0);
+  const [medallasCount, setMedallasCount] = useState<number>(0);
+  const [communityCount, setCommunityCount] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
       try {
-        if (isOwn) {
-          const [profile, postsRes, sobriety, camino] = await Promise.all([
-            getProfile(),
+        // Primero, siempre cargar MI propio profile para saber mi robleId.
+        // Asi puedo detectar si estamos viendo mi propio perfil.
+        const myProfile = await getProfile().catch(() => null);
+        const myRobleId = myProfile?.robleId || myProfile?._id;
+
+        // Detectar si el robleId recibido es el mio
+        const accessingOwnProfile = paramIsOwn ||
+          (robleIdParam && myRobleId && robleIdParam === myRobleId);
+
+        setIsOwn(accessingOwnProfile === true);
+
+        if (accessingOwnProfile) {
+          // MI perfil: cargar datos completos
+          const [postsRes, sobriety, camino, myComms] = await Promise.all([
             getUserPosts(),
             getSobrietyTime().catch(() => null),
             getCamino().catch(() => null),
+            getMyCommunities(false).catch(() => []),
           ]);
-          setProfileData({ ...profile, publications: postsRes.length });
+          setProfileData({ ...myProfile, publications: postsRes.length });
           setPosts(postsRes);
           setDaysClean(sobriety?.contador?.dias ?? 0);
           setNivel(camino?.nivel ?? 0);
-        } else if (robleId) {
-          const [postsRes, sobriety, camino] = await Promise.all([
-            getUserPostsById(robleId).catch(() => []),
-            getSobrietyTime().catch(() => null),
-            getCamino().catch(() => null),
+          setCommunityCount(Array.isArray(myComms) ? myComms.length : 0);
+          // Para mi propio perfil, las medallas se cargarian con
+          // getMisMedallas que esta en otro service. Por ahora el contador
+          // se carga desde la misma vista publica usando getUserPublicProfile
+          // SI tengo mi robleId.
+          if (myRobleId) {
+            try {
+              const myPublic = await getUserPublicProfile(myRobleId);
+              setMedallasCount(myPublic?.total_medallas ?? 0);
+            } catch {
+              setMedallasCount(0);
+            }
+          }
+        } else if (robleIdParam) {
+          // Perfil PUBLICO de OTRO usuario
+          const [publicProfile, postsRes] = await Promise.all([
+            getUserPublicProfile(robleIdParam).catch(() => null),
+            getUserPostsById(robleIdParam).catch(() => []),
           ]);
-          const profile = null;
-          setProfileData({ ...(profile || {}), publications: postsRes.length });
+          setProfileData({
+            ...(publicProfile || {}),
+            publications: postsRes.length,
+          });
           setPosts(postsRes);
-          setDaysClean(sobriety?.contador?.dias ?? 0);
-          setNivel(camino?.nivel ?? 0);
+          setDaysClean(publicProfile?.dias_sobrio ?? 0);
+          setNivel(publicProfile?.nivel ?? 0);
+          setMedallasCount(publicProfile?.total_medallas ?? 0);
+          setCommunityCount(publicProfile?.total_comunidades ?? 0);
         }
       } catch (err) {
         console.log('Error cargando perfil:', err);
@@ -144,19 +199,17 @@ export default function SocialProfileScreen({ navigation, route }: any) {
         setLoading(false);
       }
     })();
-  }, [isOwn, robleId]);
+  }, [paramIsOwn, robleIdParam]);
 
   const name = profileData?.nombre || profileData?.name || initialName;
   const rawApodo = profileData?.apodo || '';
   const displayUsername = rawApodo
     ? `@${rawApodo}`
-    : `@${name.toLowerCase().replace(/\s+/g, '')}`;
+    : `@${(name || 'usuario').toLowerCase().replace(/\s+/g, '')}`;
   const bio = profileData?.descripcion || profileData?.bio || '';
+  const avatarUrl = profileData?.avatar_url || null;
   const publications = profileData?.publications ?? 0;
-  const communityCount = profileData?.total_comunidades ?? (profileData?.communities?.length ?? 0);
   const levelName = LEVEL_NAMES[nivel] || '';
-  const totalMedals = 4;
-  const medalsAchieved = 4;
 
   if (loading) {
     return (
@@ -178,12 +231,21 @@ export default function SocialProfileScreen({ navigation, route }: any) {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.profileSection}>
-          <View style={styles.avatarLarge}>
-            <Text style={styles.avatarLargeText}>{name.charAt(0).toUpperCase()}</Text>
-          </View>
-          <Text style={styles.profileName}>{name}</Text>
+          <Avatar url={avatarUrl} name={name || 'U'} size={88} expandable />
+          <Text style={styles.profileName}>{name || 'Usuario'}</Text>
           <Text style={styles.profileUsername}>{displayUsername}</Text>
           {!!bio && <Text style={styles.bio}>{bio}</Text>}
+
+          {isOwn && (
+            <TouchableOpacity
+              style={styles.editProfileBtn}
+              onPress={() => navigation.navigate('EditProfileScreen')}
+              activeOpacity={0.85}
+            >
+              <Feather name="edit-2" size={14} color={COLORS.text} />
+              <Text style={styles.editProfileBtnText}>Editar perfil</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.statsCard}>
@@ -198,6 +260,7 @@ export default function SocialProfileScreen({ navigation, route }: any) {
           </View>
         </View>
 
+        {/* Tarjeta motivacional con nivel + dias + medallas */}
         <View style={styles.levelCard}>
           <View style={styles.levelHeader}>
             <View style={styles.levelIconWrapper}>
@@ -213,7 +276,7 @@ export default function SocialProfileScreen({ navigation, route }: any) {
                 <Feather name="calendar" size={20} color={COLORS.green} />
               </View>
               <View>
-                <Text style={styles.levelStatNumber}>{daysClean} dias</Text>
+                <Text style={styles.levelStatNumber}>{daysClean} días</Text>
                 <Text style={styles.levelStatLabel}>sin consumo</Text>
               </View>
             </View>
@@ -223,7 +286,7 @@ export default function SocialProfileScreen({ navigation, route }: any) {
                 <Feather name="award" size={20} color={COLORS.gold} />
               </View>
               <View>
-                <Text style={styles.levelStatNumber}>{medalsAchieved} logros</Text>
+                <Text style={styles.levelStatNumber}>{medallasCount} logros</Text>
                 <Text style={styles.levelStatLabel}>alcanzados</Text>
               </View>
             </View>
@@ -254,6 +317,8 @@ export default function SocialProfileScreen({ navigation, route }: any) {
             <PostCard
               key={post.id || post._id}
               post={{ ...post, autor_nombre: name }}
+              authorName={name || 'Usuario'}
+              authorAvatar={avatarUrl}
               onPress={() => navigation.navigate('PostDetail', { post, community: null })}
             />
           ))
@@ -272,22 +337,17 @@ const styles = StyleSheet.create({
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: COLORS.background },
   headerTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text },
   scroll: { paddingHorizontal: 20, paddingTop: 24 },
-  profileSection: { alignItems: 'center', marginBottom: 24 },
-  avatarLarge: { width: 88, height: 88, borderRadius: 44, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  avatarLargeText: { fontSize: 36, fontWeight: '700', color: COLORS.white },
-  profileName: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  profileUsername: { fontSize: 15, color: COLORS.muted, marginBottom: 12 },
-  bio: { fontSize: 15, color: COLORS.text, lineHeight: 22, textAlign: 'center', paddingHorizontal: 16 },
+  profileSection: { alignItems: 'center', marginBottom: 24, gap: 8 },
+  profileName: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginTop: 12 },
+  profileUsername: { fontSize: 15, color: COLORS.muted },
+  bio: { fontSize: 15, color: COLORS.text, lineHeight: 22, textAlign: 'center', paddingHorizontal: 16, marginTop: 8 },
+  editProfileBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.lightMuted, marginTop: 12 },
+  editProfileBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   statsCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 20, padding: 20, marginBottom: 12 },
   statItem: { flex: 1, alignItems: 'center' },
   statNumber: { fontSize: 24, fontWeight: '700', color: COLORS.text },
   statLabel: { fontSize: 13, color: COLORS.muted, marginTop: 4 },
   statDivider: { width: 1, height: 40, backgroundColor: COLORS.lightMuted },
-  medalsCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 12 },
-  medalsLeft: { flex: 1 },
-  medalsIconsRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  medalIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  medalsCount: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   levelCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 24 },
   levelHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
   levelIconWrapper: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.purpleLight, alignItems: 'center', justifyContent: 'center' },
@@ -307,9 +367,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 20, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
   emptyText: { fontSize: 15, color: COLORS.muted, textAlign: 'center', lineHeight: 22 },
   postCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 18, marginBottom: 12 },
-  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  postAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  postAvatarText: { fontSize: 17, fontWeight: '600', color: COLORS.white },
+  postHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
   postAuthorInfo: { flex: 1 },
   postAuthor: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   postCommunity: { fontSize: 13, color: COLORS.accent, marginTop: 2 },

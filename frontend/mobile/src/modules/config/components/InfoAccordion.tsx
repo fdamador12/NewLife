@@ -23,14 +23,14 @@ type Props = {
   }) => void;
 };
 
-// ✅ Formatea número con comas: 50000 → 50,000
+// Formatea número con comas: 50000 → 50,000
 const formatNumber = (value: string): string => {
   const numbers = value.replace(/[^0-9]/g, '');
   if (!numbers) return '';
   return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
-// ✅ Quita comas para guardar: 50,000 → 50000
+// Quita comas para guardar: 50,000 → 50000
 const parseNumber = (value: string): string => {
   return value.replace(/,/g, '');
 };
@@ -52,8 +52,6 @@ export default function InfoAccordion({
   const [pronombre, setPronombre] = useState(initialPronombre);
   const [motivoSobrio, setMotivoSobrio] = useState(initialMotivo);
 
-  // ✅ gastoSemanal guarda el valor sin comas (número real)
-  // gastoSemanalDisplay es lo que ve el usuario (con comas)
   const [gastoSemanal, setGastoSemanal] = useState(initialGasto);
   const [gastoSemanalDisplay, setGastoSemanalDisplay] = useState(
     initialGasto ? formatNumber(initialGasto) : ''
