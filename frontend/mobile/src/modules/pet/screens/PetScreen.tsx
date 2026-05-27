@@ -8,9 +8,11 @@ import { usePet } from '../hooks/usePet';
 import XpBar from '../components/XpBar';
 import { PET_BACKGROUND_IMAGES, PET_NAMES } from '../utils/petHelpers';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
+import { useBottomInset } from '../../../hooks/useBottomInset';
 
 export default function PetScreen({ navigation }: any) {
   const { pet, message, loading } = usePet();
+  const bottomInset = useBottomInset(40);
 
   // 📊 Analytics: trackear visita a la pantalla de mascota.
   // Incluimos el nivel actual como propiedad para análisis (¿los usuarios
@@ -71,7 +73,7 @@ export default function PetScreen({ navigation }: any) {
 
       </View>
 
-      <View style={styles.bottomSection}>
+      <View style={[styles.bottomSection, { bottom: bottomInset }]}>
         <Text style={[styles.petName, { color: textColor }]}>{PET_NAMES[pet.selected_form]}</Text>
         <View style={styles.xpContainer}>
           <XpBar
@@ -173,7 +175,6 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     position: 'absolute',
-    bottom: 40,
     left: 0,
     right: 0,
     paddingHorizontal: spacing.xl,

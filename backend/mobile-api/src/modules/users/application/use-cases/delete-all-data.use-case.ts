@@ -17,6 +17,8 @@ const UUID_TABLES = [
   'contenido_favorito',
   'zonas',
   'config_usuarios',
+  // FIX 2026-05: agregar tabla de notificaciones para que se borre con la cuenta
+  'user_notification_settings',
 ];
 
 // Tablas donde el ID es el _id de Roble (user_id en esas tablas).
@@ -25,6 +27,11 @@ const UUID_TABLES = [
 // las membresias del usuario en la tabla real `comunidad_usuarios` (plural).
 // Verificado contra el resto del backend: TODAS las demas operaciones
 // (insertar membresia, actualizar tipo de acceso, etc.) usan 'comunidad_usuarios'.
+//
+// FIX 2026-05 (push notifications): agregar 'push_tokens' para que al eliminar
+// la cuenta no queden tokens huerfanos en la base. Esto tambien previene que
+// si el robleId se reusara, el dispositivo viejo recibiera notificaciones
+// del nuevo usuario.
 const ROBLE_ID_TABLES = [
   'foro_respuesta_comentarios',
   'comentario_likes',
@@ -38,6 +45,7 @@ const ROBLE_ID_TABLES = [
   'comentario_respuesta_likes',
   'reacciones',
   'comentario_respuestas',
+  'push_tokens',  // ← NUEVO
 ];
 
 /** Placeholder usado para anonimizar el nombre del usuario eliminado. */
@@ -48,16 +56,11 @@ const ANONYMIZED_NAME = '[Cuenta eliminada]';
  *
  * FLUJO:
  * 1. Resuelve el _id de Roble del usuario por su usuario_id (uuid del JWT).
- * 2. Borra los datos personales de 25 tablas en paralelo.
+ * 2. Borra los datos personales de las tablas en paralelo.
  * 3. SOFT DELETE del registro en `usuarios`:
  *    - Marca estado='ELIMINADO' para bloqueo de login
  *    - Anonimiza `nombre` con placeholder (sin romper schema NOT NULL)
  *    - Guarda `deleted_at` y opcionalmente `delete_motivo`
- *
- * SCHEMA REQUERIDO en tabla `usuarios`:
- * - `estado` (varchar, nullable): se setea a 'ELIMINADO'
- * - `deleted_at` (timestamp, nullable): cuando se elimino
- * - `delete_motivo` (varchar, nullable): motivo opcional del usuario
  *
  * IMPORTANTE: NO ponemos campos a null aunque parezca natural hacerlo.
  * Razon: el schema actual tiene `nombre`, `last_login`, etc. como NOT NULL,
@@ -68,6 +71,16 @@ const ANONYMIZED_NAME = '[Cuenta eliminada]';
  * - `nombre` → placeholder "[Cuenta eliminada]" (cumple GDPR + no rompe codigo)
  * - `last_login` → se conserva (no es PII identificable)
  * - Otros campos → se conservan (la cuenta no puede acceder, son inutiles)
+ *
+ * NOTA SOBRE NOTIFICACIONES LOCALES:
+ * Las notificaciones agendadas en el DISPOSITIVO del usuario NO pueden ser
+ * canceladas desde el backend. El frontend debe llamar a
+ * `cancelAllScheduledNotificationsAsync()` ANTES de invocar este endpoint.
+ *
+ * NOTA SOBRE PUSH NOTIFICATIONS:
+ * Los push_tokens se borran como parte de ROBLE_ID_TABLES. Esto significa que
+ * el backend NO podra enviar mas pushes a ese dispositivo. Pero el dispositivo
+ * podra registrar un nuevo token cuando otro usuario inicie sesion ahi.
  */
 @Injectable()
 export class DeleteAllDataUseCase {
@@ -126,14 +139,6 @@ export class DeleteAllDataUseCase {
     await Promise.all([...uuidDeletes, ...robleIdDeletes]);
 
     // 4. SOFT DELETE del registro principal en `usuarios`.
-    //
-    // CRITICO: este paso evita que la cuenta "resucite" en LoginUseCase.
-    //
-    // ANONIMIZACION sin tocar schema:
-    // - `nombre` cambia a placeholder (no es null para no romper queries)
-    // - `estado` = 'ELIMINADO' (bloqueo de login)
-    // - `deleted_at` = timestamp actual
-    // - `delete_motivo` = motivo opcional
     if (robleId) {
       try {
         const updatePayload: Record<string, any> = {
@@ -142,7 +147,6 @@ export class DeleteAllDataUseCase {
           deleted_at: new Date().toISOString(),
         };
 
-        // Solo agregar motivo si vino del caller (landing). Movil no envia motivo.
         if (motivo) {
           updatePayload.delete_motivo = motivo;
         }
@@ -157,7 +161,6 @@ export class DeleteAllDataUseCase {
           `❌ CRITICO: no se pudo marcar usuario como ELIMINADO. ` +
           `La cuenta puede ser reactivable. Error: ${err.message}`,
         );
-        // Re-lanzar el error para que el caller sepa que algo crítico fallo
         throw err;
       }
     } else {

@@ -3,10 +3,13 @@ import {
   View, Text, Image, StyleSheet, TouchableOpacity, Dimensions,
 } from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 const { width, height } = Dimensions.get('window');
 
 export default function CongratulationsScreen({ navigation }: any) {
+  const bottomInset = useBottomInset(48);
+
   return (
     <View style={styles.container}>
 
@@ -20,7 +23,7 @@ export default function CongratulationsScreen({ navigation }: any) {
       <Text style={styles.subtitle}>Desde hoy, cada día limpio{'\n'}nos hará crecer.</Text>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { bottom: bottomInset }]}
         onPress={() => navigation.replace('AppTour')}
         activeOpacity={0.9}
       >
@@ -58,7 +61,6 @@ const styles = StyleSheet.create({
   },
   button: {
     position: 'absolute',
-    bottom: 48,
     width: width - spacing.xl * 2,
     backgroundColor: colors.white,
     borderRadius: borderRadius.full,

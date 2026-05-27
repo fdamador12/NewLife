@@ -6,11 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
+  Switch,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import CategorySelector from './CategorySelector';
-import RepeatSelector from './RepeatSelector';
 import TimeInputField from './TimeInputField';
 
 const COLORS = {
@@ -28,11 +27,16 @@ const WEEK_DAYS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 const DAY_ITEM_WIDTH = 44;
 const DAY_ITEM_GAP = 8;
 
+const REMINDER_OPTIONS = [
+  { label: '5 min', value: 5 },
+  { label: '30 min', value: 30 },
+  { label: '1 hora', value: 60 },
+];
+
 function getDaysInMonth(month: number, year: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-// Función para convertir tiempo a minutos
 function timeToMinutes(timeStr: string): number {
   const [timePart, period] = timeStr.split(' ');
   let [hours, minutes] = timePart.split(':').map(Number);
@@ -58,6 +62,7 @@ interface EventFormProps {
   onTimeToChange: (time: string) => void;
   category: string;
   onCategorySelect: (category: string) => void;
+  // Repeat sigue en props para compatibilidad pero NO se muestra en UI.
   repeat: string;
   onRepeatSelect: (repeat: string) => void;
   reminder: boolean;
@@ -81,8 +86,6 @@ export default function EventForm({
   onTimeToChange,
   category,
   onCategorySelect,
-  repeat,
-  onRepeatSelect,
   reminder,
   onReminderToggle,
   reminderMinutes,
@@ -111,7 +114,6 @@ export default function EventForm({
     }, 100);
   }, [currentMonth, currentYear]);
 
-  // Validar horas cuando cambien
   const validateTimes = (from: string, to: string) => {
     const fromMinutes = timeToMinutes(from);
     const toMinutes = timeToMinutes(to);
@@ -191,7 +193,7 @@ export default function EventForm({
         </ScrollView>
       </View>
 
-      {/* Hora - CON TIME PICKER Y VALIDACIÓN */}
+      {/* Hora */}
       <View style={[styles.section, timeError && styles.sectionError]}>
         <Text style={styles.label}>Hora</Text>
         <View style={styles.timeRow}>
@@ -210,7 +212,6 @@ export default function EventForm({
           />
         </View>
 
-        {/* Mensaje de error */}
         {timeError && (
           <View style={styles.errorContainer}>
             <Feather name="alert-circle" size={14} color={COLORS.red} />
@@ -225,15 +226,46 @@ export default function EventForm({
         <CategorySelector selected={category} onSelect={onCategorySelect} />
       </View>
 
-      {/* Repetición y Recordatorio */}
-      <RepeatSelector
-        repeat={repeat}
-        onRepeatSelect={onRepeatSelect}
-        reminder={reminder}
-        onReminderToggle={onReminderToggle}
-        reminderMinutes={reminderMinutes}
-        onReminderMinutesSelect={onReminderMinutesSelect}
-      />
+      {/* Recordatorio - inline, sin selector de repeticion */}
+      <View style={styles.section}>
+        <View style={styles.reminderHeader}>
+          <Text style={styles.label}>Recordatorio</Text>
+          <Switch
+            value={reminder}
+            onValueChange={onReminderToggle}
+            trackColor={{ false: '#E0E0E0', true: COLORS.primary }}
+            thumbColor={COLORS.white}
+          />
+        </View>
+
+        {reminder && (
+          <>
+            <Text style={styles.reminderSubLabel}>Recordarme antes:</Text>
+            <View style={styles.reminderOptions}>
+              {REMINDER_OPTIONS.map((opt) => {
+                const isSelected = reminderMinutes === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.reminderOption,
+                      isSelected && styles.reminderOptionSelected,
+                    ]}
+                    onPress={() => onReminderMinutesSelect(opt.value)}
+                  >
+                    <Text style={[
+                      styles.reminderOptionText,
+                      isSelected && styles.reminderOptionTextSelected,
+                    ]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+      </View>
 
       <View style={{ height: 100 }} />
     </ScrollView>
@@ -289,7 +321,6 @@ const styles = StyleSheet.create({
   dayNumber: { fontSize: 16, fontWeight: '700', color: COLORS.darkGray },
   dayTextSelected: { color: COLORS.white },
 
-  // Time Inputs
   timeRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -300,7 +331,6 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
 
-  // Error Container
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -316,5 +346,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.red,
+  },
+
+  // Recordatorio (inline)
+  reminderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 0,
+  },
+  reminderSubLabel: {
+    fontSize: 13,
+    color: COLORS.gray,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  reminderOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  reminderOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+  },
+  reminderOptionSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  reminderOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.darkGray,
+  },
+  reminderOptionTextSelected: {
+    color: COLORS.white,
   },
 });

@@ -3,13 +3,14 @@ import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { hasCompletedOnboardingSlides } from '../services/onboarding-storage';
-import { getOnboardingStatus } from '../services/authService';
+import { getOnboardingStatus, migrateGuestToUser } from '../services/authService';
 import {
   isGuestMode,
-  getGuestOnboardingStatus,
   isGuestTourCompleted,
   hasGuestCompletedProfile,
+  getPendingMigration,
 } from '../services/guestService';
+import { syncNotificationsOnLogin } from '../services/notificationSync';
 
 export default function LoaderScreen({ navigation }: any) {
   useEffect(() => {
@@ -17,7 +18,6 @@ export default function LoaderScreen({ navigation }: any) {
       try {
         // ── 1. Onboarding informativo (3 slides) ───────────────────
         const completedSlides = await hasCompletedOnboardingSlides();
-
         if (!completedSlides) {
           navigation.replace('Onboarding');
           return;
@@ -38,9 +38,26 @@ export default function LoaderScreen({ navigation }: any) {
               return;
             }
 
+            // ✅ Verificar si hay migración pendiente y reintentar
+            const pendingMigration = await getPendingMigration();
+            if (pendingMigration) {
+              console.log('🔄 Reintentando migración pendiente...');
+              try {
+                await migrateGuestToUser();
+                console.log('✅ Migración pendiente completada');
+              } catch (err) {
+                console.log('⚠️ Migración pendiente falló de nuevo — se reintentará');
+              }
+            }
+
+            // 🔔 Sincronizar notificaciones locales con la preferencia del usuario.
+            // Fire-and-forget: no bloquea la navegacion si falla.
+            syncNotificationsOnLogin().catch((err) => {
+              console.log('⚠️ No se pudieron sincronizar notificaciones:', err);
+            });
+
             const email = await AsyncStorage.getItem('userEmail');
             const tourCompleted = await AsyncStorage.getItem(`tourCompleted_${email}`);
-
             navigation.replace(tourCompleted === 'true' ? 'Home' : 'AppTour');
             return;
           } catch (err: any) {
@@ -49,16 +66,6 @@ export default function LoaderScreen({ navigation }: any) {
             // Antes este catch hacia navigation.replace('Home'), lo cual
             // causaba que cuentas eliminadas o con tokens corruptos entraran
             // igual al Home con un usuario fantasma que no existe en backend.
-            //
-            // Causas posibles del 401:
-            // - La cuenta fue eliminada (estado='ELIMINADO' en backend)
-            // - El refresh token expiro
-            // - El backend cambio el secret de JWT
-            // - Tokens corruptos en AsyncStorage de pruebas viejas
-            //
-            // Comportamiento correcto: limpiar credenciales basura y mandar
-            // al usuario a Welcome para que se loguee de nuevo o entre como
-            // invitado.
             console.warn(
               '⚠️ Sesion invalida o cuenta eliminada, limpiando tokens y redirigiendo a Welcome',
               err?.response?.status,
@@ -77,17 +84,13 @@ export default function LoaderScreen({ navigation }: any) {
 
         // ── 3. Modo invitado ─────────────────────────────────────
         const guest = await isGuestMode();
-
         if (guest) {
           // Validar si el guest ya completo Story
           const completedProfile = await hasGuestCompletedProfile();
-
           if (!completedProfile) {
-            // Guest sin onboarding → mostrar Story
             navigation.replace('Story');
             return;
           }
-
           // Guest completo Story → ir al Tour o Home
           const tourCompleted = await isGuestTourCompleted();
           navigation.replace(tourCompleted ? 'Home' : 'AppTour');

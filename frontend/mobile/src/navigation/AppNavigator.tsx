@@ -25,6 +25,7 @@ import Step3_UltimoConsumo from '../modules/auth/screens/AdditionalData/Step3_Ul
 import Step4_Motivo from '../modules/auth/screens/AdditionalData/Step4_Motivo';
 import Step5_Dinero from '../modules/auth/screens/AdditionalData/Step5_Dinero';
 import Step6_Telefono from '../modules/auth/screens/AdditionalData/Step6_Telefono';
+import Step9b_NotificacionesConsentimiento from '../modules/auth/screens/AdditionalData/Step9b_NotificacionesConsentimiento';
 import Step10_Horario from '../modules/auth/screens/AdditionalData/Step10_Horario';
 import MainScreen from '../modules/home/screens/MainScreen';
 import SOSScreen from '../modules/home/screens/SOSScreen';
@@ -59,7 +60,6 @@ import DailyPhraseScreen from '../modules/motivation/screens/DailyPhraseScreen';
 import MedalsScreen from '../modules/motivation/screens/MedalsScreen';
 import ChallengesScreen from '../modules/motivation/screens/ChallengesScreen';
 import ChallengeDetailScreen from '../modules/motivation/screens/ChallengeDetailScreen';
-import CareScreen from '../modules/care/screens/CareScreen';
 import ContactsScreen from '../modules/care/screens/contacts/ContactsScreen';
 import GroupsScreen from '../modules/care/screens/groups/GroupsScreen';
 import ContentScreen from '../modules/care/screens/content/ContentScreen';
@@ -79,8 +79,19 @@ import PetInfoScreen from '../modules/pet/screens/PetInfoScreen';
 import PetCollectionScreen from '../modules/pet/screens/PetCollectionScreen/index';
 import VerifyEmailScreen from '../modules/auth/screens/VerifyEmailScreen';
 import ForgotPasswordScreen from '../modules/auth/screens/ForgotPasswordScreen';
-
-
+import MyCommunitiesScreen from '../modules/social/screens/MyCommunitiesScreen';
+import CommunityDetailScreen from '../modules/social/screens/CommunityDetailScreen';
+import CommunityChatScreen from '../modules/social/screens/CommunityChatScreen';
+import CreatePostCommunityScreen from '../modules/social/screens/CreatePostCommunityScreen';
+import DailyForumScreen from '../modules/social/screens/DailyForumScreen';
+import DailyForumDetailScreen from '../modules/social/screens/DailyForumDetailScreen';
+import DailyForumCommunityPickerScreen from '../modules/social/screens/DailyForumCommunityPickerScreen';
+import PostDetailScreen from '../modules/social/screens/PostDetailScreen';
+import CommunityModerationScreen from '../modules/social/screens/CommunityModerationScreen';
+import EditProfileMenuScreen from '../modules/social/screens/EditProfileMenuScreen';
+import EditProfileScreen from '../modules/social/screens/EditProfileScreen';
+import CreatePostScreen from '../modules/social/screens/CreatePostScreen';
+import SocialProfileScreen from '../modules/social/screens/SocialProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -114,6 +125,7 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Step4" component={Step4_Motivo} />
                   <Stack.Screen name="Step5" component={Step5_Dinero} />
                   <Stack.Screen name="Step6" component={Step6_Telefono} />
+                  <Stack.Screen name="Step9b" component={Step9b_NotificacionesConsentimiento} />
                   <Stack.Screen name="Step10" component={Step10_Horario} />
                   <Stack.Screen name="Home" component={MainScreen} />
                   <Stack.Screen name="SOS" component={SOSScreen} />
@@ -194,6 +206,21 @@ export default function AppNavigator({ initialRoute = 'Splash1' }: AppNavigatorP
                   <Stack.Screen name="Social" component={SocialScreen} />
                   <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
                   <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                  {/* Screens de comunidad */}
+                  <Stack.Screen name="MyCommunities" component={MyCommunitiesScreen} />
+                  <Stack.Screen name="CommunityDetail" component={CommunityDetailScreen} />
+                  <Stack.Screen name="CommunityChat" component={CommunityChatScreen} />
+                  <Stack.Screen name="CreatePostCommunity" component={CreatePostCommunityScreen} />
+                  <Stack.Screen name="DailyForum" component={DailyForumScreen} />
+                  <Stack.Screen name="DailyForumDetail" component={DailyForumDetailScreen} />
+                  <Stack.Screen name="DailyForumCommunityPicker" component={DailyForumCommunityPickerScreen} />
+                  <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+                  <Stack.Screen name="CommunityModeration" component={CommunityModerationScreen} />
+                  <Stack.Screen name="EditProfile" component={EditProfileMenuScreen} />
+                  <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
+                  <Stack.Screen name="CreatePost" component={CreatePostScreen} />
+                  <Stack.Screen name="SocialProfile" component={SocialProfileScreen} />
+                  <Stack.Screen name="UserProfile" component={SocialProfileScreen} />
                 </Stack.Navigator>
                 <Toast />
                 <ConfirmModal />

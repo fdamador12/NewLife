@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { agendaService, AgendaEventFrontend } from '../services/agendaService';
+import { cancelAgendaReminder } from '../../../services/notificationSync';
 
 export const useAgenda = () => {
   const [eventos, setEventos] = useState<AgendaEventFrontend[]>([]);
@@ -35,6 +36,10 @@ export const useAgenda = () => {
 
   const updateAgenda = useCallback(async (evento_id: string, event: AgendaEventFrontend) => {
     try {
+      // Cancelar notif previa porque puede haber cambiado fecha/hora/titulo.
+      // La nueva se agendara desde AddEventScreen tras el update exitoso.
+      await cancelAgendaReminder(evento_id);
+
       const updatedEvent = await agendaService.updateAgenda(evento_id, event);
       setEventos((prev) =>
         prev.map((e) => (e.id === evento_id ? updatedEvent : e))
@@ -49,6 +54,10 @@ export const useAgenda = () => {
 
   const deleteAgenda = useCallback(async (evento_id: string) => {
     try {
+      // Cancelar la notificacion local antes de borrar del backend.
+      // Si esto falla (ej. Expo Go), no rompe el flujo de eliminacion.
+      await cancelAgendaReminder(evento_id);
+
       await agendaService.deleteAgenda(evento_id);
       setEventos((prev) => prev.filter((e) => e.id !== evento_id));
     } catch (err) {

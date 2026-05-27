@@ -22,6 +22,7 @@ export interface MotivationalCardProps {
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onShare?: (text: string) => void;
+  isGuest?: boolean;
 }
 
 export default function MotivationalCard({
@@ -30,6 +31,7 @@ export default function MotivationalCard({
   image,
   isFavorite,
   onToggleFavorite,
+  isGuest = false,
 }: MotivationalCardProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -65,10 +67,8 @@ export default function MotivationalCard({
 
   return (
     <View style={styles.card}>
-      {/* Imagen SIN overlay */}
       <Image source={image} style={styles.cardImage} resizeMode="cover" />
 
-      {/* Footer gris (clave del diseño) */}
       <View style={styles.footer}>
         <Text style={styles.cardText}>{text}</Text>
 
@@ -77,16 +77,19 @@ export default function MotivationalCard({
             <Feather name="share-2" size={18} color={colors.white} />
           </TouchableOpacity>
 
-          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <TouchableOpacity onPress={handleToggleFavorite}>
-              <Feather
-                name="heart"
-                size={18}
-                color={isFavorite ? '#FF6B6B' : colors.white}
-                fill={isFavorite ? '#FF6B6B' : 'none'}
-              />
-            </TouchableOpacity>
-          </Animated.View>
+          {/* ✅ Ocultar corazón si es guest */}
+          {!isGuest && (
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <TouchableOpacity onPress={handleToggleFavorite}>
+                <Feather
+                  name="heart"
+                  size={18}
+                  color={isFavorite ? '#FF6B6B' : colors.white}
+                  fill={isFavorite ? '#FF6B6B' : 'none'}
+                />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </View>
       </View>
     </View>
@@ -99,28 +102,24 @@ const styles = StyleSheet.create({
     height: CARD_WIDTH * 1.4,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
-    backgroundColor: '#E0E0E0', // crema/gris base
+    backgroundColor: '#E0E0E0',
   },
-
   cardImage: {
     width: '100%',
-    height: '70%', // 🔥 clave: la imagen NO ocupa todo
+    height: '70%',
   },
-
   footer: {
-    height: '30%', // 🔥 bloque inferior
-    backgroundColor: '#404040', // gris visible (ajusta si quieres más claro)
+    height: '30%',
+    backgroundColor: '#404040',
     padding: spacing.md,
     justifyContent: 'space-between',
   },
-
   cardText: {
     fontSize: fontSizes.sm,
     color: colors.white,
     fontWeight: '600',
     lineHeight: 20,
   },
-
   cardActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -10,7 +10,7 @@ export class GetFraseDelDiaUseCase {
     private readonly systemAuth: SystemAuthService,
   ) {}
 
-  async execute(usuarioId: string, userToken: string) {
+  async execute(usuarioId: string | null, userToken: string | null) {
     const offset = -5;
     const localDate = new Date(new Date().getTime() + offset * 3600 * 1000);
     const targetDate = localDate.toISOString().split('T')[0];
@@ -22,8 +22,14 @@ export class GetFraseDelDiaUseCase {
       throw new NotFoundException(`No hay una frase del día registrada para hoy (${targetDate})`);
     }
 
-    const isGuardada = await this.motivationProvider.isFraseGuardada(usuarioId, frase.frase_id, userToken);
+    // ✅ Solo verificar favorito si hay usuario autenticado
+    if (usuarioId && userToken) {
+      const isGuardada = await this.motivationProvider.isFraseGuardada(
+        usuarioId, frase.frase_id, userToken
+      );
+      return { data: frase, isGuardada };
+    }
 
-    return { data: frase, isGuardada };
+    return { data: frase, isGuardada: false };
   }
 }

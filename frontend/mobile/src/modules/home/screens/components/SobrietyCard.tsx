@@ -2,17 +2,21 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
 
-const RING_SIZE = 72;
+const RING_SIZE_NORMAL = 72;
+const RING_SIZE_COMPACT = 54;
 
 type RingProps = {
   value: number;
   label: string;
   max: number;
+  compact?: boolean;
 };
 
-function Ring({ value, label, max }: RingProps) {
+function Ring({ value, label, max, compact = false }: RingProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
   const progress = value / max;
+  const size = compact ? RING_SIZE_COMPACT : RING_SIZE_NORMAL;
+  const strokeWidth = compact ? 4 : 5;
 
   useEffect(() => {
     Animated.timing(animatedValue, {
@@ -22,13 +26,10 @@ function Ring({ value, label, max }: RingProps) {
     }).start();
   }, [value]);
 
-  const size = RING_SIZE;
-  const strokeWidth = 5;
-
   return (
     <View style={styles.ringWrapper}>
       <View style={{ width: size, height: size }}>
-        <View style={[styles.ringTrack, { width: size, height: size, borderRadius: size / 2 }]} />
+        <View style={[styles.ringTrack, { width: size, height: size, borderRadius: size / 2, borderWidth: strokeWidth }]} />
         <Animated.View
           style={[
             styles.ringFill,
@@ -49,11 +50,11 @@ function Ring({ value, label, max }: RingProps) {
             },
           ]}
         />
-        <View style={styles.ringCenter}>
-          <Text style={styles.ringValue}>{value}</Text>
+        <View style={[styles.ringCenter, { width: size, height: size }]}>
+          <Text style={[styles.ringValue, compact && styles.ringValueCompact]}>{value}</Text>
         </View>
       </View>
-      <Text style={styles.ringLabel}>{label}</Text>
+      <Text style={[styles.ringLabel, compact && styles.ringLabelCompact]}>{label}</Text>
     </View>
   );
 }
@@ -62,16 +63,19 @@ type Props = {
   dias: number;
   horas: number;
   minutos: number;
+  compact?: boolean;
 };
 
-export default function SobrietyCard({ dias, horas, minutos }: Props) {
+export default function SobrietyCard({ dias, horas, minutos, compact = false }: Props) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardSubtitle}>Has estado sobrio:</Text>
+    <View style={[styles.card, compact && styles.cardCompact]}>
+      <Text style={[styles.cardSubtitle, compact && styles.cardSubtitleCompact]}>
+        Has estado sobrio:
+      </Text>
       <View style={styles.ringsRow}>
-        <Ring value={dias} label="Días" max={30} />
-        <Ring value={horas} label="Horas" max={24} />
-        <Ring value={minutos} label="Mins" max={60} />
+        <Ring value={dias} label="Días" max={30} compact={compact} />
+        <Ring value={horas} label="Horas" max={24} compact={compact} />
+        <Ring value={minutos} label="Mins" max={60} compact={compact} />
       </View>
     </View>
   );
@@ -89,12 +93,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
   },
+  cardCompact: {
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
+  },
   cardSubtitle: {
     fontSize: fontSizes.sm,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing.md,
+  },
+  cardSubtitleCompact: {
+    fontSize: fontSizes.xs,
+    marginBottom: spacing.xs,
   },
   ringsRow: {
     flexDirection: 'row',
@@ -106,7 +118,6 @@ const styles = StyleSheet.create({
   },
   ringTrack: {
     position: 'absolute',
-    borderWidth: 5,
     borderColor: '#E8F4F8',
   },
   ringFill: {
@@ -116,8 +127,6 @@ const styles = StyleSheet.create({
   },
   ringCenter: {
     position: 'absolute',
-    width: RING_SIZE,
-    height: RING_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -126,8 +135,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  ringValueCompact: {
+    fontSize: fontSizes.md,
+  },
   ringLabel: {
     fontSize: fontSizes.sm,
     color: colors.textMuted,
+  },
+  ringLabelCompact: {
+    fontSize: fontSizes.xs,
   },
 });

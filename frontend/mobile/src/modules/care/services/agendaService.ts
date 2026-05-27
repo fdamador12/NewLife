@@ -38,7 +38,7 @@ export interface AgendaResponse {
 
 const CATEGORY_MAP_TO_BACKEND: Record<string, string> = {
   'Reunion': 'REUNION',
-  'Grupo AA': 'GRUPO_AA',
+  'Grupo NA': 'GRUPO_AA',
   'Fundación': 'FUNDACION',
   'Lectura': 'LECTURA',
   'Otro': 'OTRO',
@@ -46,19 +46,16 @@ const CATEGORY_MAP_TO_BACKEND: Record<string, string> = {
 
 const CATEGORY_MAP_TO_FRONTEND: Record<string, string> = {
   'REUNION': 'Reunion',
-  'GRUPO_AA': 'Grupo AA',
+  'GRUPO_AA': 'Grupo NA',
   'FUNDACION': 'Fundación',
   'LECTURA': 'Lectura',
   'OTRO': 'Otro',
 };
 
-const REPEAT_MAP_TO_BACKEND: Record<string, string> = {
-  'none': 'UNA_VEZ',
-  'daily': 'DIARIO',
-  'weekly': 'SEMANAL',
-  'monthly': 'MENSUAL',
-};
-
+// NOTA: el frontend ya no expone opciones de repetir al usuario, pero el
+// backend sigue esperando este campo. Por eso siempre mandamos 'UNA_VEZ'
+// al crear/editar. El mapeo se mantiene para que eventos existentes
+// con valores antiguos se lean correctamente (compatibilidad hacia atras).
 const REPEAT_MAP_TO_FRONTEND: Record<string, string> = {
   'UNA_VEZ': 'none',
   'DIARIO': 'daily',
@@ -100,14 +97,49 @@ function timeToFrontend(time: string): string {
   return `${hours}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
+/**
+ * Convierte un Date local a string YYYY-MM-DD sin sufrir desfase de timezone.
+ *
+ * BUG anterior: usar event.date.toISOString().split('T')[0] convertia a UTC
+ * primero, lo que en zonas horarias negativas (como Colombia UTC-5) causaba
+ * que un evento del "25 de mayo a las 9pm hora local" se guardara como
+ * "26 de mayo" en BD (porque ese momento en UTC ya es del dia siguiente).
+ *
+ * Fix: extraer ano/mes/dia con getters LOCALES y formar el string a mano.
+ */
+function dateToLocalISOString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Convierte un string YYYY-MM-DD del backend a un Date LOCAL del frontend
+ * sin desfase de timezone.
+ *
+ * BUG anterior: new Date('2026-05-25') interpreta el string como UTC,
+ * lo que en zonas negativas hacia que se mostrara como "24 de mayo" en
+ * pantalla.
+ *
+ * Fix: construir el Date con los componentes locales directamente.
+ */
+function dateFromBackend(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function eventToBackend(event: AgendaEventFrontend): Omit<AgendaEventBackend, '_id' | 'evento_id' | 'usuario_id' | 'created_at' | 'updated_at'> {
   return {
     titulo: event.title,
-    fecha: event.date.toISOString().split('T')[0],
+    fecha: dateToLocalISOString(event.date),
     hora_desde: timeToBackend(event.timeFrom),
     hora_hasta: timeToBackend(event.timeTo),
     categoria: CATEGORY_MAP_TO_BACKEND[event.category] || event.category,
-    repetir: REPEAT_MAP_TO_BACKEND[event.repeat] || event.repeat,
+    // Siempre UNA_VEZ: el frontend ya no expone la opcion de repetir.
+    // Si en el futuro se quiere reactivar, agregar el control en EventForm
+    // y volver a mapear event.repeat aqui.
+    repetir: 'UNA_VEZ',
     recordatorio: event.reminder,
     tiempo_recordatorio: event.reminder ? REMINDER_MAP_TO_BACKEND[event.reminderMinutes] || '30_MIN' : '',
   };
@@ -117,13 +149,13 @@ function eventToFrontend(event: AgendaEventBackend): AgendaEventFrontend {
   return {
     id: event.evento_id,
     title: event.titulo,
-    date: new Date(event.fecha),
+    date: dateFromBackend(event.fecha),
     timeFrom: timeToFrontend(event.hora_desde),
     timeTo: timeToFrontend(event.hora_hasta),
     category: CATEGORY_MAP_TO_FRONTEND[event.categoria] || event.categoria,
     reminder: event.recordatorio,
     reminderMinutes: REMINDER_MAP_TO_FRONTEND[event.tiempo_recordatorio] || 30,
-    repeat: REPEAT_MAP_TO_FRONTEND[event.repetir] || event.repetir,
+    repeat: REPEAT_MAP_TO_FRONTEND[event.repetir] || 'none',
   };
 }
 

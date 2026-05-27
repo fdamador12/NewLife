@@ -23,7 +23,7 @@ services:
       ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN}
       CORS_ORIGIN: ${CORS_ORIGIN}
       # ── MinIO ─────────────────────────────────────────────────────
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
       MINIO_REGION: ${MINIO_REGION}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -56,6 +56,9 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - MINIO_ENDPOINT=http://minio:9000
+    depends_on:
+      - minio
     command: npm run start:dev
     restart: unless-stopped
 
@@ -93,15 +96,20 @@ services:
     command: server /data --console-address ":9001"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 30s
 
   # ── Inicialización de MinIO ──────────────────────────────────────
-  # Servicio efimero que crea el bucket publico si no existe.
-  # IDEMPOTENTE: si el bucket ya existe, no falla.
+  # Servicio efimero que configura MinIO automaticamente al arrancar:
+  #   1. Crea el bucket publico (si no existe).
+  #   2. Configura el bucket como publico (lectura anonima para imagenes).
+  #   3. Crea el usuario de servicio que usa el backend (admin-api).
+  #   4. Asigna policy readwrite al usuario del backend.
+  #
+  # IDEMPOTENTE: si el bucket o el usuario ya existen, no falla (|| true).
   # En SAFE MODE: si este servicio falla, el admin-api SIGUE arrancando
   # (porque admin-api NO tiene "condition: service_completed_successfully").
   minio-init:
@@ -114,6 +122,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_PUBLIC: ${MINIO_BUCKET_PUBLIC}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     entrypoint: >
       /bin/sh -c "
       echo 'Configurando alias de MinIO...';
@@ -122,7 +132,11 @@ services:
       /usr/bin/mc mb --ignore-existing local/$$MINIO_BUCKET_PUBLIC;
       echo 'Configurando bucket como publico (lectura anonima)...';
       /usr/bin/mc anonymous set download local/$$MINIO_BUCKET_PUBLIC;
-      echo 'Bucket configurado correctamente. Saliendo.';
+      echo 'Creando usuario de servicio del backend (si no existe)...';
+      /usr/bin/mc admin user add local \"$$MINIO_ACCESS_KEY\" \"$$MINIO_SECRET_KEY\" || true;
+      echo 'Asignando policy readwrite al usuario del backend...';
+      /usr/bin/mc admin policy attach local readwrite --user \"$$MINIO_ACCESS_KEY\" || true;
+      echo 'MinIO configurado correctamente. Saliendo.';
       exit 0;
       "
     restart: "no"

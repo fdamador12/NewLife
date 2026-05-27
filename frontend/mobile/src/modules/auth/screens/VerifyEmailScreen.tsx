@@ -1,22 +1,27 @@
-// src/screens/auth/VerifyEmailScreen.tsx
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator,
+  ScrollView, ActivityIndicator, Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
 import { useToast } from '../../../feedback/ToastContext';
-import { verifyEmail, loginUser } from '../../../services/authService';
+import { verifyEmail, loginUser, migrateGuestToUser } from '../../../services/authService';
+import { clearGuestData, setPendingMigration } from '../../../services/guestService';
 
 const CODE_LENGTH = 6;
 
 export default function VerifyEmailScreen({ route, navigation }: any) {
-  const { email, password } = route.params as { email: string; password: string };
+  const { email, password, fromGuest = false } = route.params as {
+    email: string;
+    password: string;
+    fromGuest?: boolean;
+  };
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
   const { showToast } = useToast();
 
@@ -39,6 +44,7 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
   };
 
   const handleVerify = async () => {
+    Keyboard.dismiss();
     if (fullCode.length < CODE_LENGTH) {
       showToast('Ingresa el código de 6 dígitos', 'error');
       return;
@@ -47,13 +53,23 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
     try {
       setLoading(true);
 
-      // 1. Verificar email
       await verifyEmail(email, fullCode);
-
-      // 2. Login automático con las credenciales que ya tenemos
       await loginUser(email, password);
 
-      // 3. Continuar el flujo normal como antes
+      if (fromGuest) {
+        setMigrating(true);
+        try {
+          await migrateGuestToUser();
+          console.log('✅ Migración completada');
+        } catch (err) {
+          showToast('Tus datos se sincronizarán cuando tengas conexión', 'info');
+        } finally {
+          setMigrating(false);
+        }
+        navigation.replace('Home');
+        return;
+      }
+
       navigation.replace('Story');
 
     } catch (err: any) {
@@ -61,10 +77,21 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
       if (msg.includes('inválido') || msg.includes('invalid') || msg.includes('expirado')) {
         showToast('Código inválido o expirado', 'error');
       } else if (msg.includes('verificado') || msg.includes('already')) {
-        // Si ya estaba verificado, igual hacemos login
         try {
           await loginUser(email, password);
-          navigation.replace('Story');
+          if (fromGuest) {
+            setMigrating(true);
+            try {
+              await migrateGuestToUser();
+            } catch {
+              showToast('Tus datos se sincronizarán cuando tengas conexión', 'info');
+            } finally {
+              setMigrating(false);
+            }
+            navigation.replace('Home');
+          } else {
+            navigation.replace('Story');
+          }
         } catch {
           showToast('Error al iniciar sesión. Entra manualmente.', 'error');
           navigation.replace('Login');
@@ -110,16 +137,23 @@ export default function VerifyEmailScreen({ route, navigation }: any) {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.buttonPrimary, (loading || fullCode.length < CODE_LENGTH) && { opacity: 0.6 }]}
-          onPress={handleVerify}
-          disabled={loading || fullCode.length < CODE_LENGTH}
-        >
-          {loading
-            ? <ActivityIndicator color={colors.white} />
-            : <Text style={styles.buttonPrimaryText}>Verificar</Text>
-          }
-        </TouchableOpacity>
+        {migrating ? (
+          <View style={styles.migratingContainer}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.migratingText}>Sincronizando tus datos...</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.buttonPrimary, (loading || fullCode.length < CODE_LENGTH) && { opacity: 0.6 }]}
+            onPress={handleVerify}
+            disabled={loading || fullCode.length < CODE_LENGTH}
+          >
+            {loading
+              ? <ActivityIndicator color={colors.white} />
+              : <Text style={styles.buttonPrimaryText}>Verificar</Text>
+            }
+          </TouchableOpacity>
+        )}
 
         <View style={styles.resendContainer}>
           <Text style={styles.resendText}>¿No llegó el correo? </Text>
@@ -156,4 +190,9 @@ const styles = StyleSheet.create({
   resendContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 'auto', paddingTop: spacing.xl },
   resendText: { color: colors.textMuted, fontSize: fontSizes.sm },
   resendLink: { color: colors.accent, fontSize: fontSizes.sm, fontWeight: '600' },
+  migratingContainer: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.lg,
+  },
+  migratingText: { color: colors.textMuted, fontSize: fontSizes.md },
 });

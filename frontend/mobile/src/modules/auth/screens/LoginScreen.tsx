@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
   TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
+  TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import { Switch } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +12,7 @@ import { loginUser, getOnboardingStatus } from '../../../services/authService';
 import FieldError from '../../../feedback/FieldError';
 import { useToast } from '../../../feedback/ToastContext';
 import { analytics, EVENT_TYPES } from '../../../services/analytics';
+import { syncNotificationsOnLogin } from '../../../services/notificationSync';
 
 const INPUT_HEIGHT = 52;
 
@@ -21,11 +23,9 @@ const parsearErrorServidor = (msg: string, status?: number): string => {
     if (m.includes('contraseña')) {
       return 'Contraseña incorrecta. Verifica e intenta de nuevo.';
     }
-
     if (m.includes('no encontrado') || m.includes('no verificado')) {
       return 'No encontramos una cuenta con ese correo.';
     }
-
     return 'Credenciales incorrectas. Intenta de nuevo.';
   }
 
@@ -66,6 +66,7 @@ export default function LoginScreen({ navigation }: any) {
   }, []);
 
   const handleLogin = async () => {
+    Keyboard.dismiss();
     setEmailError('');
     setPasswordError('');
 
@@ -103,9 +104,13 @@ export default function LoginScreen({ navigation }: any) {
       }
 
       await loginUser(email.trim().toLowerCase(), password);
-
-      // 📊 Analytics: trackear login exitoso
       analytics.track(EVENT_TYPES.USER_LOGGED_IN);
+
+      // 🔔 Sincronizar notificaciones locales con la preferencia del usuario.
+      // Fire-and-forget: no bloquea la navegacion si falla.
+      syncNotificationsOnLogin().catch((err) => {
+        console.log('⚠️ No se pudieron sincronizar notificaciones:', err);
+      });
 
       const status = await getOnboardingStatus();
       navigation.navigate(status.completed ? 'Home' : 'Story');
@@ -118,12 +123,7 @@ export default function LoginScreen({ navigation }: any) {
 
       const status = err.response.status;
       const data = err.response.data;
-
-      const msg =
-        typeof data?.message === 'string'
-          ? data.message
-          : '';
-
+      const msg = typeof data?.message === 'string' ? data.message : '';
       showToast(parsearErrorServidor(msg, status), 'error');
 
     } finally {
@@ -136,94 +136,93 @@ export default function LoginScreen({ navigation }: any) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.replace('Welcome')}>
-        <Icon name="chevron-left" size={24} color={colors.text} />
-      </TouchableOpacity>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.inner}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.replace('Welcome')}>
+            <Icon name="chevron-left" size={24} color={colors.text} />
+          </TouchableOpacity>
 
-      <Text style={styles.title}>¡Ey! Nos alegra{'\n'}tenerte por acá :)</Text>
+          <Text style={styles.title}>¡Ey! Nos alegra{'\n'}tenerte por acá :)</Text>
 
-      <View style={styles.inputsContainer}>
+          <View style={styles.inputsContainer}>
 
-        <View>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe tu correo aquí..."
-              placeholderTextColor={colors.border}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(''); }}
-            />
-          </View>
-          <FieldError message={emailError} />
-        </View>
+            <View>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Escribe tu correo aquí..."
+                  placeholderTextColor={colors.border}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(''); }}
+                />
+              </View>
+              <FieldError message={emailError} />
+            </View>
 
-        <View>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe tu contraseña..."
-              placeholderTextColor={colors.border}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(''); }}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeButton}
-            >
-              <Icon
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={18}
-                color={colors.textMuted}
+            <View>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Escribe tu contraseña..."
+                  placeholderTextColor={colors.border}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(''); }}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
+                >
+                  <Icon
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={18}
+                    color={colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+              <FieldError message={passwordError} />
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
+              <Switch
+                value={rememberMe}
+                onValueChange={setRememberMe}
+                trackColor={{ false: '#ccc', true: '#FF6B6B' }}
+                thumbColor="#fff"
               />
+              <Text style={{ marginLeft: 8, color: colors.text }}>Recordarme</Text>
+            </View>
+
+            <View style={styles.forgotContainer}>
+              <Text style={styles.forgotText}>¿Se te olvidó la contraseña?{' '}</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                <Text style={styles.clickHere}>Click aquí</Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+
+          <TouchableOpacity
+            style={[styles.buttonPrimary, loading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading
+              ? <ActivityIndicator color={colors.white} />
+              : <Text style={styles.buttonPrimaryText}>Entrar</Text>
+            }
+          </TouchableOpacity>
+
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>¿Sin cuenta? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <Text style={styles.registerLink}>Súmate ya</Text>
             </TouchableOpacity>
           </View>
-          <FieldError message={passwordError} />
         </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
-          <Switch
-            value={rememberMe}
-            onValueChange={setRememberMe}
-            trackColor={{ false: '#ccc', true: '#FF6B6B' }}
-            thumbColor="#fff"
-          />
-          <Text style={{ marginLeft: 8, color: colors.text }}>Recordarme</Text>
-        </View>
-
-        <View style={styles.forgotContainer}>
-          <Text style={styles.forgotText}>
-            ¿Se te olvidó la contraseña?{' '}
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={styles.clickHere}>
-              Click aquí
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-      </View>
-
-      <TouchableOpacity
-        style={[styles.buttonPrimary, loading && { opacity: 0.7 }]}
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        {loading
-          ? <ActivityIndicator color={colors.white} />
-          : <Text style={styles.buttonPrimaryText}>Entrar</Text>
-        }
-      </TouchableOpacity>
-
-      <View style={styles.registerContainer}>
-        <Text style={styles.registerText}>¿Sin cuenta? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.registerLink}>Súmate ya</Text>
-        </TouchableOpacity>
-      </View>
-
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -232,6 +231,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  inner: {
+    flex: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: 60,
   },

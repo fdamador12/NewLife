@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    View, Text, TouchableOpacity, StyleSheet
+    View, Text, TouchableOpacity, StyleSheet, Modal, FlatList,
 } from 'react-native';
 import StepLayout from '../../components/StepLayout';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
@@ -13,9 +13,15 @@ const MONTHS = [
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+const YEARS = Array.from(
+    { length: new Date().getFullYear() - 1950 + 1 },
+    (_, i) => new Date().getFullYear() - i
+);
+
 export default function Step3_UltimoConsumo({ navigation }: any) {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [showYearPicker, setShowYearPicker] = useState(false);
     const { setField } = useOnboarding();
 
     const hasDate = selectedDate !== null;
@@ -37,6 +43,11 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
 
     const nextMonth = () => {
         setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+    };
+
+    const handleSelectYear = (year: number) => {
+        setCurrentMonth(new Date(year, currentMonth.getMonth()));
+        setShowYearPicker(false);
     };
 
     const formatDate = (date: Date) => {
@@ -115,7 +126,12 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
         >
             <View style={styles.container}>
 
-                <View style={styles.dateInput}>
+                {/* ✅ Tocar el campo abre el selector de año */}
+                <TouchableOpacity
+                    style={styles.dateInput}
+                    onPress={() => setShowYearPicker(true)}
+                    activeOpacity={0.7}
+                >
                     <Icon name="calendar" size={16} color={colors.textMuted} />
                     <Text style={[styles.dateText, !hasDate && styles.datePlaceholder]}>
                         {hasDate ? formatDate(selectedDate!) : 'Selecciona una fecha'}
@@ -125,16 +141,26 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
                             <Text style={styles.clearIcon}>✕</Text>
                         </TouchableOpacity>
                     )}
-                </View>
+                </TouchableOpacity>
 
                 <View style={styles.calendar}>
                     <View style={styles.calendarHeader}>
                         <TouchableOpacity onPress={prevMonth}>
                             <Text style={styles.navArrow}>«</Text>
                         </TouchableOpacity>
-                        <Text style={styles.monthTitle}>
-                            {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear().toString().slice(-2)}
-                        </Text>
+
+                        {/* ✅ Tocar el mes/año también abre selector de año */}
+                        <TouchableOpacity
+                            onPress={() => setShowYearPicker(true)}
+                            style={styles.monthYearButton}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.monthTitle}>
+                                {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                            </Text>
+                            <Icon name="chevron-down" size={14} color={colors.textMuted} />
+                        </TouchableOpacity>
+
                         <TouchableOpacity onPress={nextMonth}>
                             <Text style={styles.navArrow}>»</Text>
                         </TouchableOpacity>
@@ -152,6 +178,58 @@ export default function Step3_UltimoConsumo({ navigation }: any) {
                 </View>
 
             </View>
+
+            {/* ✅ Modal selector de año */}
+            <Modal
+                visible={showYearPicker}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={() => setShowYearPicker(false)}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowYearPicker(false)}
+                >
+                    <View style={styles.yearPickerCard}>
+                        <Text style={styles.yearPickerTitle}>Selecciona el año</Text>
+                        <FlatList
+                            data={YEARS}
+                            keyExtractor={(item) => item.toString()}
+                            showsVerticalScrollIndicator={false}
+                            style={styles.yearList}
+                            getItemLayout={(_, index) => ({
+                                length: 48,
+                                offset: 48 * index,
+                                index,
+                            })}
+                            initialScrollIndex={YEARS.indexOf(currentMonth.getFullYear())}
+                            renderItem={({ item }) => {
+                                const isCurrentYear = item === currentMonth.getFullYear();
+                                return (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.yearItem,
+                                            isCurrentYear && styles.yearItemSelected,
+                                        ]}
+                                        onPress={() => handleSelectYear(item)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={[
+                                            styles.yearText,
+                                            isCurrentYear && styles.yearTextSelected,
+                                        ]}>
+                                            {item}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
         </StepLayout>
     );
 }
@@ -191,6 +269,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: spacing.md,
+    },
+    monthYearButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
     },
     navArrow: {
         fontSize: fontSizes.lg,
@@ -240,5 +323,52 @@ const styles = StyleSheet.create({
     },
     dayTextDisabled: {
         color: colors.textMuted,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: spacing.xl,
+    },
+    yearPickerCard: {
+        backgroundColor: colors.white,
+        borderRadius: borderRadius.md,
+        padding: spacing.lg,
+        width: '70%',
+        maxHeight: 320,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+    },
+    yearPickerTitle: {
+        fontSize: fontSizes.md,
+        fontWeight: '700',
+        color: colors.text,
+        textAlign: 'center',
+        marginBottom: spacing.md,
+    },
+    yearList: {
+        maxHeight: 240,
+    },
+    yearItem: {
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: borderRadius.sm,
+    },
+    yearItemSelected: {
+        backgroundColor: '#4A90D9',
+    },
+    yearText: {
+        fontSize: fontSizes.md,
+        color: colors.text,
+        fontWeight: '500',
+    },
+    yearTextSelected: {
+        color: colors.white,
+        fontWeight: '700',
     },
 });

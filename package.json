@@ -1,4 +1,12 @@
 {
+  "name": "newlife-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "jest --watchAll=false",
+    "test:coverage": "jest --coverage --watchAll=false",
+    "test:verbose": "jest --verbose --watchAll=false"
+  },
   "dependencies": {
     "@nestjs/event-emitter": "^3.0.1",
     "axios": "^1.16.0",
@@ -6,5 +14,27 @@
     "expo-av": "^16.0.8",
     "react-native-popup-menu": "^0.19.0",
     "react-native-reanimated": "^4.3.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "rootDir": ".",
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ],
+    "setupFilesAfterEnv": [
+      "./test/utils/setup.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "text",
+      "lcov"
+    ],
+    "collectCoverageFrom": [
+      "test/**/*.js",
+      "!test/utils/setup.js"
+    ]
   }
 }

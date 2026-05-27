@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsString, IsOptional, IsNumber, Min, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
@@ -22,4 +22,13 @@ export class UpdateProfileDto {
   @IsNumber()
   @Min(0)
   gasto_semanal?: number;
+
+  @ApiPropertyOptional({
+    example: 'Estoy en este camino para reconstruir mi vida',
+    description: 'Descripcion del perfil visible en comunidad (max 500 chars)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  descripcion?: string;
 }

@@ -1,14 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api';
-import { getGuestDataForMigration, clearGuestData } from './guestService';
 import { cacheService } from './cacheService';
 import { CACHE_KEYS } from './cacheKeys';
+import { 
+  getGuestDataForMigration, 
+  clearGuestData,
+  setPendingMigration,
+  clearPendingMigration,
+} from './guestService';
+
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-/**
- * Login con email y password
- */
 export const loginUser = async (email: string, password: string) => {
   const response = await api.post('/auth/login', { email, password });
   const { accessToken, refreshToken, user } = response.data;
@@ -38,9 +41,6 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   await api.post('/auth/reset-password', { token, newPassword });
 };
 
-/**
- * Registro de nuevo usuario
- */
 export const registerUser = async (
   nombre: string,
   email: string,
@@ -57,9 +57,6 @@ export const initSobriety = async (fecha_ultimo_consumo: string) => {
   await api.post('/progress/init-sobriety', { fecha_ultimo_consumo });
 };
 
-/**
- * Logout del usuario
- */
 export const logoutUser = async () => {
   await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userEmail']);
   await cacheService.clearAll();
@@ -67,9 +64,6 @@ export const logoutUser = async () => {
 
 // ─── Migración de Invitado ────────────────────────────────────────────────────
 
-/**
- * Migra datos de invitado al backend después de registrarse
- */
 export const migrateGuestToUser = async (): Promise<void> => {
   try {
     const guestData = await getGuestDataForMigration();
@@ -79,14 +73,61 @@ export const migrateGuestToUser = async (): Promise<void> => {
       return;
     }
 
-    console.log('📤 Migrando datos de invitado:', JSON.stringify(guestData, null, 2));
+    const payload = {
+      guestId: guestData.guestId,
+      profile: {
+        apodo: guestData.profile.apodo || '',
+        pronombre: guestData.profile.pronombre || '',
+        ult_fecha_consumo: guestData.profile.ult_fecha_consumo || '',
+        motivo_sobrio: guestData.profile.motivo_sobrio || '',
+        gasto_semana: Number(guestData.profile.gasto_semana ?? guestData.profile.gasto_semanal ?? 0),
+        telefono: Number(guestData.profile.telefono ?? 0),
+        reg_lugar_riesgo: Boolean(guestData.profile.reg_lugar_riesgo ?? false),
+        comp_logros_comunid: Boolean(guestData.profile.comp_logros_comunid ?? false),
+        moment_motiv: guestData.profile.moment_motiv || '09:00:00',
+        ...(guestData.profile.nombre_contacto && {
+          nombre_contacto: guestData.profile.nombre_contacto,
+        }),
+      },
+      sobriety: guestData.sobriety,
+      contacts: (guestData.contacts || []).map((c: any) => ({
+        id: c.id,
+        nombre: c.nombre,
+        telefono: c.telefono,
+      })),
+      checkins: (guestData.checkins || []).map((c: any) => ({
+        fecha: c.fecha,
+        emocion: c.emocion,
+        consumo: c.consumo,
+        gratitud: c.gratitud,
+        ...(c.consumo && {
+          ubicacion: c.ubicacion || '',
+          social: c.social || '',
+          reflexion: c.reflexion || '',
+        }),
+      })),
+      progress: guestData.progress ? {
+        nivel: guestData.progress.nivel,
+        subnivel: guestData.progress.subnivel,
+      } : undefined,
+      pet: guestData.pet ? {
+        xp: guestData.pet.xp ?? 0,
+        selected_form: guestData.pet.selected_form ?? 'seed',
+        unlocked_forms: guestData.pet.unlocked_forms ?? ['seed'],
+        last_actions: guestData.pet.last_actions ?? {},
+      } : undefined,
+    };
 
-    await api.post('/auth/migrate-guest', guestData);
+    console.log('📤 Migrando datos de invitado...');
+    await api.post('/auth/migrate-guest', payload);
 
+    // ✅ Éxito — limpiar datos guest y flag
     await clearGuestData();
-
+    await clearPendingMigration();
     console.log('✅ Migración de invitado completada');
   } catch (error: any) {
+    // ✅ Error — guardar flag para reintentar después
+    await setPendingMigration();
     console.error('❌ Error en migración:', error.response?.data || error.message);
     throw error;
   }
@@ -94,25 +135,16 @@ export const migrateGuestToUser = async (): Promise<void> => {
 
 // ─── User Profile ─────────────────────────────────────────────────────────────
 
-/**
- * Obtiene el estado del onboarding del usuario
- */
 export const getOnboardingStatus = async () => {
   const response = await api.get('/user/onboarding-status');
   return response.data;
 };
 
-/**
- * Completa el perfil del usuario (10 preguntas)
- */
 export const completeProfile = async (data: object) => {
   const response = await api.post('/user/complete-profile', data);
   return response.data;
 };
 
-/**
- * Obtiene el perfil completo del usuario
- */
 export const getProfile = async () => {
   return cacheService.withCache(
     CACHE_KEYS.PROFILE,
@@ -143,17 +175,11 @@ export const requestPasswordChange = async (): Promise<void> => {
 
 // ─── Contactos ────────────────────────────────────────────────────────────────
 
-/**
- * Crea un nuevo contacto de emergencia
- */
 export const createContact = async (nombre: string, telefono: string) => {
   const response = await api.post('/contacts', { nombre, telefono });
   return response.data;
 };
 
-/**
- * Obtiene lista de contactos de emergencia
- */
 export const getContacts = async () => {
   return cacheService.withCache(
     CACHE_KEYS.EMERGENCY_CONTACTS,
@@ -165,17 +191,11 @@ export const getContacts = async () => {
   );
 };
 
-/**
- * Actualiza un contacto de emergencia
- */
 export const updateContact = async (id: string, nombre: string, telefono: string) => {
   const response = await api.patch(`/contacts/${id}`, { nombre, telefono });
   return response.data;
 };
 
-/**
- * Elimina un contacto de emergencia
- */
 export const deleteContact = async (id: string) => {
   const response = await api.delete(`/contacts/${id}`);
   return response.data;
@@ -183,9 +203,6 @@ export const deleteContact = async (id: string) => {
 
 // ─── Sobriedad ────────────────────────────────────────────────────────────────
 
-/**
- * Calcula tiempo sobrio considerando timezone local
- */
 export const calculateSobrietyTime = (fechaUTCString: string | null) => {
   if (!fechaUTCString) {
     return { dias: 0, horas: 0, minutos: 0 };
@@ -211,9 +228,6 @@ export const calculateSobrietyTime = (fechaUTCString: string | null) => {
   }
 };
 
-/**
- * Obtiene tiempo sobrio actual del usuario
- */
 export const getSobrietyTime = async () => {
   try {
     const response = await api.get('/progress/sobriety-time');
@@ -232,9 +246,6 @@ export const getSobrietyTime = async () => {
   }
 };
 
-/**
- * Obtiene resumen para home: apodo, pronombre, gasto semanal, tiempo sobrio
- */
 export const getHomeSummary = async () => {
   try {
     const response = await api.get('/home/summary');
@@ -251,9 +262,6 @@ export const getHomeSummary = async () => {
   }
 };
 
-/**
- * Actualiza el perfil del usuario (apodo, pronombre, motivo_sobrio, gasto_semanal)
- */
 export const updateProfile = async (data: {
   apodo?: string;
   pronombre?: string;

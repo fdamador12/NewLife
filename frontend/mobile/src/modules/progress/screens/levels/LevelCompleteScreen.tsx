@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/theme';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LevelComplete'>;
 
 export default function LevelCompleteScreen({ navigation, route }: any) {
   const { message } = route.params;
+  const bottomInset = useBottomInset(48);
 
   return (
     <View style={styles.container}>
@@ -32,7 +34,7 @@ export default function LevelCompleteScreen({ navigation, route }: any) {
       <Text style={styles.subtitle}>{message}</Text>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { bottom: bottomInset }]}
         onPress={() => navigation.navigate('Path')}
         activeOpacity={0.9}
       >
@@ -71,7 +73,6 @@ const styles = StyleSheet.create({
   },
   button: {
     position: 'absolute',
-    bottom: 48,
     width: width - spacing.xl * 2,
     backgroundColor: colors.white,
     borderRadius: borderRadius.full,

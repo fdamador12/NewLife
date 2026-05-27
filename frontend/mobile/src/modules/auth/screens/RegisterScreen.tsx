@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
   TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
@@ -56,6 +57,7 @@ export default function RegisterScreen({ navigation }: any) {
   const { showToast } = useToast();
 
   const handleRegister = async () => {
+    Keyboard.dismiss();
     setNombreError('');
     setEmailError('');
     setPasswordError('');
@@ -92,21 +94,11 @@ export default function RegisterScreen({ navigation }: any) {
 
       await registerUser(nombre, email, password);
 
-      if (wasGuest) {
-        try {
-          await migrateGuestToUser();
-          await clearGuestData();
-          console.log('✅ Datos de invitado migrados correctamente');
-        } catch (err) {
-          console.log('⚠️ Migración pendiente, datos locales preservados');
-        }
-      }
-
-      if (guestCompletedProfile) {
-        navigation.replace('Home');
-      } else {
-        navigation.navigate('VerifyEmail', { email, password });
-      }
+      navigation.navigate('VerifyEmail', {
+        email,
+        password,
+        fromGuest: wasGuest && guestCompletedProfile,
+      });
 
     } catch (err: any) {
       if (!err.response) {
@@ -129,7 +121,7 @@ export default function RegisterScreen({ navigation }: any) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.replace('Welcome')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Icon name="chevron-left" size={24} color={colors.text} />
         </TouchableOpacity>
 
