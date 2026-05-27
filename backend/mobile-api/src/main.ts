@@ -22,11 +22,21 @@ async function bootstrap() {
     transform: true,
   }));
 
+  // CORS — origins permitidos para llamadas desde browsers.
+  //
+  // Nota: el APK movil NO necesita CORS (las apps nativas no aplican esa
+  // politica). CORS solo importa para llamadas desde el frontend web.
+  //
+  // FIX 2026-05: agregar dominios de produccion para que el formulario
+  // publico de eliminar-cuenta funcione desde la web.
   app.enableCors({
     origin: [
+      // Dev local
       'http://localhost:5182',
       'http://10.0.2.2:19000',
       'http://172.16.25.222:19000',
+      // Produccion OpenLab
+      'https://newlife.openlab.uninorte.edu.co',
     ],
     credentials: true,
   });
