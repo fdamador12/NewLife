@@ -12,7 +12,7 @@
       "package": "com.uninorte.newlife",
       "icon": "./src/assets/images/logo.png",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/logo.png",
+        "foregroundImage": "./src/assets/images/logo_foreground.png",
         "backgroundColor": "#c97b3f"
       },
       "permissions": [
