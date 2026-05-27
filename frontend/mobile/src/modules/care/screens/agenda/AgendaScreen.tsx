@@ -15,6 +15,7 @@ import { useConfirm } from '../../../../feedback/ConfirmContext';
 import AgendaCalendar from './components/AgendaCalendar';
 import EventCard from './components/EventCard';
 import { analytics, EVENT_TYPES } from '../../../../services/analytics';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 const COLORS = {
   primary: '#D38A58',
@@ -35,17 +36,22 @@ function timeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+// ✅ Convierte Date a string local YYYY-MM-DD sin timezone
+function toLocalDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export default function AgendaScreen({ navigation }: any) {
   const { eventos, loading, error, deleteAgenda, refetch } = useAgenda();
   const { showToast } = useToast();
   const { showConfirm } = useConfirm();
+  const bottomInset = useBottomInset(32);
 
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
-  // Analytics: trackear vista de agenda al montar la pantalla
   useEffect(() => {
     analytics.track(EVENT_TYPES.AGENDA_VIEWED);
   }, []);
@@ -149,7 +155,8 @@ export default function AgendaScreen({ navigation }: any) {
                     timeTo={event.timeTo}
                     reminder={event.reminder}
                     onEdit={() => navigation.navigate('AddEventScreen', {
-                      event: { ...event, date: event.date.toISOString() },
+                      // ✅ Usar fecha local sin timezone
+                      event: { ...event, date: toLocalDateString(event.date) },
                       refetch,
                     })}
                     onDelete={() => handleDelete(event.id)}
@@ -170,9 +177,10 @@ export default function AgendaScreen({ navigation }: any) {
           </ScrollView>
 
           <TouchableOpacity
-            style={styles.addButton}
+            style={[styles.addButton, { bottom: bottomInset }]}
             onPress={() => navigation.navigate('AddEventScreen', {
-              defaultDate: selectedDate.toISOString(),
+              // ✅ Usar fecha local sin timezone
+              defaultDate: toLocalDateString(selectedDate),
               refetch,
             })}
           >
@@ -222,7 +230,6 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 14, color: COLORS.gray, marginTop: 16 },
   addButton: {
     position: 'absolute',
-    bottom: 32,
     left: 20,
     right: 20,
     backgroundColor: COLORS.primary,

@@ -1,74 +1,78 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/infrastructure/database.service';
 import { SystemAuthService } from '../../../auth/infrastructure/services/system-auth.service';
+import { ResolveUserIdHelper } from '../helpers/resolve-user-id.helper';
 
 @Injectable()
 export class GetPostsUseCase {
   constructor(
     private readonly dbService: DatabaseService,
     private readonly systemAuth: SystemAuthService,
-  ) {}
+    private readonly resolveUserId: ResolveUserIdHelper,
+  ) { }
 
-  async execute(comunidadId: string, usuarioId: string) {
+  async execute(comunidadId: string, usuarioUuid: string) {
     const masterToken = await this.systemAuth.getMasterToken();
+    const robleId = await this.resolveUserId.getRobleId(usuarioUuid);
 
-    // 1. Verificar membresía
     const membRes = await this.dbService.find(
       'comunidad_usuarios',
-      { comunidad_id: comunidadId, usuario_id: usuarioId },
+      { comunidad_id: comunidadId, usuario_id: robleId },
       masterToken,
     );
     const membRows = Array.isArray(membRes) ? membRes : (membRes.rows || []);
-    if (membRows.length === 0) {
-      throw new ForbiddenException('No eres miembro de esta comunidad.');
-    }
+    if (membRows.length === 0) throw new ForbiddenException('No eres miembro de esta comunidad.');
 
-    // 2. Obtener posts no eliminados
-    const postsRes = await this.dbService.find(
-      'posts',
-      { comunidad_id: comunidadId },
-      masterToken,
-    );
+    const postsRes = await this.dbService.find('posts', { comunidad_id: comunidadId }, masterToken);
     const allPosts = Array.isArray(postsRes) ? postsRes : (postsRes.rows || []);
     const posts = allPosts.filter((p: any) => !p.eliminado);
 
-    // 3. Enriquecer con autor y conteo de comentarios/reacciones
+    if (posts.length === 0) return [];
+
+    // Prefetch autores unicos (ahora incluye avatar_url)
+    const autorIds = [...new Set(posts.map((p: any) => p.autor_id))] as string[];
+    const autoresArr = await Promise.all(
+      autorIds.map(id => this.dbService.findById('usuarios', id, masterToken)),
+    );
+    const autorMap = Object.fromEntries(autorIds.map((id, i) => [id, autoresArr[i]]));
+
     const enriched = await Promise.all(
       posts.map(async (post: any) => {
-        const [autorRes, commentsRes, reactionsRes] = await Promise.all([
-          this.dbService.find('usuarios', { _id: post.autor_id }, masterToken),
-          this.dbService.find('comentarios', { post_id: post._id }, masterToken),
-          this.dbService.find('reacciones', { post_id: post._id }, masterToken),
+        const [commentsRes, reactionsRes] = await Promise.all([
+          this.dbService.find('comentarios', { post_id: post._id }, masterToken)
+            .then((r: any) => Array.isArray(r) ? r : (r.rows || [])),
+          this.dbService.find('reacciones', { post_id: post._id }, masterToken)
+            .then((r: any) => Array.isArray(r) ? r : (r.rows || [])),
         ]);
 
-        const autor = Array.isArray(autorRes) ? autorRes[0] : autorRes.rows?.[0];
-        const comments = Array.isArray(commentsRes) ? commentsRes : (commentsRes.rows || []);
-        const reactions = Array.isArray(reactionsRes) ? reactionsRes : (reactionsRes.rows || []);
-
-        const activeComments = comments.filter((c: any) => !c.eliminado);
+        const activeComments = commentsRes.filter((c: any) => !c.eliminado);
+        const autor = autorMap[post.autor_id];
 
         return {
-          id:               post._id,
-          contenido:        post.contenido,
-          created_at:       post.created_at,
-          edited_at:        post.edited_at,
-          es_mio:           post.autor_id === usuarioId,
+          id:                post._id,
+          comunidad_id:      post.comunidad_id,
+          titulo:            post.titulo || null,
+          contenido:         post.contenido,
+          imagen_url:        post.imagen_url || null,
+          created_at:        post.created_at,
+          edited_at:         post.edited_at,
+          es_mio:            post.autor_id === robleId,
           autor: {
-            id:     post.autor_id,
-            nombre: autor?.nombre || 'Usuario',
+            id:         post.autor_id,
+            nombre:     autor?.nombre || 'Usuario',
+            avatar_url: autor?.avatar_url || null,
           },
           total_comentarios: activeComments.length,
-          total_reacciones:  reactions.length,
-          mis_reacciones:    reactions
-            .filter((r: any) => r.usuario_id === usuarioId)
+          total_reacciones:  reactionsRes.length,
+          mis_reacciones:    reactionsRes
+            .filter((r: any) => r.usuario_id === robleId)
             .map((r: any) => r.tipo),
         };
-      })
+      }),
     );
 
-    // Ordenar por más reciente
-    return enriched.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    return enriched.sort((a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   }
 }

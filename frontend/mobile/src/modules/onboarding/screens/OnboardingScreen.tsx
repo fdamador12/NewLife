@@ -14,7 +14,7 @@ const slides = [
   {
     id: '1',
     title: 'Apoyo',
-    description: 'Tu espacio seguro para acompañarte en tu camino hacia la sobriedad.',
+    description: 'Tu espacio seguro para acompañarte en tu camino hacia la abstinencia.',
     image: require('../../../assets/images/onboarding1.png'),
   },
   {

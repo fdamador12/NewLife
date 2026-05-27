@@ -26,7 +26,11 @@ export default function CheckInStep1({ onNo, onYes, formData, setFormData }: Pro
   const isValid = selectedEmotion !== '' && formData.consumo !== null;
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <BlobCard badge="Emociones">
         <Text style={styles.cardQuestion}>¿Cómo te sientes hoy?</Text>
         {EMOTIONS.map((e) => (
@@ -83,7 +87,7 @@ export default function CheckInStep1({ onNo, onYes, formData, setFormData }: Pro
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: 120, // ✅ aumentado para evitar zona muerta del header
     paddingTop: spacing.lg,
   },
   cardQuestion: {

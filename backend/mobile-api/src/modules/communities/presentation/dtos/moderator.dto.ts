@@ -16,6 +16,11 @@ export class SuspendMemberDto {
 }
 
 export class RequestBanDto {
+  @ApiProperty({ example: 'roble-user-id-123' })
+  @IsString()
+  @IsNotEmpty()
+  usuario_id: string;
+
   @ApiProperty({ example: 'Acoso reiterado a miembros de la comunidad' })
   @IsString()
   @IsNotEmpty()

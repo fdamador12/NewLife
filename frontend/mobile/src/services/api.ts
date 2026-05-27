@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Servidor de producción OPENLAB - Uninorte
+// ⚠️ TEMPORAL — backend local para desarrollo
+// Cambiar de vuelta a producción antes del commit final
 const BASE_URL = 'https://newlife-mobile-api.openlab.uninorte.edu.co';
 
 // Event emitter para notificar sesión expirada
@@ -42,10 +43,8 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // 🔥 NUEVO: detectar rutas de auth (login, register, etc.)
     const isAuthRoute = originalRequest?.url?.includes('/auth/');
 
-    // 🔥 CAMBIO 1: NO aplicar refresh en rutas de auth
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
@@ -84,8 +83,6 @@ api.interceptors.response.use(
     } catch (refreshError) {
       await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
       authEventEmitter.emit();
-
-      // 🔥 CAMBIO 2: devolver error ORIGINAL, no el del refresh
       return Promise.reject(error);
 
     } finally {

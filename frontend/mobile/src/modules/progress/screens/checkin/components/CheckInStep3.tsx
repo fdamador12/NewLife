@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Keyboard,
+} from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../../../constants/theme';
 import BlobCard from './BlobCard';
 import { FormData } from '../../checkin/types';
 import { saveDailyCheckin } from '../../../../../services/progressService';
 import { usePet } from '../../../../pet/hooks/usePet';
+import { isGuestMode, saveGuestCheckin, updateGuestSobrietyDate } from '../../../../../services/guestService';
 
 type Props = {
   formData: FormData;
@@ -24,7 +27,9 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
   const { addXp } = usePet();
 
   const handleFinish = async () => {
+    Keyboard.dismiss();
     setLoading(true);
+    const guest = await isGuestMode();
     try {
       const checkinPayload = {
         emocion: formData.emocion,
@@ -37,9 +42,17 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
         }),
       };
 
-      console.log('📤 Preparando envío de daily-checkin:', JSON.stringify(checkinPayload, null, 2));
-      await saveDailyCheckin(checkinPayload);
-      console.log('✅ Registro diario guardado exitosamente');
+      if (guest) {
+        await saveGuestCheckin(checkinPayload);
+        if (checkinPayload.consumo) {
+          await updateGuestSobrietyDate();
+        }
+        console.log('✅ Registro diario guardado en AsyncStorage (guest)');
+      } else {
+        console.log('📤 Preparando envío de daily-checkin:', JSON.stringify(checkinPayload, null, 2));
+        await saveDailyCheckin(checkinPayload);
+        console.log('✅ Registro diario guardado exitosamente');
+      }
 
       let totalXpGained = 0;
       let evolved = false;
@@ -77,7 +90,9 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 
     } catch (error: any) {
       console.log('❌ Error al guardar:', error);
-      if (!error.response) {
+      if (guest) {
+        showToast('No se pudo guardar el registro. Intenta de nuevo.', 'error');
+      } else if (!error.response) {
         showToast('Sin conexión. Verifica tu internet e intenta de nuevo.', 'error');
       } else if (error.response.status === 401) {
         showToast('Tu sesión expiró. Por favor vuelve a iniciar sesión.', 'error');
@@ -90,7 +105,11 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <BlobCard badge="Gratitud">
         <Text style={styles.cardQuestion}>¿Qué agradeces hoy, por pequeño que sea?</Text>
         <TextInput
@@ -127,7 +146,7 @@ export default function CheckInStep3({ formData, showToast, onSuccess }: Props) 
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: 80,
     paddingTop: spacing.lg,
   },
   cardQuestion: {

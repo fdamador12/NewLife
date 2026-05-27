@@ -34,6 +34,17 @@ export class DatabaseService {
     }
   }
 
+  async findAll(tableName: string, token: string): Promise<any[]> {
+    const result = await this.find(tableName, {}, token);
+    return Array.isArray(result) ? result : (result?.rows ?? []);
+  }
+
+  async findById(tableName: string, id: any, token: string): Promise<any> {
+    const result = await this.find(tableName, { _id: id }, token);
+    const rows = Array.isArray(result) ? result : (result?.rows ?? []);
+    return rows.find((r: any) => r._id === id) ?? null;
+  }
+
   async find(tableName: string, filters: any, token: string) {
     return this.executeWithRetry(
       () =>

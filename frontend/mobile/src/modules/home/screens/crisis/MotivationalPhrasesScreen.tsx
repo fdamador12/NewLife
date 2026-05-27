@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,26 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../../constants/
 import { useMotivationalPhrases } from '../../../care/hooks/useMotivationalPhrases';
 import MotivationalCard from '../../../care/screens/motivational/components/MotivationalCard';
 import { analytics, EVENT_TYPES } from '../../../../services/analytics';
+import { isGuestMode } from '../../../../services/guestService';
 
 export default function MotivationalPhrasesScreen({ navigation }: any) {
   const { frases, loading, toggleFavorito, fetchFrasesPorFecha } = useMotivationalPhrases();
   const hasFetched = useRef(false);
+  const [isGuest, setIsGuest] = useState(false);
 
-  // FIX: trackear CRISIS_PHRASES_VIEWED (no DAILY_PHRASE_VIEWED) porque esta
-  // pantalla se accede desde el SOS y es una lista (multiples frases visibles).
-  // No incluimos phrase_id porque atribuir a una sola frase seria enganoso.
+  // Verificar modo invitado SOLO para esconder el corazon
+  // (los guests no tienen favoritos). El tracking de analytics ya
+  // filtra guests automaticamente.
+  useEffect(() => {
+    const checkGuest = async () => {
+      const guest = await isGuestMode();
+      setIsGuest(guest);
+    };
+    checkGuest();
+  }, []);
+
+  // Trackear CRISIS_PHRASES_VIEWED UNA SOLA VEZ al abrir la pantalla
+  // (no por cada frase). analytics.track() filtra guests automaticamente.
   const trackedRef = useRef(false);
   useEffect(() => {
     if (!trackedRef.current) {
@@ -46,8 +58,9 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, fetchFrasesPorFecha]);
 
-  // FIX bug analytics: trackear daily_phrase_favorited al marcar como favorita.
+  // Trackear daily_phrase_favorited al marcar como favorita.
   // Aqui SI tiene sentido el phrase_id porque es una accion sobre UNA frase.
+  // analytics.track() filtra guests automaticamente.
   const handleToggleFavorito = (fraseId: string) => {
     const frase = frases.find((f) => f.frase_id === fraseId);
     const wasFavorite = frase?.isFavorite ?? false;
@@ -82,7 +95,6 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header  */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="chevron-left" size={24} color={colors.text} />
@@ -92,11 +104,9 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Hero section */}
       <Text style={styles.title}>Motívate</Text>
       <Text style={styles.subtitle}>Sigue adelante</Text>
 
-      {/* Contenido */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -120,7 +130,6 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
         >
           {frases.map((item, index) => (
             <View key={item.frase_id} style={styles.cardContainer}>
-              {/* Indicador de timeline */}
               <View style={styles.timelineIndicator}>
                 <View style={[
                   styles.timelineDot,
@@ -131,9 +140,7 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
                 )}
               </View>
 
-              {/* Card content */}
               <View style={styles.cardContent}>
-                {/* Badge de fecha */}
                 <View style={styles.dateBadgeContainer}>
                   <View style={[
                     styles.dateBadge,
@@ -153,19 +160,19 @@ export default function MotivationalPhrasesScreen({ navigation }: any) {
                   </View>
                 </View>
 
-                {/* Motivational Card */}
+                {/* isGuest oculta el corazon (los guests no tienen favoritos) */}
                 <MotivationalCard
                   id={item.frase_id}
                   text={item.frase}
                   image={require('../../../../assets/images/phrase.jpg')}
                   isFavorite={item.isFavorite || false}
                   onToggleFavorite={handleToggleFavorito}
+                  isGuest={isGuest}
                 />
               </View>
             </View>
           ))}
 
-          {/* Seccion de practica guiada */}
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => navigation.navigate('GuidedMeditationScreen')}

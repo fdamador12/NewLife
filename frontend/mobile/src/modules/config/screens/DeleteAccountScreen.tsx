@@ -8,6 +8,7 @@ import { colors, fontSizes, spacing, borderRadius } from '../../../constants/the
 import { useToast } from '../../../feedback/ToastContext';
 import { usePet } from '../../pet/hooks/usePet';
 import { deleteAllData } from '../../../services/authService';
+import { cancelAllLocalNotifications } from '../../../services/notificationSync';
 
 // Limite consistente con la landing web (/eliminar-cuenta)
 const MAX_MOTIVO_LENGTH = 500;
@@ -28,6 +29,14 @@ export default function DeleteAccountScreen({ navigation }: any) {
       // Trim para no enviar solo espacios en blanco. Si queda vacio mandamos
       // undefined para no guardar strings vacios en delete_motivo del backend.
       const motivoTrimmed = motivo.trim();
+
+      // 🔔 Cancelar TODAS las notificaciones locales ANTES del delete.
+      // Razon: si el usuario eliminado tenia notificaciones agendadas en el
+      // dispositivo, no queremos que sigan disparandose despues. Hacemos esto
+      // ANTES del delete porque si el delete falla, al menos las notificaciones
+      // se cancelaron (preferimos pecar de cauto con la privacidad).
+      await cancelAllLocalNotifications();
+
       await deleteAllData(motivoTrimmed.length > 0 ? motivoTrimmed : undefined);
       resetPet();
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });

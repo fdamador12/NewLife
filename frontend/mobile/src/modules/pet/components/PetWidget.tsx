@@ -7,25 +7,34 @@ import { PET_IMAGES } from '../utils/petHelpers';
 
 type Props = {
   onPress?: () => void;
+  compact?: boolean;
 };
 
-export default function PetWidget({ onPress }: Props) {
+export default function PetWidget({ onPress, compact = false }: Props) {
   const { pet, message, loading } = usePet();
 
   if (loading) return null;
 
+  const petSize = compact ? 70 : 100;
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={[styles.container, compact && styles.containerCompact]}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
       <View style={styles.topRow}>
         <View style={styles.bubbleSection}>
           <View style={styles.bubble}>
-            <Text style={styles.bubbleText}>{message}</Text>
+            <Text style={[styles.bubbleText, compact && styles.bubbleTextCompact]}>
+              {message}
+            </Text>
             <View style={styles.bubbleTail} />
           </View>
         </View>
         <Image
           source={PET_IMAGES[pet.selected_form]}
-          style={styles.petImage}
+          style={{ width: petSize, height: petSize }}
           resizeMode="contain"
         />
       </View>
@@ -45,6 +54,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
+  },
+  containerCompact: {
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   topRow: {
     flexDirection: 'row',
@@ -68,6 +81,10 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
     lineHeight: 18,
+  },
+  bubbleTextCompact: {
+    fontSize: fontSizes.xs,
+    lineHeight: 16,
   },
   bubbleTail: {
     position: 'absolute',

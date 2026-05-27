@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAgenda } from '../../hooks/useAgenda';
@@ -12,6 +13,8 @@ import { useToast } from '../../../../feedback/ToastContext';
 import { AgendaEventFrontend } from '../../services/agendaService';
 import EventForm from './components/EventForm';
 import { analytics, EVENT_TYPES } from '../../../../services/analytics';
+import { scheduleAgendaReminder } from '../../../../services/notificationSync';
+import { useBottomInset } from '../../../../hooks/useBottomInset';
 
 const COLORS = {
   primary: '#D38A58',
@@ -41,16 +44,45 @@ function timeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+/**
+ * Combina una fecha (Date solo dia) con un string de hora "8:00 am"
+ * en un Date completo con dia + hora.
+ *
+ * Necesario para agendar la notificacion local que requiere un Date
+ * con fecha y hora exactas, no solo el dia.
+ */
+function combineDateAndTime(date: Date, timeStr: string): Date {
+  const [timePart, period] = timeStr.split(' ');
+  let [hours, minutes] = timePart.split(':').map(Number);
+  if (period === 'pm' && hours !== 12) hours += 12;
+  if (period === 'am' && hours === 12) hours = 0;
+
+  const combined = new Date(date);
+  combined.setHours(hours, minutes, 0, 0);
+  return combined;
+}
+
+// ✅ Parsea YYYY-MM-DD sin problema de timezone
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 export default function AddEventScreen({ navigation, route }: any) {
   const { createAgenda, updateAgenda } = useAgenda();
   const { showToast } = useToast();
   const refetch = route.params?.refetch;
   const [isSaving, setIsSaving] = useState(false);
+  const bottomInset = useBottomInset(32);
 
   const existing = route.params?.event as AgendaEvent | undefined;
   const defaultDateStr = route.params?.defaultDate as string | undefined;
-  const defaultDate: Date = defaultDateStr ? new Date(defaultDateStr) : new Date();
-  const existingDate = existing?.date ? new Date(existing.date as string) : defaultDate;
+
+  // ✅ Parsear fechas localmente sin timezone
+  const defaultDate: Date = defaultDateStr ? parseLocalDate(defaultDateStr) : new Date();
+  const existingDate = existing?.date
+    ? (typeof existing.date === 'string' ? parseLocalDate(existing.date) : existing.date)
+    : defaultDate;
 
   const [title, setTitle] = useState(existing?.title || '');
   const [selectedDate, setSelectedDate] = useState<Date>(existingDate);
@@ -61,7 +93,10 @@ export default function AddEventScreen({ navigation, route }: any) {
   const [category, setCategory] = useState(existing?.category || 'Reunion');
   const [reminder, setReminder] = useState(existing?.reminder || false);
   const [reminderMinutes, setReminderMinutes] = useState(existing?.reminderMinutes || 30);
-  const [repeat, setRepeat] = useState(existing?.repeat || 'none');
+  // El usuario ya no puede configurar repetir desde la UI, pero el campo se
+  // mantiene en el estado para mandar siempre 'none' (mapeado a UNA_VEZ en el service).
+  // Si en el futuro se reactiva la funcionalidad, restaurar el control en EventForm.
+  const repeat = 'none';
 
   const validateTimes = (): boolean => {
     const fromMinutes = timeToMinutes(timeFrom);
@@ -74,6 +109,7 @@ export default function AddEventScreen({ navigation, route }: any) {
   };
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     if (!title.trim()) {
       showToast('El título del evento es obligatorio.', 'error');
       return;
@@ -96,16 +132,29 @@ export default function AddEventScreen({ navigation, route }: any) {
         repeat,
       };
 
+      let savedEvent: AgendaEventFrontend;
       if (existing) {
-        await updateAgenda(existing.id, eventData);
+        savedEvent = await updateAgenda(existing.id, eventData);
       } else {
-        await createAgenda(eventData);
+        savedEvent = await createAgenda(eventData);
 
-        // 📊 Analytics: trackear creación de evento (solo cuando es NUEVO, no edición).
-        // No guardamos el título ni hora — solo el hecho de que se creó y la categoría.
         analytics.track(EVENT_TYPES.AGENDA_EVENT_CREATED, {
           category: category,
           has_reminder: reminder,
+        });
+      }
+
+      // 🔔 Agendar notificacion local si el usuario activo recordatorio.
+      // Fire-and-forget: si falla la notif (Expo Go), no bloquea el flujo.
+      if (reminder && savedEvent.id) {
+        const eventDateTime = combineDateAndTime(selectedDate, timeFrom);
+        scheduleAgendaReminder(
+          savedEvent.id,
+          title,
+          eventDateTime,
+          reminderMinutes,
+        ).catch((err) => {
+          console.log('No se pudo agendar recordatorio local:', err?.message ?? err);
         });
       }
 
@@ -142,17 +191,8 @@ export default function AddEventScreen({ navigation, route }: any) {
           <Feather name="x" size={20} color={COLORS.darkGray} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{existing ? 'Editar evento' : 'Nuevo evento'}</Text>
-        <TouchableOpacity
-          style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
-          onPress={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          ) : (
-            <Feather name="check" size={20} color={COLORS.primary} />
-          )}
-        </TouchableOpacity>
+        {/* Espacio derecho vacio para mantener el header centrado */}
+        <View style={styles.headerBtnPlaceholder} />
       </View>
 
       <EventForm
@@ -171,7 +211,7 @@ export default function AddEventScreen({ navigation, route }: any) {
         category={category}
         onCategorySelect={setCategory}
         repeat={repeat}
-        onRepeatSelect={setRepeat}
+        onRepeatSelect={() => { /* no-op: repetir oculto en UI */ }}
         reminder={reminder}
         onReminderToggle={setReminder}
         reminderMinutes={reminderMinutes}
@@ -179,7 +219,7 @@ export default function AddEventScreen({ navigation, route }: any) {
       />
 
       <TouchableOpacity
-        style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        style={[styles.saveButton, { bottom: bottomInset }, isSaving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={isSaving}
       >
@@ -212,19 +252,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.darkGray },
-  saveBtn: {
+  headerBtnPlaceholder: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    backgroundColor: `${COLORS.primary}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  saveBtnDisabled: { opacity: 0.5 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.darkGray },
   saveButton: {
     position: 'absolute',
-    bottom: 32,
     left: 20,
     right: 20,
     backgroundColor: COLORS.primary,

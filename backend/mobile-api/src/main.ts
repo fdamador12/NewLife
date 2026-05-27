@@ -1,10 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import * as express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // bodyParser: false — we add our own parsers with a 15 MB limit so the json()
+  // middleware never destroys the TCP stream when a large multipart body arrives
+  // with the wrong Content-Type (which body-parser's default 100 kb limit would do).
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
@@ -12,19 +22,11 @@ async function bootstrap() {
     transform: true,
   }));
 
-  // CORS: permitir requests desde la app movil y el frontend web
-  // (que incluye el panel admin Y la landing publica con eliminar-cuenta).
-  //
-  // Si la landing en produccion esta en un dominio distinto, agregalo aqui.
-  // Para mas seguridad, considera mover esto a variable de entorno.
   app.enableCors({
     origin: [
-      'http://localhost:5182',          // Panel admin / landing local
-      'http://10.0.2.2:19000',          // Emulador Android Expo
-      'http://172.16.25.222:19000',     // Dispositivo fisico Expo
-      // Agregar aqui el dominio de produccion de la landing cuando se despliegue:
-      // 'https://newlife.app',
-      // 'https://www.newlife.app',
+      'http://localhost:5182',
+      'http://10.0.2.2:19000',
+      'http://172.16.25.222:19000',
     ],
     credentials: true,
   });
@@ -41,7 +43,6 @@ async function bootstrap() {
 
   await app.listen(3000);
 
-  // ✅ Logs de inicio
   console.log('\n');
   console.log('  🚀 Mobile API corriendo en: http://localhost:3000');
   console.log('  📋 Swagger mobile:          http://localhost:3000/api/docs/mobile');

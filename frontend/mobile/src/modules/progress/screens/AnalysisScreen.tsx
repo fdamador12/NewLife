@@ -61,7 +61,8 @@ export default function AnalysisScreen({ navigation }: any) {
 
   // ✨ DETECTAR SI HAY EMOCIONES CON VALUE > 0
   const hasEmotions = emotionStats.some((e: any) => e.value > 0);
-
+  console.log('📊 hasEmotions:', hasEmotions);
+  console.log('📊 emotionStats:', JSON.stringify(emotionStats));
   // Preparar datos para vínculos de riesgo
   const risksLinksData =
     riskCharts?.vinculos_riesgo?.data?.map((p: any, idx: number) => ({
@@ -69,6 +70,10 @@ export default function AnalysisScreen({ navigation }: any) {
       value: p.porcentaje || p.value,
       color: getColorByIndex(idx),
     })) || [];
+
+    console.log('📊 riskCharts vinculos:', JSON.stringify(riskCharts?.vinculos_riesgo));
+    console.log('📊 risksLinksData:', JSON.stringify(risksLinksData));
+    console.log('📊 hasConsumption:', risksLinksData.length > 0);
 
   // ✨ DETECTAR SI HAY CONSUMO
   const hasConsumption = risksLinksData.length > 0;
@@ -121,7 +126,8 @@ export default function AnalysisScreen({ navigation }: any) {
       )}
 
       {/* ✅ CALENDARIO MODULAR */}
-      <CalendarScreen />
+      <CalendarScreen navigation={navigation} />
+
 
       {/* SI NO HAY EMOCIONES: MOSTRAR MENSAJE VACÍO */}
       {!hasEmotions && <EmptyStateEmotions />}

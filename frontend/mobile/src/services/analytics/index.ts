@@ -14,7 +14,11 @@ import { getSessionId, resetSession } from './session';
  *   awaitarlo explícitamente: `await analytics.track(EVENT_TYPES.USER_LOGGED_OUT)`
  * - **No-blocking**: si el server está caído, la app NO se rompe. Los errores
  *   se loggean pero nunca se lanzan.
- * - **Solo usuarios autenticados**: si no hay JWT, simplemente no se trackea.
+ * - **Solo usuarios autenticados Y NO guests**: si no hay JWT, simplemente no
+ *   se trackea. Adicionalmente, aunque hubiera token, si la sesion esta marcada
+ *   como guest (isGuest === 'true' en AsyncStorage), tampoco se trackea.
+ *   Razon: los guests no pasaron por el flujo de consentimiento informado
+ *   (Step9b - Ley 1581) y por lo tanto no podemos procesar sus datos.
  * - **DRY con backend**: los EVENT_TYPES son idénticos a los del backend.
  */
 
@@ -40,6 +44,12 @@ interface TrackPayload {
  *
  * La Promise se resuelve cuando el request termina (exitoso o con error).
  * Nunca rejecta — los errores son atrapados internamente.
+ *
+ * NUNCA se trackea si:
+ *   1. No hay accessToken (usuario no autenticado)
+ *   2. La sesion es de un guest (isGuest === 'true')
+ *      Los guests no pasaron por el consentimiento informado de Ley 1581
+ *      y por lo tanto no podemos procesar sus datos de comportamiento.
  */
 async function track(
   eventType: EventType,
@@ -52,7 +62,13 @@ async function track(
     const token = await AsyncStorage.getItem('accessToken');
     if (!token) return;
 
-    // 2. Construir payload
+    // 2. PRIVACIDAD: NO trackeamos guests aunque tengan token temporal.
+    //    Los guests no aceptaron explicitamente el procesamiento de datos
+    //    en el consentimiento informado (Step9b). Cumple con Ley 1581 Art 9.
+    const isGuest = await AsyncStorage.getItem('isGuest');
+    if (isGuest === 'true') return;
+
+    // 3. Construir payload
     const payload: TrackPayload = {
       event_type: eventType,
       session_id: getSessionId(),
@@ -60,7 +76,7 @@ async function track(
       properties,
     };
 
-    // 3. Mandar al backend. Ahora SÍ esperamos el await internamente,
+    // 4. Mandar al backend. Ahora SÍ esperamos el await internamente,
     //    pero envolvemos en try/catch para no rechazar la Promise externa.
     //    Esto permite que el caller pueda awaitarla sin riesgo de unhandled rejection.
     try {

@@ -4,6 +4,7 @@ import {
     TouchableOpacity, Dimensions, FlatList, Animated,
 } from 'react-native';
 import { colors, fontSizes, spacing, borderRadius } from '../../../constants/theme';
+import { useBottomInset } from '../../../hooks/useBottomInset';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,7 +31,7 @@ const slides = [
         boldFirst: true,
         large: true,
         image: require('../../../assets/images/story3.jpg'),
-        button: null,
+        button: 'Continuar',
     },
     {
         id: '4',
@@ -38,7 +39,7 @@ const slides = [
         boldPart: '¡Ya sé! Desde ahora seré tu mascota.',
         boldFirst: false,
         image: require('../../../assets/images/story4.jpg'),
-        button: null,
+        button: 'Continuar',
     },
     {
         id: '5',
@@ -79,6 +80,7 @@ export default function StoryScreen({ navigation }: any) {
     const flatListRef = useRef<FlatList>(null);
     const fadeAnim = useRef(new Animated.Value(1)).current;
     const currentSlide = slides[displayIndex];
+    const bottomInset = useBottomInset(40);
 
     const animateTransition = (nextIndex: number) => {
         Animated.timing(fadeAnim, {
@@ -107,15 +109,10 @@ export default function StoryScreen({ navigation }: any) {
         }
     };
 
-    const handleScreenPress = () => {
-        if (!currentSlide.button) goNext();
-    };
-
     return (
-        <TouchableWithoutFeedback onPress={handleScreenPress}>
+        <TouchableWithoutFeedback onPress={goNext}>
             <View style={styles.container}>
 
-                {/* Imagen animada */}
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
                     <FlatList
                         ref={flatListRef}
@@ -132,7 +129,6 @@ export default function StoryScreen({ navigation }: any) {
                     />
                 </Animated.View>
 
-                {/* Dots */}
                 <View style={styles.dotsContainer}>
                     {slides.map((_, index) => (
                         <View
@@ -142,19 +138,19 @@ export default function StoryScreen({ navigation }: any) {
                     ))}
                 </View>
 
-                {/* Burbuja sin animación */}
                 <View style={styles.bubbleContainer}>
                     <View style={styles.bubble}>
                         {renderText(currentSlide)}
                     </View>
                 </View>
 
-                {/* Botón */}
-                {currentSlide.button && (
-                    <TouchableOpacity style={styles.button} onPress={goNext}>
-                        <Text style={styles.buttonText}>{currentSlide.button}</Text>
-                    </TouchableOpacity>
-                )}
+                {/* ✅ Siempre hay botón en todos los slides */}
+                <TouchableOpacity
+                    style={[styles.button, { bottom: bottomInset }]}
+                    onPress={goNext}
+                >
+                    <Text style={styles.buttonText}>{currentSlide.button}</Text>
+                </TouchableOpacity>
 
             </View>
         </TouchableWithoutFeedback>
@@ -229,7 +225,6 @@ const styles = StyleSheet.create({
     },
     button: {
         position: 'absolute',
-        bottom: 40,
         left: spacing.xl,
         right: spacing.xl,
         backgroundColor: colors.primary,

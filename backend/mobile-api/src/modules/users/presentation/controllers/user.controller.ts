@@ -25,9 +25,10 @@ import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
 import { CompleteProfileUseCase } from '../../application/use-cases/complete-profile.use-case';
 import { GetProfileUseCase } from '../../application/use-cases/get-profile.use-case';
 import { UpdateProfileUseCase } from '../../application/use-cases/update-profile.use-case';
-import { DeleteAccountUseCase } from '../../application/use-cases/delete-account.use-case';
+import { UpdateAvatarUseCase } from '../../application/use-cases/update-avatar.use-case';
 import { InitialRegisterDto } from '../dtos/initial-register.dto';
 import { UpdateProfileDto } from '../dtos/update-profile.dto';
+import { UpdateAvatarDto } from '../dtos/update-avatar.dto';
 import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-data.use-case';
 
 /**
@@ -36,10 +37,6 @@ import { DeleteAllDataUseCase } from '../../application/use-cases/delete-all-dat
  * El motivo es OPCIONAL: si el usuario decide compartir por que se va, lo
  * guardamos en `usuarios.delete_motivo` para retroalimentacion del producto.
  * Movil envia este motivo desde el modal de confirmacion de eliminacion.
- *
- * Los decoradores @IsOptional/@IsString son CRITICOS: sin ellos, el
- * ValidationPipe global de NestJS rechaza el body con 400 Bad Request
- * cuando llegan propiedades que no estan declaradas (whitelist mode).
  */
 class DeleteAllDataDto {
   @IsOptional()
@@ -57,7 +54,7 @@ export class UserController {
     private readonly completeProfileUseCase: CompleteProfileUseCase,
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
-    private readonly deleteAccountUseCase: DeleteAccountUseCase,
+    private readonly updateAvatarUseCase: UpdateAvatarUseCase,
     private readonly deleteAllDataUseCase: DeleteAllDataUseCase,
   ) { }
 
@@ -90,12 +87,24 @@ export class UserController {
     return this.updateProfileUseCase.execute(req.user.uid, dto);
   }
 
-  @Delete('account')
+  /**
+   * PATCH /user/avatar
+   *
+   * Actualiza la foto de perfil del usuario. La imagen debe haberse subido
+   * previamente a /media/upload-avatar para obtener la URL pública.
+   *
+   * Body: { avatar_url: string | null }
+   * - URL valida: actualiza el avatar (y borra el anterior si existia).
+   * - null o cadena vacia: elimina el avatar.
+   */
+  @Patch('avatar')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Eliminar cuenta del usuario autenticado' })
-  @ApiOkResponse({ description: 'Cuenta eliminada.' })
-  async deleteAccount(@Request() req: any) {
-    return this.deleteAccountUseCase.execute(req.user.uid);
+  @ApiOperation({ summary: 'Actualizar foto de perfil (URL ya subida a MinIO)' })
+  @ApiOkResponse({ description: 'Avatar actualizado.' })
+  @ApiNotFoundResponse({ description: 'Usuario no encontrado.' })
+  @ApiBadRequestResponse({ description: 'URL invalida.' })
+  async updateAvatar(@Request() req: any, @Body() dto: UpdateAvatarDto) {
+    return this.updateAvatarUseCase.execute(req.user.uid, dto.avatar_url ?? null);
   }
 
   /**

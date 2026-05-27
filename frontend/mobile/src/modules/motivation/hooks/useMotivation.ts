@@ -13,7 +13,7 @@ import { FraseDia, UserChallenge, Medal } from '../types/motivation';
 export const useMotivation = () => {
   const [fraseDia, setFraseDia] = useState<FraseDia | null>(null);
   const [frasesGuardadas, setFrasesGuardadas] = useState<FraseDia[]>([]);
-  
+
   const [misChallenges, setMisChallenges] = useState<{
     activos: UserChallenge[];
     disponibles: UserChallenge[];
@@ -23,12 +23,11 @@ export const useMotivation = () => {
     disponibles: [],
     terminados: [],
   });
-  
+
   const [misMedallas, setMisMedallas] = useState<Medal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ FRASES
   const fetchFraseDia = useCallback(async () => {
     try {
       setLoading(true);
@@ -36,13 +35,12 @@ export const useMotivation = () => {
       const frase = await getFraseDia();
       setFraseDia(frase);
     } catch (err: any) {
-      // ✅ Si es 404, no es un "error" - es que no hay frase hoy
       if (err.response?.status === 404) {
         setFraseDia(null);
-        setError(null); // ← NO mostrar como error
+        setError(null);
         console.log('⚠️ No hay frase del día para hoy');
       } else {
-        setError(err.message || 'Error obteniendo frase del día');
+        setError('No se pudo cargar la frase del día. Intenta de nuevo.');
         console.error('❌ Error fetchFraseDia:', err);
       }
     } finally {
@@ -52,11 +50,10 @@ export const useMotivation = () => {
 
   const fetchFrasesGuardadas = useCallback(async () => {
     try {
-      // ✅ NO usar setLoading aquí - solo cargar en background
       const frases = await getFrasesGuardadas();
       setFrasesGuardadas(frases || []);
     } catch (err: any) {
-      setError(err.message || 'Error obteniendo frases guardadas');
+      setError('No se pudieron cargar las frases guardadas.');
       console.error('❌ Error fetchFrasesGuardadas:', err);
       setFrasesGuardadas([]);
     }
@@ -71,16 +68,12 @@ export const useMotivation = () => {
           : false;
 
         if (isFavorite) {
-          // ✅ Eliminar de favoritas - actualizar estado inmediatamente
           setFrasesGuardadas((prev) => prev.filter((f) => f.frase_id !== fraseId));
           await desguardarFrase(fraseId);
           if (fraseDia?.frase_id === fraseId) {
-            setFraseDia((prev) =>
-              prev ? { ...prev, isFavorite: false } : null
-            );
+            setFraseDia((prev) => prev ? { ...prev, isFavorite: false } : null);
           }
         } else {
-          // ✅ Agregar a favoritas - crear el objeto y agregarlo inmediatamente
           const newSavedPhrase = {
             _id: fraseId,
             frase_id: fraseId,
@@ -91,22 +84,18 @@ export const useMotivation = () => {
           setFrasesGuardadas((prev) => [...prev, newSavedPhrase]);
           await guardarFrase(fraseId);
           if (fraseDia?.frase_id === fraseId) {
-            setFraseDia((prev) =>
-              prev ? { ...prev, isFavorite: true } : null
-            );
+            setFraseDia((prev) => prev ? { ...prev, isFavorite: true } : null);
           }
         }
       } catch (err: any) {
-        setError(err.message || 'Error actualizando favorita');
+        setError('No se pudo actualizar el favorito. Intenta de nuevo.');
         console.error('❌ Error toggleFraseFavorita:', err);
-        // ❌ Si falla, refetch para sincronizar
         await fetchFrasesGuardadas();
       }
     },
     [frasesGuardadas, fraseDia, fetchFrasesGuardadas]
   );
 
-  // ✅ RETOS
   const fetchMisChallenges = useCallback(async () => {
     try {
       setLoading(true);
@@ -118,7 +107,7 @@ export const useMotivation = () => {
         terminados: challenges.terminados || [],
       });
     } catch (err: any) {
-      setError(err.message || 'Error obteniendo retos');
+      setError('No se pudieron cargar los retos. Intenta de nuevo.');
       console.error('❌ Error fetchMisChallenges:', err);
     } finally {
       setLoading(false);
@@ -131,17 +120,15 @@ export const useMotivation = () => {
         setError(null);
         const newChallenge = await joinChallenge(retoId);
         console.log('✅ Inscrito al reto:', newChallenge);
-        // Refetch para actualizar lista
         await fetchMisChallenges();
       } catch (err: any) {
-        setError(err.message || 'Error uniéndose al reto');
+        setError('No se pudo unir al reto. Intenta de nuevo.');
         console.error('❌ Error joinChallenge:', err);
       }
     },
     [fetchMisChallenges]
   );
 
-  // ✅ MEDALLAS
   const fetchMisMedallas = useCallback(async () => {
     try {
       setLoading(true);
@@ -149,7 +136,7 @@ export const useMotivation = () => {
       const medallas = await getMisMedallas();
       setMisMedallas(medallas);
     } catch (err: any) {
-      setError(err.message || 'Error obteniendo medallas');
+      setError('No se pudieron cargar las medallas. Intenta de nuevo.');
       console.error('❌ Error fetchMisMedallas:', err);
     } finally {
       setLoading(false);

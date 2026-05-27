@@ -14,9 +14,6 @@ import { GetCommentsUseCase } from '../../application/use-cases/get-comments.use
 import { CreateCommentUseCase } from '../../application/use-cases/create-comment.use-case';
 import { DeleteCommentUseCase } from '../../application/use-cases/delete-comment.use-case';
 import { ReactToPostUseCase } from '../../application/use-cases/react-to-post.use-case';
-import { GetForumsUseCase } from '../../application/use-cases/get-forums.use-case';
-import { GetForumDetailUseCase } from '../../application/use-cases/get-forum-detail.use-case';
-import { ReplyForumUseCase } from '../../application/use-cases/reply-forum.use-case';
 import { ModGetMembersUseCase } from '../../application/use-cases/moderator/get-members.use-case';
 import { ModChangeAccessUseCase } from '../../application/use-cases/moderator/change-access.use-case';
 import { ModSuspendMemberUseCase } from '../../application/use-cases/moderator/suspend-member.use-case';
@@ -27,6 +24,22 @@ import { CreatePostDto } from '../dtos/post.dto';
 import { CreateCommentDto } from '../dtos/comment.dto';
 import { ReactDto } from '../dtos/reaction.dto';
 import { ReplyForumDto, ChangeAccessDto, SuspendMemberDto, RequestBanDto, AddMemberDto } from '../dtos/moderator.dto';
+import { GetDailyForumUseCase } from '../../application/use-cases/get-daily-forum.use-case';
+import { GetDailyForumDetailUseCase } from '../../application/use-cases/get-daily-forum-detail.use-case';
+import { ReplyDailyForumUseCase } from '../../application/use-cases/reply-daily-forum.use-case';
+import { LikeForumReplyUseCase } from '../../application/use-cases/like-forum-reply.use-case';
+import { CommentForumReplyUseCase } from '../../application/use-cases/comment-forum-reply.use-case';
+import { GetAllForumsUseCase } from '../../application/use-cases/get-all-forums.use-case';
+import { LikeCommentUseCase } from '../../application/use-cases/like-comment.use-case';
+import { ReplyToCommentUseCase } from '../../application/use-cases/reply-to-comment.use-case';
+import { LikeCommentReplyUseCase } from '../../application/use-cases/like-comment-reply.use-case';
+import { DeleteReplyUseCase } from '../../application/use-cases/delete-reply.use-case';
+import { GetUserPostsUseCase } from '../../application/use-cases/get-user-posts.use-case';
+import { GetUserPostsByIdUseCase } from '../../application/use-cases/get-user-posts-by-id.use-case';
+import { GetForumsUseCase } from '../../application/use-cases/get-forums.use-case';
+import { GetForumDetailUseCase } from '../../application/use-cases/get-forum-detail.use-case';
+import { ReplyForumUseCase } from '../../application/use-cases/reply-forum.use-case';
+import { GetPublicProfileUseCase } from '../../application/use-cases/get-public-profile.use-case';
 
 @ApiTags('Comunidades')
 @ApiBearerAuth()
@@ -43,16 +56,29 @@ export class CommunitiesController {
     private readonly createCommentUseCase: CreateCommentUseCase,
     private readonly deleteCommentUseCase: DeleteCommentUseCase,
     private readonly reactToPostUseCase: ReactToPostUseCase,
-    private readonly getForumsUseCase: GetForumsUseCase,
-    private readonly getForumDetailUseCase: GetForumDetailUseCase,
-    private readonly replyForumUseCase: ReplyForumUseCase,
+    private readonly getDailyForumUseCase: GetDailyForumUseCase,
+    private readonly getDailyForumDetailUseCase: GetDailyForumDetailUseCase,
+    private readonly replyDailyForumUseCase: ReplyDailyForumUseCase,
+    private readonly likeForumReplyUseCase: LikeForumReplyUseCase,
+    private readonly commentForumReplyUseCase: CommentForumReplyUseCase,
     private readonly modGetMembersUseCase: ModGetMembersUseCase,
     private readonly modChangeAccessUseCase: ModChangeAccessUseCase,
     private readonly modSuspendMemberUseCase: ModSuspendMemberUseCase,
     private readonly modRequestBanUseCase: ModRequestBanUseCase,
     private readonly modRemoveMemberUseCase: ModRemoveMemberUseCase,
     private readonly modAddMemberUseCase: ModAddMemberUseCase,
-  ) {}
+    private readonly getAllForumsUseCase: GetAllForumsUseCase,
+    private readonly likeCommentUseCase: LikeCommentUseCase,
+    private readonly replyToCommentUseCase: ReplyToCommentUseCase,
+    private readonly likeCommentReplyUseCase: LikeCommentReplyUseCase,
+    private readonly deleteReplyUseCase: DeleteReplyUseCase,
+    private readonly getUserPostsUseCase: GetUserPostsUseCase,
+    private readonly getUserPostsByIdUseCase: GetUserPostsByIdUseCase,
+    private readonly getForumsUseCase: GetForumsUseCase,
+    private readonly getForumDetailUseCase: GetForumDetailUseCase,
+    private readonly replyForumUseCase: ReplyForumUseCase,
+    private readonly getPublicProfileUseCase: GetPublicProfileUseCase,
+  ) { }
 
   // ── Comunidades ────────────────────────────────────────────────────────────
 
@@ -60,6 +86,37 @@ export class CommunitiesController {
   @ApiOperation({ summary: 'Listar mis comunidades' })
   async getMyCommunities(@Request() req: any) {
     return this.getMyCommunitiesUseCase.execute(req.user.uid);
+  }
+
+  // ── Foros (rutas estáticas antes de :id) ──────────────────────────────────
+  @Get('daily-forum')
+  @ApiOperation({ summary: 'Obtener foro del día con comunidades del usuario' })
+  async getDailyForum(@Request() req: any) {
+    return this.getDailyForumUseCase.execute(req.user.uid);
+  }
+
+  @Get('all-forums')
+  @ApiOperation({ summary: 'Listar todos los foros del día (histórico)' })
+  async getAllForums(@Request() req: any) {
+    return this.getAllForumsUseCase.execute(req.user.uid);
+  }
+
+  @Get('my-posts')
+  @ApiOperation({ summary: 'Publicaciones del usuario autenticado' })
+  async getMyPosts(@Request() req: any) {
+    return this.getUserPostsUseCase.execute(req.user.uid);
+  }
+
+  @Get('users/:robleId/profile')
+  @ApiOperation({ summary: 'Perfil publico de un usuario por robleId (avatar, descripcion, apodo, pronombre)' })
+  async getUserPublicProfile(@Param('robleId') robleId: string) {
+    return this.getPublicProfileUseCase.execute(robleId);
+  }
+
+  @Get('users/:robleId/posts')
+  @ApiOperation({ summary: 'Publicaciones de otro usuario (solo comunidades en común)' })
+  async getUserPostsById(@Param('robleId') robleId: string, @Request() req: any) {
+    return this.getUserPostsByIdUseCase.execute(robleId, req.user.uid);
   }
 
   @Get(':id')
@@ -79,7 +136,7 @@ export class CommunitiesController {
   @Post(':id/posts')
   @ApiOperation({ summary: 'Crear post' })
   async createPost(@Param('id') id: string, @Body() dto: CreatePostDto, @Request() req: any) {
-    return this.createPostUseCase.execute(id, req.user.uid, dto.contenido);
+    return this.createPostUseCase.execute(id, req.user.uid, dto.contenido, dto.titulo, dto.imagen_url);
   }
 
   @Delete(':id/posts/:postId')
@@ -120,6 +177,58 @@ export class CommunitiesController {
     return this.deleteCommentUseCase.execute(id, postId, commentId, req.user.uid);
   }
 
+  // ── Likes y respuestas de comentarios ─────────────────────────────────────
+
+  @Post(':id/posts/:postId/comments/:commentId/likes')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Like/unlike a un comentario (toggle)' })
+  async likeComment(
+    @Param('id') id: string,
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Request() req: any,
+  ) {
+    return this.likeCommentUseCase.execute(id, postId, commentId, req.user.uid);
+  }
+
+  @Post(':id/posts/:postId/comments/:commentId/replies')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Responder a un comentario' })
+  async replyToComment(
+    @Param('id') id: string,
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: CreateCommentDto,
+    @Request() req: any,
+  ) {
+    return this.replyToCommentUseCase.execute(id, postId, commentId, req.user.uid, dto.contenido);
+  }
+
+  @Delete(':id/posts/:postId/comments/:commentId/replies/:replyId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar respuesta a comentario (propio o moderador)' })
+  async deleteReply(
+    @Param('id') id: string,
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Param('replyId') replyId: string,
+    @Request() req: any,
+  ) {
+    return this.deleteReplyUseCase.execute(id, postId, commentId, replyId, req.user.uid);
+  }
+
+  @Post(':id/posts/:postId/comments/:commentId/replies/:replyId/likes')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Like/unlike a una respuesta de comentario (toggle)' })
+  async likeCommentReply(
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+    @Param('replyId') replyId: string,
+    @Request() req: any,
+  ) {
+    return this.likeCommentReplyUseCase.execute(id, replyId, req.user.uid);
+  }
+
   // ── Reacciones ─────────────────────────────────────────────────────────────
 
   @Post(':id/posts/:postId/reactions')
@@ -135,32 +244,76 @@ export class CommunitiesController {
   }
 
   // ── Foros ──────────────────────────────────────────────────────────────────
+  @Get(':id/daily-forum/:foroId')
+  @ApiOperation({ summary: 'Detalle del foro del día en una comunidad específica' })
+  async getDailyForumDetail(
+    @Param('id') id: string,
+    @Param('foroId') foroId: string,
+    @Request() req: any,
+  ) {
+    return this.getDailyForumDetailUseCase.execute(foroId, id, req.user.uid);
+  }
+
+  @Post(':id/daily-forum/:foroId/replies')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Responder al foro del día (solo si es hoy)' })
+  async replyDailyForum(
+    @Param('id') id: string,
+    @Param('foroId') foroId: string,
+    @Body() dto: ReplyForumDto,
+    @Request() req: any,
+  ) {
+    return this.replyDailyForumUseCase.execute(foroId, id, req.user.uid, dto.contenido);
+  }
+
+  @Post(':id/daily-forum/:foroId/replies/:replyId/likes')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Like/unlike a una respuesta del foro (toggle)' })
+  async likeForumReply(
+    @Param('id') id: string,
+    @Param('replyId') replyId: string,
+    @Request() req: any,
+  ) {
+    return this.likeForumReplyUseCase.execute(id, replyId, req.user.uid);
+  }
+
+  @Post(':id/daily-forum/:foroId/replies/:replyId/comments')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Comentar en una respuesta del foro (solo si es hoy)' })
+  async commentForumReply(
+    @Param('id') id: string,
+    @Param('foroId') foroId: string,
+    @Param('replyId') replyId: string,
+    @Body() dto: ReplyForumDto,
+    @Request() req: any,
+  ) {
+    return this.commentForumReplyUseCase.execute(foroId, id, replyId, req.user.uid, dto.contenido);
+  }
+
+  // ── Foros de comunidad ─────────────────────────────────────────────────────
 
   @Get(':id/forums')
-  @ApiOperation({ summary: 'Ver foros de la comunidad' })
+  @ApiOperation({ summary: 'Listar foros de una comunidad' })
   async getForums(@Param('id') id: string, @Request() req: any) {
     return this.getForumsUseCase.execute(id, req.user.uid);
   }
 
-  @Get(':id/forums/:forumId')
-  @ApiOperation({ summary: 'Ver detalle de un foro con respuestas' })
-  async getForumDetail(
-    @Param('id') id: string,
-    @Param('forumId') forumId: string,
-    @Request() req: any,
-  ) {
-    return this.getForumDetailUseCase.execute(id, forumId, req.user.uid);
+  @Get(':id/forums/:foroId')
+  @ApiOperation({ summary: 'Detalle de un foro de comunidad' })
+  async getForumDetail(@Param('id') id: string, @Param('foroId') foroId: string, @Request() req: any) {
+    return this.getForumDetailUseCase.execute(id, foroId, req.user.uid);
   }
 
-  @Post(':id/forums/:forumId/replies')
-  @ApiOperation({ summary: 'Responder a un foro' })
+  @Post(':id/forums/:foroId/replies')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Responder a un foro de comunidad' })
   async replyForum(
     @Param('id') id: string,
-    @Param('forumId') forumId: string,
+    @Param('foroId') foroId: string,
     @Body() dto: ReplyForumDto,
     @Request() req: any,
   ) {
-    return this.replyForumUseCase.execute(id, forumId, req.user.uid, dto.contenido);
+    return this.replyForumUseCase.execute(id, foroId, req.user.uid, dto.contenido);
   }
 
   // ── Moderador ──────────────────────────────────────────────────────────────
@@ -203,8 +356,7 @@ export class CommunitiesController {
     @Body() dto: RequestBanDto,
     @Request() req: any,
   ) {
-    // El body debe incluir el usuario_id del reportado
-    return this.modRequestBanUseCase.execute(id, (dto as any).usuario_id, req.user.uid, dto.motivo);
+    return this.modRequestBanUseCase.execute(id, dto.usuario_id, req.user.uid, dto.motivo);
   }
 
   @Post(':id/members')
