@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,30 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, fontSizes } from '../../../../../constants/theme';
 import { useCalendarData } from '../hooks/useCalendarData';
+import { useCalendarEvents } from '../hooks/useCalendarEvents';
+import { CalendarEvent } from '../data/colombianEvents';
+import CalendarGrid from './components/CalendarGrid';
+import CalendarLegend from './components/CalendarLegend';
+import DayDetail from './components/DayDetail';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mier', 'Jue', 'Vier', 'Sab', 'Dom'];
-
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 
-const getDaysInMonth = (month: number, year: number): number => {
-  return new Date(year, month, 0).getDate();
-};
+const getDaysInMonth = (month: number, year: number): number =>
+  new Date(year, month, 0).getDate();
 
 const getFirstDayOfMonth = (month: number, year: number): number => {
   const firstDay = new Date(year, month - 1, 1).getDay();
   return firstDay === 0 ? 6 : firstDay - 1;
 };
 
-export default function CalendarScreen() {
+const toLocalDateString = (year: number, month: number, day: number): string =>
+  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+export default function CalendarScreen({ navigation }: any) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const {
@@ -42,6 +48,8 @@ export default function CalendarScreen() {
     isNextDisabled,
   } = useCalendarData();
 
+  const calendarEvents = useCalendarEvents(currentYear);
+
   useEffect(() => {
     loadInitial();
   }, [loadInitial]);
@@ -55,33 +63,36 @@ export default function CalendarScreen() {
     }
   }, [currentMonth, currentYear]);
 
-  const generateCalendarGrid = () => {
+  const generateCalendarGrid = (): (number | null)[] => {
     const daysInMonth = getDaysInMonth(currentMonth, currentYear);
     const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
-    const grid = [];
-
-    for (let i = 0; i < firstDay; i++) {
-      grid.push(null);
-    }
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      grid.push(day);
-    }
-
+    const grid: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) grid.push(null);
+    for (let day = 1; day <= daysInMonth; day++) grid.push(day);
     return grid;
   };
 
-  const getSelectedDayInfo = () => {
-    if (!selectedDay) return null;
-    return processedDays.find((d: any) => d.day === selectedDay) || null;
+  const getEventsForDay = (day: number): CalendarEvent[] => {
+    const key = toLocalDateString(currentYear, currentMonth, day);
+    return calendarEvents[key] || [];
   };
 
+  // ✅ Todos los eventos del mes actual — para la leyenda dinámica
+  const monthEvents = useMemo(() => {
+    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+    const allEvents: CalendarEvent[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      allEvents.push(...getEventsForDay(day));
+    }
+    return allEvents;
+  }, [currentMonth, currentYear, calendarEvents]);
+
   const dayMap = new Map(processedDays.map((d: any) => [d.day, d]));
-  const today = new Date();
-  const isCurrentMonth = today.getMonth() + 1 === currentMonth && today.getFullYear() === currentYear;
-  const todayDate = today.getDate();
   const calendarGrid = generateCalendarGrid();
-  const selectedDayInfo = getSelectedDayInfo();
+  const selectedDayInfo = selectedDay
+    ? processedDays.find((d: any) => d.day === selectedDay) || null
+    : null;
+  const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
 
   if (error) {
     return (
@@ -93,9 +104,11 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.card}>
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <View style={styles.calendarHeader}>
         <TouchableOpacity
-          style={[styles.calendarNavButton, isPrevDisabled() && styles.buttonDisabled]}
+          style={[styles.navButton, isPrevDisabled() && styles.buttonDisabled]}
           onPress={goToPreviousMonth}
           disabled={isPrevDisabled()}
         >
@@ -105,12 +118,12 @@ export default function CalendarScreen() {
             color={isPrevDisabled() ? colors.border : colors.text}
           />
         </TouchableOpacity>
-        <View style={styles.calendarTitleWrapper}>
-          <Text style={styles.calendarMonth}>{MONTH_NAMES[currentMonth - 1]}</Text>
-          <Text style={styles.calendarYear}>{currentYear}</Text>
+        <View style={styles.titleWrapper}>
+          <Text style={styles.monthText}>{MONTH_NAMES[currentMonth - 1]}</Text>
+          <Text style={styles.yearText}>{currentYear}</Text>
         </View>
         <TouchableOpacity
-          style={[styles.calendarNavButton, isNextDisabled() && styles.buttonDisabled]}
+          style={[styles.navButton, isNextDisabled() && styles.buttonDisabled]}
           onPress={goToNextMonth}
           disabled={isNextDisabled()}
         >
@@ -122,11 +135,10 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Días de la semana ────────────────────────────────────────────── */}
       <View style={styles.weekRow}>
         {WEEK_DAYS.map((d) => (
-          <Text key={d} style={styles.weekDay}>
-            {d}
-          </Text>
+          <Text key={d} style={styles.weekDay}>{d}</Text>
         ))}
       </View>
 
@@ -137,94 +149,26 @@ export default function CalendarScreen() {
         </View>
       ) : (
         <>
-          <View style={styles.daysGrid}>
-            {calendarGrid.map((day, i) => {
-              if (day === null) {
-                return <View key={`empty-${i}`} style={styles.dayCell} />;
-              }
+          <CalendarGrid
+            calendarGrid={calendarGrid}
+            dayMap={dayMap}
+            selectedDay={selectedDay}
+            getEventsForDay={getEventsForDay}
+            onDayPress={setSelectedDay}
+          />
 
-              const dayData = dayMap.get(day);
-              const isSelected = selectedDay === day;
-              const isClean = dayData?.tipo === 'limpio';
-              const isDifficult = dayData?.tipo === 'dificil';
-
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.dayCell}
-                  onPress={() => setSelectedDay(day)}
-                >
-                  <View
-                    style={[
-                      styles.dayCircle,
-                      isClean && styles.dayCircleClean,
-                      isDifficult && styles.dayCircleDifficult,
-                      isSelected && styles.dayCircleSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        isClean && styles.dayTextClean,
-                        isDifficult && styles.dayTextDifficult,
-                        isSelected && styles.dayTextSelected,
-                      ]}
-                    >
-                      {day}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.calendarLegend}>
-            <View style={styles.legendItem}>
-              <View style={styles.legendDotOutline} />
-              <Text style={styles.legendText}>Hoy</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#4A7BF7' }]} />
-              <Text style={styles.legendText}>Día limpio</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
-              <Text style={styles.legendText}>Día difícil</Text>
-            </View>
-          </View>
+          {/* ✅ Leyenda dinámica según eventos del mes */}
+          <CalendarLegend monthEvents={monthEvents} />
 
           {selectedDay && (
-            <View style={styles.dayInfo}>
-              {selectedDayInfo ? (
-                <>
-                  {selectedDayInfo.tipo === 'dificil' ? (
-                    <>
-                      <Text style={styles.dayInfoRow}>
-                        <Text style={styles.dayInfoLabel}>Donde estaba: </Text>
-                        <Text style={styles.dayInfoValue}>{selectedDayInfo.resumen.ubicacion}</Text>
-                      </Text>
-                      <Text style={styles.dayInfoRow}>
-                        <Text style={styles.dayInfoLabel}>Con quién estaba: </Text>
-                        <Text style={styles.dayInfoValue}>{selectedDayInfo.resumen.social}</Text>
-                      </Text>
-                      <Text style={styles.dayInfoRow}>
-                        <Text style={styles.dayInfoLabel}>Cómo me sentía: </Text>
-                        <Text style={styles.dayInfoValue}>{selectedDayInfo.resumen.emocion}</Text>
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={styles.dayInfoRow}>
-                      <Text style={styles.dayInfoLabel}>Cómo me sentía: </Text>
-                      <Text style={styles.dayInfoValue}>{selectedDayInfo.resumen.emocion}</Text>
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.dayInfoEmpty}>
-                  Sin registro este día
-                </Text>
-              )}
-            </View>
+            <DayDetail
+              dayInfo={selectedDayInfo}
+              events={selectedDayEvents}
+              selectedDay={selectedDay}
+              currentMonth={currentMonth}
+              currentYear={currentYear}
+              onSOSPress={() => navigation?.navigate('SOS')}
+            />
           )}
         </>
       )}
@@ -251,7 +195,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  calendarNavButton: {
+  navButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -260,18 +204,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  calendarTitleWrapper: {
-    alignItems: 'center',
-  },
-  calendarMonth: {
+  buttonDisabled: { opacity: 0.5 },
+  titleWrapper: { alignItems: 'center' },
+  monthText: {
     fontSize: fontSizes.md,
     fontWeight: '700',
     color: colors.text,
   },
-  calendarYear: {
+  yearText: {
     fontSize: fontSizes.xs,
     color: colors.textMuted,
   },
@@ -285,94 +225,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.textMuted,
     fontWeight: '600',
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: '14.28%',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCircleClean: {
-    backgroundColor: '#4A7BF7',
-  },
-  dayCircleDifficult: {
-    backgroundColor: colors.accent,
-  },
-  dayCircleSelected: {
-  borderWidth: 2,
-  borderColor: colors.text,
-  borderRadius: 16,
-  },
-  dayText: {
-    fontSize: fontSizes.xs,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  dayTextClean: {
-    color: colors.white,
-    fontWeight: '700',
-  },
-  dayTextDifficult: {
-    color: colors.white,
-    fontWeight: '700',
-  },
-  dayTextSelected: {
-    fontWeight: '700',
-  },
-  calendarLegend: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendDotOutline: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: colors.text,
-  },
-  legendText: {
-    fontSize: fontSizes.xs,
-    color: colors.textMuted,
-  },
-  dayInfo: {
-    marginTop: spacing.sm,
-    gap: 4,
-  },
-  dayInfoRow: {
-    fontSize: fontSizes.sm,
-  },
-  dayInfoLabel: {
-    fontWeight: '700',
-    color: colors.text,
-  },
-  dayInfoValue: {
-    color: colors.textMuted,
-  },
-  dayInfoEmpty: {
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
-    fontStyle: 'italic',
   },
   loadingContainer: {
     height: 200,
